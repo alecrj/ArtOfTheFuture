@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftUI
 
 /// Main dependency injection container
 final class Container {
@@ -16,5 +15,5 @@ final class Container {
         print("Container initialized")
     }
     
-    // Services will be added here
+    // Services will be added here later
 }

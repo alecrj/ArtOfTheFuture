@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		70E5A2D62E1C5EDD000DAD89 /* PROJECT_CONTINUITY.md in Resources */ = {isa = PBXBuildFile; fileRef = 70E5A2D52E1C5EDD000DAD89 /* PROJECT_CONTINUITY.md */; };
+		70E5A2E52E1C67CB000DAD89 /* PencilKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70E5A2E42E1C67CB000DAD89 /* PencilKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +33,7 @@
 		70E5A2492E1C524E000DAD89 /* ArtOfTheFutureTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArtOfTheFutureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		70E5A2532E1C524E000DAD89 /* ArtOfTheFutureUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArtOfTheFutureUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		70E5A2D52E1C5EDD000DAD89 /* PROJECT_CONTINUITY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PROJECT_CONTINUITY.md; sourceTree = "<group>"; };
+		70E5A2E42E1C67CB000DAD89 /* PencilKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PencilKit.framework; path = System/Library/Frameworks/PencilKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -57,6 +59,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				70E5A2E52E1C67CB000DAD89 /* PencilKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -84,6 +87,7 @@
 				70E5A23E2E1C5247000DAD89 /* ArtOfTheFuture */,
 				70E5A24C2E1C524E000DAD89 /* ArtOfTheFutureTests */,
 				70E5A2562E1C524E000DAD89 /* ArtOfTheFutureUITests */,
+				70E5A2E32E1C67CA000DAD89 /* Frameworks */,
 				70E5A23D2E1C5247000DAD89 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -96,6 +100,14 @@
 				70E5A2532E1C524E000DAD89 /* ArtOfTheFutureUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		70E5A2E32E1C67CA000DAD89 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				70E5A2E42E1C67CB000DAD89 /* PencilKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
