@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		70E5A2D62E1C5EDD000DAD89 /* PROJECT_CONTINUITY.md in Resources */ = {isa = PBXBuildFile; fileRef = 70E5A2D52E1C5EDD000DAD89 /* PROJECT_CONTINUITY.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		70E5A24A2E1C524E000DAD89 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		70E5A23C2E1C5247000DAD89 /* ArtOfTheFuture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ArtOfTheFuture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		70E5A2492E1C524E000DAD89 /* ArtOfTheFutureTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArtOfTheFutureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		70E5A2532E1C524E000DAD89 /* ArtOfTheFutureUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArtOfTheFutureUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		70E5A2D52E1C5EDD000DAD89 /* PROJECT_CONTINUITY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PROJECT_CONTINUITY.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +80,7 @@
 		70E5A2332E1C5247000DAD89 = {
 			isa = PBXGroup;
 			children = (
+				70E5A2D52E1C5EDD000DAD89 /* PROJECT_CONTINUITY.md */,
 				70E5A23E2E1C5247000DAD89 /* ArtOfTheFuture */,
 				70E5A24C2E1C524E000DAD89 /* ArtOfTheFutureTests */,
 				70E5A2562E1C524E000DAD89 /* ArtOfTheFutureUITests */,
@@ -212,6 +218,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				70E5A2D62E1C5EDD000DAD89 /* PROJECT_CONTINUITY.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
