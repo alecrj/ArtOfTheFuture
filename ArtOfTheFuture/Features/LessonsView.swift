@@ -1,190 +1,80 @@
-// MARK: - Updated LessonsView with Interactive Support
-// Update your existing ArtOfTheFuture/Features/LessonsView.swift
-
 import SwiftUI
 
 struct LessonsView: View {
-    @StateObject private var viewModel = LessonsViewModel()
-    @State private var selectedLesson: InteractiveLesson?
-    @State private var showingLessonPlayer = false
+    @State private var lessons = MockDataService.shared.getMockLessons()
+    @State private var selectedLesson: Lesson?
+    @State private var showingLesson = false
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 16) {
-                    // Learning Path Progress
-                    learningPathHeader
-                    
-                    // Interactive Lessons
-                    ForEach(viewModel.interactiveLessons) { lesson in
-                        InteractiveLessonCard(lesson: lesson) {
+                    ForEach(lessons) { lesson in
+                        LessonCard(lesson: lesson) {
                             selectedLesson = lesson
-                            showingLessonPlayer = true
+                            showingLesson = true
                         }
                         .padding(.horizontal)
-                    }
-                    
-                    // Traditional Lessons (if any remain)
-                    ForEach(viewModel.traditionalLessons) { lesson in
-                        LessonCard(lesson: lesson)
-                            .padding(.horizontal)
                     }
                 }
                 .padding(.vertical)
             }
             .navigationTitle("Learn")
             .background(Color(.systemGroupedBackground))
-            .task {
-                await viewModel.loadLessons()
-            }
-            .fullScreenCover(isPresented: $showingLessonPlayer) {
-                if let lesson = selectedLesson {
-                    LessonPlayerView(lesson: lesson)
-                }
+        }
+        .fullScreenCover(isPresented: $showingLesson) {
+            if let lesson = selectedLesson {
+                SimpleLessonView(lessonTitle: lesson.title)
             }
         }
-    }
-    
-    private var learningPathHeader: some View {
-        VStack(spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Your Learning Path")
-                        .font(.headline)
-                    Text("\(viewModel.completedCount) of \(viewModel.totalLessons) completed")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                // Level badge
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .frame(width: 50, height: 50)
-                    
-                    Text("L\(viewModel.userLevel)")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                }
-            }
-            
-            // Progress bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(.systemGray5))
-                        .frame(height: 8)
-                    
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ))
-                        .frame(width: geometry.size.width * viewModel.overallProgress, height: 8)
-                        .animation(.easeInOut(duration: 0.5), value: viewModel.overallProgress)
-                }
-            }
-            .frame(height: 8)
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
-        .padding(.horizontal)
     }
 }
 
-// MARK: - Interactive Lesson Card
-struct InteractiveLessonCard: View {
-    let lesson: InteractiveLesson
+struct LessonCard: View {
+    let lesson: Lesson
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
-                // Lesson thumbnail/icon
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(lesson.isLocked ? Color(.systemGray5) : lesson.category.color.opacity(0.2))
-                        .frame(width: 80, height: 80)
-                    
-                    if lesson.isLocked {
-                        Image(systemName: "lock.fill")
-                            .font(.title)
-                            .foregroundColor(.gray)
-                    } else if lesson.isCompleted {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.green)
-                    } else {
-                        Image(systemName: lesson.category.icon)
-                            .font(.title)
-                            .foregroundColor(lesson.category.color)
-                    }
-                }
+                // Icon
+                Circle()
+                    .fill(lesson.isLocked ? Color.gray : Color.blue)
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Image(systemName: lesson.isLocked ? "lock.fill" : iconForCategory(lesson.category))
+                            .foregroundColor(.white)
+                            .font(.title2)
+                    )
                 
-                // Lesson content
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(lesson.title)
-                            .font(.headline)
-                            .foregroundColor(lesson.isLocked ? .secondary : .primary)
-                            .lineLimit(2)
-                        
-                        Spacer()
-                        
-                        if lesson.isCompleted {
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.yellow)
-                        }
-                    }
+                // Content
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(lesson.title)
+                        .font(.headline)
+                        .foregroundColor(lesson.isLocked ? .secondary : .primary)
                     
                     Text(lesson.description)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                     
-                    // Lesson metadata
+                    // XP only - no time estimate
                     HStack {
-                        Label("\(lesson.estimatedMinutes)m", systemImage: "clock")
+                        Label("\(lesson.xpReward) XP", systemImage: "star.fill")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                         
                         Spacer()
                         
-                        Label("\(lesson.xpReward) XP", systemImage: "star.fill")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        
                         if lesson.isCompleted {
-                            Text("\(Int(lesson.bestScore * 100))%")
-                                .font(.caption2)
-                                .fontWeight(.medium)
+                            Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
-                        }
-                    }
-                    
-                    // Progress indicator for partially completed
-                    if !lesson.isLocked && !lesson.isCompleted {
-                        HStack(spacing: 4) {
-                            ForEach(0..<lesson.steps.count, id: \.self) { index in
-                                Circle()
-                                    .fill(index < getCompletedSteps(lesson) ? Color.blue : Color(.systemGray5))
-                                    .frame(width: 6, height: 6)
-                            }
                         }
                     }
                 }
                 
-                // Action indicator
+                Spacer()
+                
                 if !lesson.isLocked {
                     Image(systemName: "chevron.right")
                         .font(.caption)
@@ -193,88 +83,26 @@ struct InteractiveLessonCard: View {
             }
             .padding()
             .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
-            .scaleEffect(lesson.isLocked ? 1.0 : 1.0)
-            .opacity(lesson.isLocked ? 0.6 : 1.0)
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
         }
         .disabled(lesson.isLocked)
         .buttonStyle(.plain)
     }
     
-    private func getCompletedSteps(_ lesson: InteractiveLesson) -> Int {
-        // This would calculate completed steps from progress
-        return lesson.isCompleted ? lesson.steps.count : 0
+    func iconForCategory(_ category: Lesson.LessonCategory) -> String {
+        switch category {
+        case .basics: return "pencil"
+        case .sketching: return "scribble"
+        case .coloring: return "paintpalette"
+        case .shading: return "circle.lefthalf.filled"
+        case .perspective: return "cube"
+        case .portrait: return "person"
+        case .landscape: return "photo"
+        }
     }
 }
 
-// MARK: - Lessons ViewModel
-@MainActor
-final class LessonsViewModel: ObservableObject {
-    @Published var interactiveLessons: [InteractiveLesson] = []
-    @Published var traditionalLessons: [Lesson] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    
-    private let lessonService: LessonServiceProtocol
-    private let progressService: ProgressServiceProtocol
-    
-    var completedCount: Int {
-        interactiveLessons.filter { $0.isCompleted }.count
-    }
-    
-    var totalLessons: Int {
-        interactiveLessons.count
-    }
-    
-    var overallProgress: Double {
-        guard totalLessons > 0 else { return 0 }
-        return Double(completedCount) / Double(totalLessons)
-    }
-    
-    var userLevel: Int {
-        UserDefaults.standard.integer(forKey: "userLevel")
-    }
-    
-    init(
-        lessonService: LessonServiceProtocol? = nil,
-        progressService: ProgressServiceProtocol? = nil
-    ) {
-        self.lessonService = lessonService ?? Container.shared.lessonService
-        self.progressService = progressService ?? Container.shared.progressService
-    }
-    
-    func loadLessons() async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            // Load interactive lessons
-            let interactive = try await lessonService.getLessonsForUser()
-            self.interactiveLessons = interactive
-            
-            // Keep traditional lessons for now
-            self.traditionalLessons = MockDataService.shared.getMockLessons()
-            
-        } catch {
-            errorMessage = "Failed to load lessons: \(error.localizedDescription)"
-        }
-        
-        isLoading = false
-    }
-}
-struct LessonCard: View {
-    let lesson: Lesson
-
-    var body: some View {
-        VStack {
-            Text(lesson.title)
-                .font(.headline)
-            Text(lesson.description)
-                .font(.subheadline)
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
+#Preview {
+    LessonsView()
 }
