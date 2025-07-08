@@ -8,7 +8,7 @@ struct HomeView: View {
                     .font(.title2)
                     .foregroundColor(.secondary)
                 
-                Text("Art of the Future")
+                Text("Pikaso")
                     .font(.largeTitle)
                     .bold()
                 

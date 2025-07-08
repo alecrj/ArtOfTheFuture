@@ -36,9 +36,22 @@
 		70E5A2E42E1C67CB000DAD89 /* PencilKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PencilKit.framework; path = System/Library/Frameworks/PencilKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		7097BDE12E1DBCD0002D7302 /* Exceptions for "ArtOfTheFuture" folder in "ArtOfTheFuture" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 70E5A23B2E1C5247000DAD89 /* ArtOfTheFuture */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		70E5A23E2E1C5247000DAD89 /* ArtOfTheFuture */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7097BDE12E1DBCD0002D7302 /* Exceptions for "ArtOfTheFuture" folder in "ArtOfTheFuture" target */,
+			);
 			path = ArtOfTheFuture;
 			sourceTree = "<group>";
 		};
@@ -416,7 +429,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 874DZM3NCG;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "$(SRCROOT)/ArtOfTheFuture/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Pikaso;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -447,7 +461,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 874DZM3NCG;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "$(SRCROOT)/ArtOfTheFuture/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Pikaso;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
