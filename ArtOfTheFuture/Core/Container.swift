@@ -12,6 +12,13 @@ final class Container {
     lazy var userService: UserServiceProtocol = {
         UserService()
     }()
+    lazy var lessonService: LessonServiceProtocol = {
+        LessonService()
+    }()
+
+    lazy var progressService: ProgressServiceProtocol = {
+        ProgressService()
+    }()
     
     private init() {
         print("Container initialized")
