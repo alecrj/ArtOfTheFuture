@@ -69,7 +69,7 @@ final class DrawingViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     init(galleryService: GalleryServiceProtocol? = nil) {
-        self.galleryService = galleryService ?? Container.shared.galleryService
+        self.galleryService = galleryService ?? ArtOfTheFuture.Container.shared.galleryService
     }
     
     func saveArtwork(title: String, drawing: PKDrawing, duration: TimeInterval) async {
@@ -264,7 +264,7 @@ struct EditArtworkView: View {
                             action: {
                                 currentTool = tool
                                 Task {
-                                    await HapticManager.shared.impact(.light)
+                                    await ArtOfTheFuture.ArtOfTheFuture.Container.shared.impact(.light)
                                 }
                             }
                         )

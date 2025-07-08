@@ -1,166 +1,129 @@
 import Foundation
 import PencilKit
 import UIKit
-import Combine
+import AVFoundation  // Added for AVMakeRect
 
-// MARK: - Gallery Service Protocol
-protocol GalleryServiceProtocol {
-    func saveArtwork(_ artwork: Artwork) async throws
-    func loadArtwork(id: String) async throws -> Artwork
-    func loadAllArtworks() async throws -> [Artwork]
-    func deleteArtwork(id: String) async throws
-    func updateArtwork(_ artwork: Artwork) async throws
-    func generateThumbnail(for drawing: PKDrawing, size: CGSize) async -> Data?
-    func exportArtwork(_ artwork: Artwork) async throws -> URL
-    var artworksPublisher: AnyPublisher<[Artwork], Never> { get }
-}
-
-// MARK: - Gallery Service Implementation
+@MainActor
 final class GalleryService: GalleryServiceProtocol {
+    
+    // MARK: - Properties
     private let fileManager = FileManager.default
-    private let documentsDirectory: URL
-    private let artworksDirectory: URL
-    private let thumbnailsDirectory: URL
-    private let exportDirectory: URL
+    private var artworks: [Artwork] = []
     
-    @Published private var artworks: [Artwork] = []
-    var artworksPublisher: AnyPublisher<[Artwork], Never> {
-        $artworks.eraseToAnyPublisher()
+    // MARK: - Paths
+    private var documentsDirectory: URL {
+        fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
     }
     
+    private var artworksDirectory: URL {
+        documentsDirectory.appendingPathComponent("Artworks")
+    }
+    
+    private var exportDirectory: URL {
+        documentsDirectory.appendingPathComponent("Exports")
+    }
+    
+    // MARK: - Initialization
     init() {
-        // Setup directories
-        documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        artworksDirectory = documentsDirectory.appendingPathComponent("Artworks")
-        thumbnailsDirectory = documentsDirectory.appendingPathComponent("Thumbnails")
-        exportDirectory = documentsDirectory.appendingPathComponent("Exports")
-        
-        // Create directories if they don't exist
-        createDirectoriesIfNeeded()
-        
-        // Load existing artworks
-        Task {
-            try? await loadAllArtworksIntoMemory()
-        }
+        setupDirectories()
     }
     
-    private func createDirectoriesIfNeeded() {
-        let directories = [artworksDirectory, thumbnailsDirectory, exportDirectory]
-        
-        for directory in directories {
-            if !fileManager.fileExists(atPath: directory.path) {
-                try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-            }
-        }
+    private func setupDirectories() {
+        try? fileManager.createDirectory(at: artworksDirectory, withIntermediateDirectories: true)
+        try? fileManager.createDirectory(at: exportDirectory, withIntermediateDirectories: true)
     }
     
-    // MARK: - Save Artwork
-    func saveArtwork(_ artwork: Artwork) async throws {
-        // Save drawing data
-        let drawingURL = artworksDirectory.appendingPathComponent("\(artwork.id).drawing")
-        try artwork.drawing.write(to: drawingURL)
-        
-        // Save thumbnail if available
-        if let thumbnailData = artwork.thumbnailData {
-            let thumbnailURL = thumbnailsDirectory.appendingPathComponent("\(artwork.id).jpg")
-            try thumbnailData.write(to: thumbnailURL)
+    // MARK: - Load Artworks
+    func loadArtworks() async -> [Artwork] {
+        guard let files = try? fileManager.contentsOfDirectory(at: artworksDirectory, includingPropertiesForKeys: nil) else {
+            return []
         }
         
-        // Save metadata
-        let metadataURL = artworksDirectory.appendingPathComponent("\(artwork.id).json")
-        let metadata = ArtworkMetadata(from: artwork)
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let metadataData = try encoder.encode(metadata)
-        try metadataData.write(to: metadataURL)
-        
-        // Update in-memory cache
-        await MainActor.run {
-            if let index = artworks.firstIndex(where: { $0.id == artwork.id }) {
-                artworks[index] = artwork
-            } else {
-                artworks.append(artwork)
-            }
-        }
-    }
-    
-    // MARK: - Load Artwork
-    func loadArtwork(id: String) async throws -> Artwork {
-        // Check cache first
-        if let cached = artworks.first(where: { $0.id == id }) {
-            return cached
-        }
-        
-        // Load from disk
-        let drawingURL = artworksDirectory.appendingPathComponent("\(id).drawing")
-        let metadataURL = artworksDirectory.appendingPathComponent("\(id).json")
-        
-        guard fileManager.fileExists(atPath: drawingURL.path),
-              fileManager.fileExists(atPath: metadataURL.path) else {
-            throw GalleryError.artworkNotFound
-        }
-        
-        let drawingData = try Data(contentsOf: drawingURL)
-        let metadataData = try Data(contentsOf: metadataURL)
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let metadata = try decoder.decode(ArtworkMetadata.self, from: metadataData)
-        
-        // Load thumbnail if exists
-        let thumbnailURL = thumbnailsDirectory.appendingPathComponent("\(id).jpg")
-        let thumbnailData = try? Data(contentsOf: thumbnailURL)
-        
-        let artwork = Artwork(
-            id: metadata.id,
-            title: metadata.title,
-            drawing: drawingData,
-            createdAt: metadata.createdAt,
-            modifiedAt: metadata.modifiedAt,
-            thumbnailData: thumbnailData,
-            duration: metadata.duration,
-            strokeCount: metadata.strokeCount,
-            tags: metadata.tags,
-            isFavorite: metadata.isFavorite,
-            width: metadata.width,
-            height: metadata.height
-        )
-        
-        return artwork
-    }
-    
-    // MARK: - Load All Artworks
-    func loadAllArtworks() async throws -> [Artwork] {
-        return artworks
-    }
-    
-    private func loadAllArtworksIntoMemory() async throws {
-        let contents = try fileManager.contentsOfDirectory(at: artworksDirectory, includingPropertiesForKeys: nil)
-        let metadataFiles = contents.filter { $0.pathExtension == "json" }
+        let metadataFiles = files.filter { $0.pathExtension == "json" }
         
         var loadedArtworks: [Artwork] = []
         
         for metadataURL in metadataFiles {
-            let id = metadataURL.deletingPathExtension().lastPathComponent
-            if let artwork = try? await loadArtwork(id: id) {
-                loadedArtworks.append(artwork)
+            guard let data = try? Data(contentsOf: metadataURL),
+                  let metadata = try? JSONDecoder().decode(ArtworkMetadata.self, from: data) else {
+                continue
             }
+            
+            let drawingURL = artworksDirectory.appendingPathComponent("\(metadata.id).drawing")
+            let thumbnailURL = artworksDirectory.appendingPathComponent("\(metadata.id).thumbnail")
+            
+            guard let drawingData = try? Data(contentsOf: drawingURL) else {
+                continue
+            }
+            
+            let thumbnailData = try? Data(contentsOf: thumbnailURL)
+            
+            let artwork = Artwork(
+                id: metadata.id,
+                title: metadata.title,
+                createdAt: metadata.createdAt,
+                modifiedAt: metadata.modifiedAt,
+                drawing: drawingData,
+                thumbnailData: thumbnailData,
+                duration: metadata.duration,
+                strokeCount: metadata.strokeCount,
+                tags: metadata.tags,
+                isFavorite: metadata.isFavorite,
+                width: metadata.width,
+                height: metadata.height
+            )
+            
+            loadedArtworks.append(artwork)
         }
         
-        await MainActor.run {
-            self.artworks = loadedArtworks.sorted { $0.modifiedAt > $1.modifiedAt }
+        // Sort by creation date (newest first)
+        loadedArtworks.sort { $0.createdAt > $1.createdAt }
+        
+        // Cache in memory
+        self.artworks = loadedArtworks
+        
+        return loadedArtworks
+    }
+    
+    // MARK: - Save Artwork
+    func saveArtwork(_ artwork: Artwork) async throws {
+        // Create metadata
+        let metadata = ArtworkMetadata(from: artwork)
+        
+        // Save files
+        let metadataURL = artworksDirectory.appendingPathComponent("\(artwork.id).json")
+        let drawingURL = artworksDirectory.appendingPathComponent("\(artwork.id).drawing")
+        let thumbnailURL = artworksDirectory.appendingPathComponent("\(artwork.id).thumbnail")
+        
+        // Save metadata
+        let metadataData = try JSONEncoder().encode(metadata)
+        try metadataData.write(to: metadataURL)
+        
+        // Save drawing
+        try artwork.drawing.write(to: drawingURL)
+        
+        // Save thumbnail if available
+        if let thumbnailData = artwork.thumbnailData {
+            try thumbnailData.write(to: thumbnailURL)
+        }
+        
+        // Update cache
+        if let index = artworks.firstIndex(where: { $0.id == artwork.id }) {
+            artworks[index] = artwork
+        } else {
+            artworks.append(artwork)
+            artworks.sort { $0.createdAt > $1.createdAt }
         }
     }
     
     // MARK: - Delete Artwork
-    func deleteArtwork(id: String) async throws {
-        // Delete files
-        let drawingURL = artworksDirectory.appendingPathComponent("\(id).drawing")
+    func deleteArtwork(withId id: String) async throws {
         let metadataURL = artworksDirectory.appendingPathComponent("\(id).json")
-        let thumbnailURL = thumbnailsDirectory.appendingPathComponent("\(id).jpg")
+        let drawingURL = artworksDirectory.appendingPathComponent("\(id).drawing")
+        let thumbnailURL = artworksDirectory.appendingPathComponent("\(id).thumbnail")
         
-        try? fileManager.removeItem(at: drawingURL)
         try? fileManager.removeItem(at: metadataURL)
+        try? fileManager.removeItem(at: drawingURL)
         try? fileManager.removeItem(at: thumbnailURL)
         
         // Update cache
@@ -187,7 +150,7 @@ final class GalleryService: GalleryServiceProtocol {
                 defer { UIGraphicsEndImageContext() }
                 
                 guard let context = UIGraphicsGetCurrentContext() else {
-                    continuation.resume(returning: nil)
+                    continuation.resume(returning: Data())  // Fixed: return empty Data instead of nil
                     return
                 }
                 
@@ -195,13 +158,13 @@ final class GalleryService: GalleryServiceProtocol {
                 context.setFillColor(UIColor.systemBackground.cgColor)
                 context.fill(CGRect(origin: .zero, size: scaledSize))
                 
-                // Draw the image
+                // Draw the image - Fixed: using AVMakeRect
                 let drawRect = AVMakeRect(aspectRatio: image.size, insideRect: CGRect(origin: .zero, size: scaledSize))
                 image.draw(in: drawRect)
                 
                 guard let thumbnail = UIGraphicsGetImageFromCurrentImageContext(),
                       let data = thumbnail.jpegData(compressionQuality: 0.8) else {
-                    continuation.resume(returning: nil)
+                    continuation.resume(returning: Data())  // Fixed: return empty Data instead of nil
                     return
                 }
                 

@@ -532,9 +532,9 @@ struct StatsGrid: View {
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
             StatCard(
-                title: "Total Artworks",
-                value: "\(stats.totalArtworks)",
                 icon: "photo.stack",
+                label: "Total Artworks",
+                value: "\(stats.totalArtworks)",
                 color: .blue
             )
             

@@ -1,41 +1,39 @@
 import Foundation
 import PencilKit
 
-struct Artwork: Identifiable, Codable {
+struct Artwork: Identifiable, Codable, Equatable {
     let id: String
-    let title: String
-    var drawing: Data // PKDrawing data
+    var title: String
     let createdAt: Date
-    let modifiedAt: Date
+    var modifiedAt: Date  // Changed from let to var
+    let drawing: Data
     let thumbnailData: Data?
-    let duration: TimeInterval // Time spent drawing
+    let duration: TimeInterval
     let strokeCount: Int
     var tags: [String]
     var isFavorite: Bool
-    
-    // Metadata
-    var width: CGFloat
-    var height: CGFloat
+    let width: CGFloat
+    let height: CGFloat
     
     init(
         id: String = UUID().uuidString,
         title: String,
-        drawing: Data,
         createdAt: Date = Date(),
         modifiedAt: Date = Date(),
+        drawing: Data,
         thumbnailData: Data? = nil,
-        duration: TimeInterval = 0,
-        strokeCount: Int = 0,
+        duration: TimeInterval,
+        strokeCount: Int,
         tags: [String] = [],
         isFavorite: Bool = false,
-        width: CGFloat = 768,
-        height: CGFloat = 1024
+        width: CGFloat,
+        height: CGFloat
     ) {
         self.id = id
         self.title = title
-        self.drawing = drawing
         self.createdAt = createdAt
         self.modifiedAt = modifiedAt
+        self.drawing = drawing
         self.thumbnailData = thumbnailData
         self.duration = duration
         self.strokeCount = strokeCount
@@ -58,41 +56,9 @@ struct Artwork: Identifiable, Codable {
         formatter.timeStyle = .short
         return formatter.string(from: createdAt)
     }
-    
-    var relativeDate: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: createdAt, relativeTo: Date())
-    }
 }
 
-// MARK: - Gallery Collection Model
-struct GalleryCollection: Identifiable, Codable {
-    let id: String
-    var name: String
-    var artworkIds: [String]
-    let createdAt: Date
-    var icon: String // SF Symbol name
-    var color: String // Hex color
-    
-    init(
-        id: String = UUID().uuidString,
-        name: String,
-        artworkIds: [String] = [],
-        createdAt: Date = Date(),
-        icon: String = "folder.fill",
-        color: String = "#007AFF"
-    ) {
-        self.id = id
-        self.name = name
-        self.artworkIds = artworkIds
-        self.createdAt = createdAt
-        self.icon = icon
-        self.color = color
-    }
-}
-
-// MARK: - Gallery Statistics
+// MARK: - Gallery Stats
 struct GalleryStats {
     let totalArtworks: Int
     let totalDuration: TimeInterval
@@ -104,45 +70,20 @@ struct GalleryStats {
     var formattedTotalDuration: String {
         let hours = Int(totalDuration) / 3600
         let minutes = (Int(totalDuration) % 3600) / 60
-        
         if hours > 0 {
             return "\(hours)h \(minutes)m"
-        } else {
-            return "\(minutes)m"
         }
+        return "\(minutes) min"
     }
 }
 
-// MARK: - Sort Options
-enum ArtworkSortOption: String, CaseIterable {
-    case dateNewest = "Newest First"
-    case dateOldest = "Oldest First"
-    case titleAZ = "Title A-Z"
-    case titleZA = "Title Z-A"
-    case duration = "Longest First"
-    case favorite = "Favorites First"
-    
-    var icon: String {
-        switch self {
-        case .dateNewest, .dateOldest: return "calendar"
-        case .titleAZ, .titleZA: return "textformat"
-        case .duration: return "clock"
-        case .favorite: return "star"
-        }
-    }
-}
-
-// MARK: - View Style
-enum GalleryViewStyle: String, CaseIterable {
-    case grid = "Grid"
-    case list = "List"
-    case compact = "Compact"
-    
-    var icon: String {
-        switch self {
-        case .grid: return "square.grid.2x2"
-        case .list: return "list.bullet"
-        case .compact: return "square.grid.3x3"
-        }
-    }
+// MARK: - Gallery Service Protocol
+protocol GalleryServiceProtocol {
+    func loadArtworks() async -> [Artwork]
+    func saveArtwork(_ artwork: Artwork) async throws
+    func deleteArtwork(withId id: String) async throws
+    func updateArtwork(_ artwork: Artwork) async throws
+    func generateThumbnail(for drawing: PKDrawing, size: CGSize) async -> Data?
+    func exportArtwork(_ artwork: Artwork) async throws -> URL
+    func calculateStats() async -> GalleryStats
 }

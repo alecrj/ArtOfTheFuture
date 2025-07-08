@@ -1,35 +1,44 @@
 import SwiftUI
 
 struct ProfileView: View {
-    @State private var user = MockDataService.shared.getMockUser()
+    @State private var user = User.mock
+    @State private var showingSettings = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     // Profile Header
                     ProfileHeaderView(user: user)
                     
-                    // Stats Cards
+                    // Stats Grid
                     StatsGridView(user: user)
                     
-                    // Achievements Preview
+                    // Achievements
                     AchievementsSection()
                     
-                    // Settings Button
-                    Button(action: {}) {
-                        Label("Settings", systemImage: "gearshape.fill")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(.systemGray5))
-                            .cornerRadius(12)
-                    }
-                    .padding(.horizontal)
+                    // Learning Progress
+                    LearningProgressSection()
+                    
+                    // Settings
+                    SettingsSection(showingSettings: $showingSettings)
                 }
-                .padding(.vertical)
+                .padding(.bottom, 100)
             }
             .navigationTitle("Profile")
-            .background(Color(.systemGroupedBackground))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
         }
     }
 }
@@ -40,23 +49,24 @@ struct ProfileHeaderView: View {
     var body: some View {
         VStack(spacing: 16) {
             // Avatar
-            Circle()
-                .fill(LinearGradient(
-                    colors: [.blue, .purple],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-                .frame(width: 100, height: 100)
-                .overlay(
-                    Text(user.displayName.prefix(2).uppercased())
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                )
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .frame(width: 100, height: 100)
+                
+                Text(user.name.prefix(2).uppercased())
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+            }
             
             // Name and Level
             VStack(spacing: 4) {
-                Text(user.displayName)
+                Text(user.name)
                     .font(.title2)
                     .fontWeight(.bold)
                 
@@ -105,21 +115,21 @@ struct StatsGridView: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            StatCard(
+            ProfileStatCard(
                 icon: "flame.fill",
                 value: "\(user.currentStreak)",
                 label: "Day Streak",
                 color: .orange
             )
             
-            StatCard(
+            ProfileStatCard(
                 icon: "star.fill",
                 value: "\(user.totalXP)",
                 label: "Total XP",
                 color: .yellow
             )
             
-            StatCard(
+            ProfileStatCard(
                 icon: "paintbrush.fill",
                 value: "7",
                 label: "Artworks",
@@ -130,7 +140,8 @@ struct StatsGridView: View {
     }
 }
 
-struct StatCard: View {
+// Renamed from StatCard to ProfileStatCard to avoid conflicts
+struct ProfileStatCard: View {
     let icon: String
     let value: String
     let label: String
@@ -192,6 +203,146 @@ struct AchievementBadge: View {
                 .font(.caption2)
                 .multilineTextAlignment(.center)
                 .frame(width: 70)
+        }
+    }
+}
+
+struct LearningProgressSection: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Learning Progress")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            VStack(spacing: 12) {
+                ProgressRow(
+                    title: "Drawing Basics",
+                    progress: 0.75,
+                    color: .blue
+                )
+                
+                ProgressRow(
+                    title: "Color Theory",
+                    progress: 0.45,
+                    color: .purple
+                )
+                
+                ProgressRow(
+                    title: "Composition",
+                    progress: 0.30,
+                    color: .pink
+                )
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+struct ProgressRow: View {
+    let title: String
+    let progress: Double
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.subheadline)
+                Spacer()
+                Text("\(Int(progress * 100))%")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color(.systemGray5))
+                        .frame(height: 8)
+                    
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(color)
+                        .frame(width: geometry.size.width * progress, height: 8)
+                }
+            }
+            .frame(height: 8)
+        }
+    }
+}
+
+struct SettingsSection: View {
+    @Binding var showingSettings: Bool
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            Button {
+                showingSettings = true
+            } label: {
+                HStack {
+                    Image(systemName: "gearshape")
+                    Text("Settings")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+            
+            Button {
+                // Handle sign out
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.left.square")
+                    Text("Sign Out")
+                    Spacer()
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.red)
+        }
+        .padding(.horizontal)
+    }
+}
+
+struct SettingsView: View {
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Account") {
+                    Label("Email", systemImage: "envelope")
+                    Label("Subscription", systemImage: "creditcard")
+                }
+                
+                Section("Preferences") {
+                    Label("Notifications", systemImage: "bell")
+                    Label("Daily Goal", systemImage: "target")
+                    Label("Privacy", systemImage: "lock")
+                }
+                
+                Section("Support") {
+                    Label("Help Center", systemImage: "questionmark.circle")
+                    Label("Contact Us", systemImage: "bubble.left")
+                    Label("Rate App", systemImage: "star")
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
