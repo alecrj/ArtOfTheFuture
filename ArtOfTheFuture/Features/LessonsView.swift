@@ -24,8 +24,11 @@ struct LessonsView: View {
         }
         .fullScreenCover(isPresented: $showingLesson) {
             if let lesson = selectedLesson {
-                SimpleLessonView(lessonTitle: lesson.title)
+                SimpleLessonPlayerView(lesson: lesson)
             }
+        }
+        .onChange(of: showingLesson) { value in
+            print("🔍 showingLesson changed to: \(value)")
         }
     }
 }
