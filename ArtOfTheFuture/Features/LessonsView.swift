@@ -263,3 +263,18 @@ final class LessonsViewModel: ObservableObject {
         isLoading = false
     }
 }
+struct LessonCard: View {
+    let lesson: Lesson
+
+    var body: some View {
+        VStack {
+            Text(lesson.title)
+                .font(.headline)
+            Text(lesson.description)
+                .font(.subheadline)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}

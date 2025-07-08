@@ -286,7 +286,7 @@ final class ProgressService: ProgressServiceProtocol {
             lessonId: lesson.id,
             completedAt: Date(),
             finalScore: lesson.bestScore,
-            totalDuration: lesson.estimatedMinutes * 60,
+            totalDuration: Double(lesson.estimatedMinutes) * 60,
             xpAwarded: lesson.xpReward
         )
         
