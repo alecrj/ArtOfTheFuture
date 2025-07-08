@@ -87,3 +87,11 @@ protocol GalleryServiceProtocol {
     func exportArtwork(_ artwork: Artwork) async throws -> URL
     func calculateStats() async -> GalleryStats
 }
+// MARK: - Relative Date Extension
+extension Artwork {
+    var relativeDate: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: modifiedAt, relativeTo: Date())
+    }
+}
