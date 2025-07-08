@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 // MARK: - Onboarding Models
-struct OnboardingData {
+struct OnboardingData: Codable {
     var userName: String = ""
     var skillLevel: SkillLevel = .beginner
     var learningGoals: Set<LearningGoal> = []
@@ -13,7 +13,7 @@ struct OnboardingData {
 }
 
 // MARK: - Skill Level
-enum SkillLevel: String, CaseIterable {
+enum SkillLevel: String, CaseIterable, Codable {
     case beginner = "Beginner"
     case intermediate = "Intermediate"
     case advanced = "Advanced"
@@ -47,7 +47,7 @@ enum SkillLevel: String, CaseIterable {
 }
 
 // MARK: - Learning Goals
-enum LearningGoal: String, CaseIterable {
+enum LearningGoal: String, CaseIterable, Codable {
     case hobby = "Draw for Fun"
     case improvement = "Improve My Skills"
     case professional = "Professional Development"
@@ -79,7 +79,7 @@ enum LearningGoal: String, CaseIterable {
 }
 
 // MARK: - Practice Time
-enum PracticeTime: String, CaseIterable {
+enum PracticeTime: String, CaseIterable, Codable {
     case five = "5 min/day"
     case fifteen = "15 min/day"
     case thirty = "30 min/day"
@@ -108,7 +108,7 @@ enum PracticeTime: String, CaseIterable {
 }
 
 // MARK: - Art Interests
-enum ArtInterest: String, CaseIterable {
+enum ArtInterest: String, CaseIterable, Codable {
     case portraits = "Portraits"
     case landscapes = "Landscapes"
     case animals = "Animals"
@@ -181,17 +181,15 @@ enum OnboardingStep: Int, CaseIterable {
 }
 
 // MARK: - Home Dashboard Models
-struct DashboardData {
+struct DashboardData: Codable {
     let user: User
     let currentStreak: Int
     let todayProgress: DailyProgress
-    let recommendedLessons: [Lesson]
     let recentArtworks: [Artwork]
     let weeklyStats: WeeklyStats
-    let achievements: [Achievement]
 }
 
-struct DailyProgress {
+struct DailyProgress: Codable {
     let targetMinutes: Int
     let completedMinutes: Int
     let lessonsCompleted: Int
@@ -207,21 +205,26 @@ struct DailyProgress {
     }
 }
 
-struct WeeklyStats {
+struct WeeklyStats: Codable {
     let days: [DayStats]
     let totalMinutes: Int
     let totalXP: Int
     let averageMinutesPerDay: Double
     
-    struct DayStats {
+    struct DayStats: Codable, Identifiable {
+        let id = UUID()
         let date: Date
         let minutes: Int
         let xp: Int
         let completed: Bool
+        
+        enum CodingKeys: String, CodingKey {
+            case date, minutes, xp, completed
+        }
     }
 }
 
-struct Achievement {
+struct Achievement: Codable, Identifiable {
     let id: String
     let title: String
     let description: String

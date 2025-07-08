@@ -1,52 +1,60 @@
 import SwiftUI
-import Charts
 
-// MARK: - Weekly Stats Chart
+// Note: Charts framework requires iOS 16+, using custom chart implementation for compatibility
+
+// MARK: - Weekly Stats Chart (Custom Implementation)
 struct WeeklyStatsChart: View {
     let stats: WeeklyStats
     @State private var selectedDay: WeeklyStats.DayStats?
     
     var body: some View {
-        Chart(stats.days) { day in
-            BarMark(
-                x: .value("Day", dayLabel(for: day.date)),
-                y: .value("Minutes", day.minutes)
-            )
-            .foregroundStyle(
-                day.completed ?
-                    LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .bottom,
-                        endPoint: .top
-                    ) :
-                    LinearGradient(
-                        colors: [Color(.systemGray4), Color(.systemGray5)],
-                        startPoint: .bottom,
-                        endPoint: .top
-                    )
-            )
-            .cornerRadius(4)
-            .annotation(position: .top) {
-                if day.completed {
-                    Image(systemName: "checkmark.circle.fill")
+        HStack(alignment: .bottom, spacing: 8) {
+            ForEach(stats.days) { day in
+                VStack(spacing: 4) {
+                    // Bar
+                    ZStack(alignment: .bottom) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color(.systemGray5))
+                            .frame(width: 32, height: 120)
+                        
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(
+                                day.completed ?
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .bottom,
+                                    endPoint: .top
+                                ) :
+                                LinearGradient(
+                                    colors: [Color(.systemGray4), Color(.systemGray5)],
+                                    startPoint: .bottom,
+                                    endPoint: .top
+                                )
+                            )
+                            .frame(
+                                width: 32,
+                                height: max(8, CGFloat(day.minutes) / max(60, CGFloat(stats.days.map { $0.minutes }.max() ?? 60)) * 120)
+                            )
+                    }
+                    
+                    // Checkmark for completed days
+                    if day.completed {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                    } else {
+                        Spacer()
+                            .frame(height: 12)
+                    }
+                    
+                    // Day label
+                    Text(dayLabel(for: day.date))
                         .font(.caption2)
-                        .foregroundColor(.green)
+                        .foregroundColor(.secondary)
                 }
-            }
-        }
-        .chartYScale(domain: 0...max(60, stats.days.map { $0.minutes }.max() ?? 60))
-        .chartXAxis {
-            AxisMarks { _ in
-                AxisValueLabel()
-                    .font(.caption)
-            }
-        }
-        .chartYAxis {
-            AxisMarks { value in
-                AxisGridLine()
-                    .foregroundStyle(Color(.systemGray5))
-                AxisValueLabel()
-                    .font(.caption)
+                .onTapGesture {
+                    selectedDay = selectedDay?.id == day.id ? nil : day
+                }
             }
         }
         .overlay(alignment: .topTrailing) {

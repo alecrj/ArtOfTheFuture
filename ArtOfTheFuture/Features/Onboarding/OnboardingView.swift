@@ -184,7 +184,9 @@ struct OnboardingView: View {
                     action: {
                         withAnimation(.spring(response: 0.3)) {
                             viewModel.onboardingData.skillLevel = level
-                            HapticManager.shared.impact(.light)
+                            Task {
+                                await HapticManager.shared.impact(.light)
+                            }
                         }
                     }
                 )
@@ -207,7 +209,9 @@ struct OnboardingView: View {
                                 } else {
                                     viewModel.onboardingData.learningGoals.insert(goal)
                                 }
-                                HapticManager.shared.impact(.light)
+                                Task {
+                                    await HapticManager.shared.impact(.light)
+                                }
                             }
                         }
                     )
@@ -226,7 +230,9 @@ struct OnboardingView: View {
                     action: {
                         withAnimation(.spring(response: 0.3)) {
                             viewModel.onboardingData.preferredPracticeTime = time
-                            HapticManager.shared.impact(.light)
+                            Task {
+                                await HapticManager.shared.impact(.light)
+                            }
                         }
                     }
                 )
@@ -249,7 +255,9 @@ struct OnboardingView: View {
                                 } else {
                                     viewModel.onboardingData.interests.insert(interest)
                                 }
-                                HapticManager.shared.impact(.light)
+                                Task {
+                                    await HapticManager.shared.impact(.light)
+                                }
                             }
                         }
                     )
@@ -366,7 +374,9 @@ struct OnboardingView: View {
             withAnimation {
                 currentStep = OnboardingStep.allCases[currentIndex + 1]
             }
-            HapticManager.shared.impact(.light)
+            Task {
+                await HapticManager.shared.impact(.light)
+            }
         } else {
             // Complete onboarding
             completeOnboarding()
@@ -380,13 +390,15 @@ struct OnboardingView: View {
         withAnimation {
             currentStep = OnboardingStep.allCases[currentIndex - 1]
         }
-        HapticManager.shared.impact(.light)
+        Task {
+            await HapticManager.shared.impact(.light)
+        }
     }
     
     private func completeOnboarding() {
         Task {
             await viewModel.completeOnboarding()
-            HapticManager.shared.notification(.success)
+            await HapticManager.shared.notification(.success)
             dismiss()
         }
     }

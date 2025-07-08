@@ -42,28 +42,12 @@ struct DrawingView: View {
 @MainActor
 final class CanvasController: ObservableObject {
     @Published var pkCanvasView = PKCanvasView()
-    @Published var activeTool: DrawTool = .pen
+    @Published var activeTool: DrawingTool = .pen
     @Published var selectedColor: Color = .black
     @Published var strokeWidth: Double = 5.0
     @Published var undoAvailable = false
     @Published var redoAvailable = false
     @Published var colorPickerVisible = false
-    
-    enum DrawTool: String, CaseIterable {
-        case pen = "Pen"
-        case pencil = "Pencil"
-        case marker = "Marker"
-        case eraser = "Eraser"
-        
-        var symbolName: String {
-            switch self {
-            case .pen: return "pencil.tip"
-            case .pencil: return "pencil"
-            case .marker: return "highlighter"
-            case .eraser: return "eraser"
-            }
-        }
-    }
     
     init() {
         configureCanvas()
@@ -76,13 +60,14 @@ final class CanvasController: ObservableObject {
         pkCanvasView.isOpaque = false
     }
     
-    func chooseTool(_ tool: DrawTool) {
+    func chooseTool(_ tool: DrawingTool) {
         activeTool = tool
         setActiveTool()
         
         // Haptic feedback
-        let haptic = UIImpactFeedbackGenerator(style: .light)
-        haptic.impactOccurred()
+        Task {
+            await HapticManager.shared.impact(.light)
+        }
     }
     
     func updateColor(_ color: Color) {
@@ -248,13 +233,14 @@ struct DrawingToolBar: View {
         VStack(spacing: 16) {
             // Tool selection row
             HStack(spacing: 20) {
-                ForEach(CanvasController.DrawTool.allCases, id: \.self) { tool in
-                    ToolButton(
+                ForEach(DrawingTool.allCases, id: \.self) { tool in
+                    DrawingToolButton(
                         tool: tool,
-                        isActive: controller.activeTool == tool
-                    ) {
-                        controller.chooseTool(tool)
-                    }
+                        isActive: controller.activeTool == tool,
+                        action: {
+                            controller.chooseTool(tool)
+                        }
+                    )
                 }
                 
                 Spacer()
@@ -281,16 +267,16 @@ struct DrawingToolBar: View {
     }
 }
 
-// MARK: - Tool Button
-struct ToolButton: View {
-    let tool: CanvasController.DrawTool
+// MARK: - Drawing Tool Button (Renamed to avoid conflicts)
+struct DrawingToolButton: View {
+    let tool: DrawingTool
     let isActive: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: tool.symbolName)
+                Image(systemName: tool.icon)
                     .font(.title2)
                     .foregroundColor(isActive ? .white : .primary)
                     .frame(width: 44, height: 44)

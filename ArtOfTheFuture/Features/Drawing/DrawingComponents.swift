@@ -2,7 +2,7 @@ import SwiftUI
 import PencilKit
 import Combine
 
-// MARK: - Drawing Tool Enum
+// MARK: - Drawing Tool Enum (Consolidated)
 enum DrawingTool: String, CaseIterable {
     case pen = "Pen"
     case pencil = "Pencil"
@@ -69,7 +69,7 @@ final class DrawingViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     init(galleryService: GalleryServiceProtocol? = nil) {
-        self.galleryService = galleryService ?? GalleryService()
+        self.galleryService = galleryService ?? Container.shared.galleryService
     }
     
     func saveArtwork(title: String, drawing: PKDrawing, duration: TimeInterval) async {
@@ -104,8 +104,8 @@ final class DrawingViewModel: ObservableObject {
     }
 }
 
-// MARK: - Tool Button
-struct ToolButton: View {
+// MARK: - Tool Button (Renamed for clarity)
+struct ToolSelectorButton: View {
     let tool: DrawingTool
     let isSelected: Bool
     let action: () -> Void
@@ -242,28 +242,57 @@ struct EditArtworkView: View {
     
     var body: some View {
         NavigationView {
-            DrawingView()
-                .onAppear {
-                    // Load existing drawing
-                    if let drawing = try? PKDrawing(data: artwork.drawing) {
-                        canvasView.drawing = drawing
+            VStack {
+                // Canvas
+                CanvasView(
+                    canvasView: $canvasView,
+                    currentTool: $currentTool,
+                    currentColor: $currentColor,
+                    currentWidth: $currentWidth
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.white)
+                .cornerRadius(12)
+                .padding()
+                
+                // Tool Bar
+                HStack(spacing: 16) {
+                    ForEach(DrawingTool.allCases, id: \.self) { tool in
+                        ToolSelectorButton(
+                            tool: tool,
+                            isSelected: currentTool == tool,
+                            action: {
+                                currentTool = tool
+                                Task {
+                                    await HapticManager.shared.impact(.light)
+                                }
+                            }
+                        )
                     }
-                    drawingStartTime = Date()
                 }
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Cancel") {
-                            dismiss()
-                        }
-                    }
-                    
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Save") {
-                            saveChanges()
-                        }
-                        .fontWeight(.semibold)
+                .padding()
+            }
+            .onAppear {
+                // Load existing drawing
+                if let drawing = try? PKDrawing(data: artwork.drawing) {
+                    canvasView.drawing = drawing
+                }
+                drawingStartTime = Date()
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
                     }
                 }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") {
+                        saveChanges()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
         }
     }
     

@@ -1,0 +1,2 @@
+Target dependency graph (1 target)
+Target 'ArtOfTheFuture' in project 'ArtOfTheFuture' (no dependencies)
