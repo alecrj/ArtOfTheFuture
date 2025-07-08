@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class Container {
     static let shared = Container()
     

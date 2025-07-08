@@ -179,6 +179,7 @@ enum UserServiceError: LocalizedError {
 }
 
 // MARK: - Recommendation Engine
+struct RecommendationEngine {
     static func generateRecommendations(
         for user: User,
         interests: Set<ArtInterest>,
@@ -212,6 +213,7 @@ enum UserServiceError: LocalizedError {
         }
     }
 }
+
 
 // MARK: - Extended User Model
 extension User {

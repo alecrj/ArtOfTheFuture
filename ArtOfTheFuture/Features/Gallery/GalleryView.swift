@@ -1,5 +1,27 @@
 import SwiftUI
 import PencilKit
+enum GalleryViewStyle: String, CaseIterable {
+    case grid
+    case list
+    case compact
+
+    var icon: String {
+        switch self {
+        case .grid: return "square.grid.2x2"
+        case .list: return "list.bullet"
+        case .compact: return "rectangle.grid.1x2"
+        }
+    }
+
+    var rawValue: String {
+        switch self {
+        case .grid: return "Grid"
+        case .list: return "List"
+        case .compact: return "Compact"
+        }
+    }
+}
+
 
 struct GalleryView: View {
     @StateObject private var viewModel = GalleryViewModel()

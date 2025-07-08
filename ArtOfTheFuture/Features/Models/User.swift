@@ -17,4 +17,17 @@ struct User: Identifiable, Codable {
         let currentLevelXP = totalXP - xpForCurrentLevel
         return Double(currentLevelXP) / Double(xpForNextLevel - xpForCurrentLevel)
     }
+    
+    static var mock: User {
+        User(
+            id: "mock",
+            displayName: "Demo User",
+            email: "demo@example.com",
+            profileImageURL: nil,
+            totalXP: 1200,
+            currentLevel: 4,
+            currentStreak: 9,
+            joinedDate: Date()
+        )
+    }
 }
