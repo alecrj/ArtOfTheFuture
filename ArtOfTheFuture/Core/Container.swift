@@ -1,19 +1,18 @@
-//
-//  Container.swift
-//  ArtOfTheFuture
-//
-//  Dependency injection container
-//
-
 import Foundation
 
-/// Main dependency injection container
 final class Container {
     static let shared = Container()
+    
+    // MARK: - Services
+    lazy var galleryService: GalleryServiceProtocol = {
+        GalleryService()
+    }()
+    
+    lazy var userService: UserServiceProtocol = {
+        UserService()
+    }()
     
     private init() {
         print("Container initialized")
     }
-    
-    // Services will be added here later
 }
