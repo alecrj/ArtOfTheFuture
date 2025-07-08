@@ -5,15 +5,16 @@ struct Artwork: Identifiable, Codable, Equatable {
     let id: String
     var title: String
     let createdAt: Date
-    var modifiedAt: Date  // Changed from let to var
-    let drawing: Data
-    let thumbnailData: Data?
-    let duration: TimeInterval
-    let strokeCount: Int
+    var modifiedAt: Date
+    var drawing: Data              // ← CHANGE to var
+    var thumbnailData: Data?       // ← CHANGE to var
+    var duration: TimeInterval     // ← CHANGE to var
+    var strokeCount: Int           // ← CHANGE to var
     var tags: [String]
     var isFavorite: Bool
     let width: CGFloat
     let height: CGFloat
+
     
     init(
         id: String = UUID().uuidString,

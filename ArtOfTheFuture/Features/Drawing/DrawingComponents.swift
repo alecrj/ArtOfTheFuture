@@ -43,10 +43,7 @@ struct CanvasView: UIViewRepresentable {
         canvasView.drawingPolicy = .anyInput
         canvasView.backgroundColor = .systemBackground
         canvasView.isOpaque = false
-        
-        // Set initial tool
         updateTool()
-        
         return canvasView
     }
     
@@ -63,26 +60,24 @@ struct CanvasView: UIViewRepresentable {
 // MARK: - Drawing ViewModel
 @MainActor
 final class DrawingViewModel: ObservableObject {
-    private let galleryService: GalleryServiceProtocol
+    let galleryService: GalleryServiceProtocol
     
     @Published var isSaving = false
     @Published var errorMessage: String?
     
     init(galleryService: GalleryServiceProtocol? = nil) {
-        self.galleryService = galleryService ?? ArtOfTheFuture.Container.shared.galleryService
+        self.galleryService = galleryService ?? Container.shared.galleryService
     }
     
     func saveArtwork(title: String, drawing: PKDrawing, duration: TimeInterval) async {
         isSaving = true
         
         do {
-            // Generate thumbnail
             let thumbnailData = await galleryService.generateThumbnail(
                 for: drawing,
                 size: CGSize(width: 200, height: 200)
             )
             
-            // Create artwork
             let artwork = Artwork(
                 title: title,
                 drawing: drawing.dataRepresentation(),
@@ -93,7 +88,6 @@ final class DrawingViewModel: ObservableObject {
                 height: drawing.bounds.height
             )
             
-            // Save to gallery
             try await galleryService.saveArtwork(artwork)
             
         } catch {
@@ -231,7 +225,6 @@ struct SaveArtworkSheet: View {
 
 // MARK: - Edit Artwork View (for continuing drawing)
 struct EditArtworkView: View {
-    let artwork: Artwork
     @State private var canvasView = PKCanvasView()
     @State private var currentTool: DrawingTool = .pen
     @State private var currentColor = Color.black
@@ -239,6 +232,8 @@ struct EditArtworkView: View {
     @State private var drawingStartTime = Date()
     @StateObject private var viewModel = DrawingViewModel()
     @Environment(\.dismiss) private var dismiss
+    
+    var artwork: Artwork
     
     var body: some View {
         NavigationView {
@@ -264,7 +259,7 @@ struct EditArtworkView: View {
                             action: {
                                 currentTool = tool
                                 Task {
-                                    await ArtOfTheFuture.ArtOfTheFuture.Container.shared.impact(.light)
+                                    await HapticManager.shared.impact(.light)
                                 }
                             }
                         )
@@ -298,14 +293,12 @@ struct EditArtworkView: View {
     
     private func saveChanges() {
         let additionalDuration = Date().timeIntervalSince(drawingStartTime)
-        
         Task {
             var updatedArtwork = artwork
             updatedArtwork.drawing = canvasView.drawing.dataRepresentation()
             updatedArtwork.modifiedAt = Date()
             updatedArtwork.duration += additionalDuration
             updatedArtwork.strokeCount = canvasView.drawing.strokes.count
-            
             // Generate new thumbnail
             if let thumbnailData = await viewModel.galleryService.generateThumbnail(
                 for: canvasView.drawing,
@@ -313,9 +306,7 @@ struct EditArtworkView: View {
             ) {
                 updatedArtwork.thumbnailData = thumbnailData
             }
-            
             try? await viewModel.galleryService.updateArtwork(updatedArtwork)
-            
             dismiss()
         }
     }

@@ -528,13 +528,13 @@ struct GalleryStatsView: View {
 
 struct StatsGrid: View {
     let stats: GalleryStats
-    
+
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
             StatCard(
-                icon: "photo.stack",
                 title: "Total Artworks",
                 value: "\(stats.totalArtworks)",
+                icon: "photo.stack",
                 color: .blue
             )
             
@@ -560,13 +560,14 @@ struct StatsGrid: View {
             )
         }
     }
-    
+
     func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
 }
+
 
 struct StatCard: View {
     let title: String

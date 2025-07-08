@@ -406,7 +406,7 @@ struct ArtworkListItem: View {
             
             Image(systemName: "chevron.right")
                 .font(.caption)
-                .foregroundColor(.tertiaryLabel)
+                .foregroundColor(.secondary)
         }
         .padding()
         .background(Color(.systemBackground))

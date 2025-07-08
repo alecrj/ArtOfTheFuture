@@ -1,6 +1,5 @@
 import Foundation
 import SwiftUI
-import Combine
 import PencilKit
 
 @MainActor
@@ -25,8 +24,7 @@ final class GalleryViewModel: ObservableObject {
     
     // MARK: - Services
     private let galleryService: GalleryServiceProtocol
-    private var cancellables = Set<AnyCancellable>()
-    
+
     // MARK: - Computed Properties
     var allTags: [String] {
         let tags = artworks.flatMap { $0.tags }
@@ -40,51 +38,21 @@ final class GalleryViewModel: ObservableObject {
     // MARK: - Initialization
     init(galleryService: GalleryServiceProtocol? = nil) {
         self.galleryService = galleryService ?? GalleryService()
-        setupBindings()
-    }
-    
-    // MARK: - Setup
-    private func setupBindings() {
-        // Subscribe to artwork changes
-        galleryService.artworksPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] artworks in
-                self?.artworks = artworks
-                self?.applyFiltersAndSort()
-                Task { [weak self] in
-                    await self?.updateStats()
-                }
-            }
-            .store(in: &cancellables)
-        
-        // React to search text changes
-        $searchText
-            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.applyFiltersAndSort()
-            }
-            .store(in: &cancellables)
-        
-        // React to filter changes
-        Publishers.CombineLatest3($sortOption, $selectedTags, $showOnlyFavorites)
-            .sink { [weak self] _ in
-                self?.applyFiltersAndSort()
-            }
-            .store(in: &cancellables)
+        // No Combine/subscriptions needed
     }
     
     // MARK: - Data Loading
     func loadArtworks() async {
         isLoading = true
         errorMessage = nil
-        
         do {
-            _ = try await galleryService.loadAllArtworks()
+            let loadedArtworks = await galleryService.loadArtworks()
+            self.artworks = loadedArtworks
+            self.applyFiltersAndSort()
             await updateStats()
         } catch {
             errorMessage = error.localizedDescription
         }
-        
         isLoading = false
     }
     
@@ -139,13 +107,10 @@ final class GalleryViewModel: ObservableObject {
     // MARK: - Artwork Actions
     func saveArtwork(title: String, drawing: PKDrawing, duration: TimeInterval) async {
         do {
-            // Generate thumbnail
             let thumbnailData = await galleryService.generateThumbnail(
                 for: drawing,
                 size: CGSize(width: 200, height: 200)
             )
-            
-            // Create artwork
             let artwork = Artwork(
                 title: title.isEmpty ? "Untitled \(Date().formatted(date: .abbreviated, time: .shortened))" : title,
                 drawing: drawing.dataRepresentation(),
@@ -155,13 +120,9 @@ final class GalleryViewModel: ObservableObject {
                 width: drawing.bounds.width,
                 height: drawing.bounds.height
             )
-            
-            // Save
             try await galleryService.saveArtwork(artwork)
-            
-            // Haptic feedback
             await HapticManager.shared.impact(.medium)
-            
+            await loadArtworks() // Refresh
         } catch {
             errorMessage = "Failed to save artwork: \(error.localizedDescription)"
         }
@@ -170,6 +131,7 @@ final class GalleryViewModel: ObservableObject {
     func updateArtwork(_ artwork: Artwork) async {
         do {
             try await galleryService.updateArtwork(artwork)
+            await loadArtworks()
         } catch {
             errorMessage = "Failed to update artwork: \(error.localizedDescription)"
         }
@@ -177,10 +139,9 @@ final class GalleryViewModel: ObservableObject {
     
     func deleteArtwork(_ artwork: Artwork) async {
         do {
-            // Haptic feedback
             await HapticManager.shared.impact(.light)
-            
-            try await galleryService.deleteArtwork(id: artwork.id)
+            try await galleryService.deleteArtwork(withId: artwork.id)
+            await loadArtworks()
         } catch {
             errorMessage = "Failed to delete artwork: \(error.localizedDescription)"
         }
@@ -189,10 +150,7 @@ final class GalleryViewModel: ObservableObject {
     func toggleFavorite(for artwork: Artwork) async {
         var updatedArtwork = artwork
         updatedArtwork.isFavorite.toggle()
-        
-        // Haptic feedback
         await HapticManager.shared.impact(.light)
-        
         await updateArtwork(updatedArtwork)
     }
     
@@ -208,12 +166,9 @@ final class GalleryViewModel: ObservableObject {
                 width: artwork.width,
                 height: artwork.height
             )
-            
             try await galleryService.saveArtwork(duplicatedArtwork)
-            
-            // Haptic feedback
             await HapticManager.shared.impact(.medium)
-            
+            await loadArtworks()
         } catch {
             errorMessage = "Failed to duplicate artwork: \(error.localizedDescription)"
         }
@@ -222,13 +177,11 @@ final class GalleryViewModel: ObservableObject {
     func shareArtwork(_ artwork: Artwork) async {
         do {
             let exportURL = try await galleryService.exportArtwork(artwork)
-            
             await MainActor.run {
                 let activityVC = UIActivityViewController(
                     activityItems: [exportURL],
                     applicationActivities: nil
                 )
-                
                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                    let window = windowScene.windows.first,
                    let rootVC = window.rootViewController {
@@ -249,7 +202,6 @@ final class GalleryViewModel: ObservableObject {
     
     func renameArtwork(_ artwork: Artwork, newTitle: String) async {
         guard !newTitle.isEmpty else { return }
-        
         var updatedArtwork = artwork
         updatedArtwork.title = newTitle
         await updateArtwork(updatedArtwork)

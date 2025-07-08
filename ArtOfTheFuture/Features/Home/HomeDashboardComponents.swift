@@ -300,7 +300,7 @@ final class HomeDashboardViewModel: ObservableObject {
     }
     
     private func loadRecentArtworks() async {
-        if let artworks = try? await galleryService.loadAllArtworks() {
+        if let artworks = try? await galleryService.loadArtworks() {
             recentArtworks = artworks
                 .sorted { $0.modifiedAt > $1.modifiedAt }
                 .prefix(5)

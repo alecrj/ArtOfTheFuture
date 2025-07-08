@@ -58,7 +58,7 @@ struct ProfileHeaderView: View {
                     ))
                     .frame(width: 100, height: 100)
                 
-                Text(user.name.prefix(2).uppercased())
+                Text(user.displayName.prefix(2).uppercased())
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
@@ -66,7 +66,7 @@ struct ProfileHeaderView: View {
             
             // Name and Level
             VStack(spacing: 4) {
-                Text(user.name)
+                Text(user.displayName)
                     .font(.title2)
                     .fontWeight(.bold)
                 
