@@ -7,7 +7,7 @@ import PencilKit
 // MARK: - Drawing Exercise View
 struct DrawingExerciseView: View {
     let exercise: DrawingExercise
-    @ObservedObject var viewModel: DuolingoLessonViewModel
+    @ObservedObject var viewModel: LessonViewModel
     @State private var canvasView = PKCanvasView()
     @State private var currentTool: DrawingTool = .pen
     @State private var currentColor = Color.black
@@ -108,7 +108,7 @@ struct DrawingExerciseView: View {
 // MARK: - Theory Exercise View
 struct TheoryExerciseView: View {
     let exercise: TheoryExercise
-    @ObservedObject var viewModel: DuolingoLessonViewModel
+    @ObservedObject var viewModel: LessonViewModel
     
     var body: some View {
         VStack(spacing: 20) {
@@ -180,7 +180,7 @@ struct TheoryExerciseView: View {
 // MARK: - Challenge Exercise View
 struct ChallengeExerciseView: View {
     let exercise: ChallengeExercise
-    @ObservedObject var viewModel: DuolingoLessonViewModel
+    @ObservedObject var viewModel: LessonViewModel
     @State private var canvasView = PKCanvasView()
     @State private var showResources = true
     

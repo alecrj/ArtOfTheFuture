@@ -1,18 +1,18 @@
-// MARK: - Duolingo-Style Lesson Player
-// File: ArtOfTheFuture/Features/Lessons/Views/DuolingoLessonPlayer.swift
+// MARK: - -Style Lesson Player
+// File: ArtOfTheFuture/Features/Lessons/Views/LessonPlayer.swift
 
 import SwiftUI
 import PencilKit
 import Combine
 
-struct DuolingoLessonPlayer: View {
-    @StateObject private var viewModel: DuolingoLessonViewModel
+struct LessonPlayer: View {
+    @StateObject private var viewModel: LessonViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showingQuitAlert = false
     @State private var screenSize: CGSize = .zero
     
-    init(lesson: DuolingoLesson) {
-        _viewModel = StateObject(wrappedValue: DuolingoLessonViewModel(lesson: lesson))
+    init(lesson: Lesson) {
+        _viewModel = StateObject(wrappedValue: LessonViewModel(lesson: lesson))
     }
     
     var body: some View {
@@ -346,7 +346,7 @@ struct DuolingoLessonPlayer: View {
             }
             
             // Confetti
-            DuolingoConfettiView()
+            ConfettiView()
         }
     }
     
@@ -566,18 +566,18 @@ struct HeartLossAnimation: View {
     }
 }
 
-// MARK: - Duolingo Confetti View (Renamed to avoid conflicts)
-struct DuolingoConfettiView: View {
+// MARK: -  Confetti View (Renamed to avoid conflicts)
+struct ConfettiView: View {
     var body: some View {
         ZStack {
             ForEach(0..<30) { _ in
-                DuolingoConfettiPiece()
+                ConfettiPiece()
             }
         }
     }
 }
 
-struct DuolingoConfettiPiece: View {
+struct ConfettiPiece: View {
     @State private var position = CGPoint(x: UIScreen.main.bounds.width / 2, y: -20)
     @State private var opacity: Double = 1
     
@@ -608,7 +608,7 @@ struct DuolingoConfettiPiece: View {
 // MARK: - Simple Exercise Views
 struct SimpleDrawingExerciseView: View {
     let exercise: DrawingExercise
-    @ObservedObject var viewModel: DuolingoLessonViewModel
+    @ObservedObject var viewModel: LessonViewModel
     @State private var canvasView = PKCanvasView()
     
     var body: some View {
@@ -638,7 +638,7 @@ struct SimpleDrawingExerciseView: View {
 
 struct SimpleTheoryExerciseView: View {
     let exercise: TheoryExercise
-    @ObservedObject var viewModel: DuolingoLessonViewModel
+    @ObservedObject var viewModel: LessonViewModel
     
     var body: some View {
         VStack(spacing: 20) {
@@ -695,7 +695,7 @@ struct SimpleTheoryExerciseView: View {
 
 struct SimpleChallengeExerciseView: View {
     let exercise: ChallengeExercise
-    @ObservedObject var viewModel: DuolingoLessonViewModel
+    @ObservedObject var viewModel: LessonViewModel
     @State private var canvasView = PKCanvasView()
     
     var body: some View {
@@ -728,9 +728,9 @@ struct SimpleChallengeExerciseView: View {
 
 // MARK: - View Model
 @MainActor
-final class DuolingoLessonViewModel: ObservableObject {
+final class LessonViewModel: ObservableObject {
     // Lesson data
-    let lesson: DuolingoLesson
+    let lesson: Lesson
     @Published var currentExerciseIndex = 0
     
     // Progress tracking
@@ -796,7 +796,7 @@ final class DuolingoLessonViewModel: ObservableObject {
         currentHearts == totalHearts
     }
     
-    init(lesson: DuolingoLesson) {
+    init(lesson: Lesson) {
         self.lesson = lesson
         self.totalHearts = lesson.hearts
         self.currentHearts = lesson.hearts

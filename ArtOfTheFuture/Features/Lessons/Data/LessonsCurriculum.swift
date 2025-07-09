@@ -9,8 +9,8 @@ struct LessonCurriculum {
     // MARK: - Beginner Lessons (15 total)
     
     // Drawing Practice (5)
-    static let beginnerDrawingLessons: [DuolingoLesson] = [
-        DuolingoLesson(
+    static let beginnerDrawingLessons: [Lesson] = [
+        Lesson(
             id: "beginner_draw_01",
             title: "Line Control & Confidence",
             description: "Practice drawing steady lines and curves to build hand control",
@@ -125,7 +125,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_draw_02"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_draw_02",
             title: "Basic Shapes Sketching",
             description: "Master circles, squares, and triangles - the building blocks of all drawings",
@@ -157,7 +157,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_draw_03", "beginner_theory_01"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_draw_03",
             title: "Intro to 3D Forms",
             description: "Transform flat shapes into 3D forms with one-point perspective",
@@ -189,7 +189,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_draw_04", "intermediate_draw_02"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_draw_04",
             title: "Shade a Simple Object",
             description: "Learn basic shading to make flat drawings look three-dimensional",
@@ -221,7 +221,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_draw_05", "intermediate_draw_04"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_draw_05",
             title: "Contour Drawing Exercise",
             description: "Train your eye-hand coordination with observational drawing",
@@ -255,8 +255,8 @@ struct LessonCurriculum {
     ]
     
     // Theory Fundamentals (5)
-    static let beginnerTheoryLessons: [DuolingoLesson] = [
-        DuolingoLesson(
+    static let beginnerTheoryLessons: [Lesson] = [
+        Lesson(
             id: "beginner_theory_01",
             title: "Drawing Basics 101",
             description: "Learn the core elements that make up every drawing",
@@ -346,7 +346,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_theory_02"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_theory_02",
             title: "Perspective & Space",
             description: "Understand how perspective creates the illusion of depth",
@@ -378,7 +378,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_theory_03", "beginner_challenge_03"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_theory_03",
             title: "Light and Shadow Basics",
             description: "Learn how light creates form and depth in drawings",
@@ -410,7 +410,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_theory_04"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_theory_04",
             title: "Proportions & Measuring",
             description: "Learn to measure and compare to draw accurate proportions",
@@ -442,7 +442,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_theory_05"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_theory_05",
             title: "Composition Basics",
             description: "Learn to arrange elements for visually pleasing drawings",
@@ -476,8 +476,8 @@ struct LessonCurriculum {
     ]
     
     // Creative Challenges (5)
-    static let beginnerCreativeLessons: [DuolingoLesson] = [
-        DuolingoLesson(
+    static let beginnerCreativeLessons: [Lesson] = [
+        Lesson(
             id: "beginner_challenge_01",
             title: "Finish the Drawing",
             description: "Complete symmetrical drawings to train your observation",
@@ -588,7 +588,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_challenge_02"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_challenge_02",
             title: "Shape Transformation Game",
             description: "Turn random shapes into creative drawings",
@@ -620,7 +620,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_challenge_03"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_challenge_03",
             title: "Spot the Difference",
             description: "Train your artistic eye by finding drawing mistakes",
@@ -652,7 +652,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_challenge_04"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_challenge_04",
             title: "Memory Sketch",
             description: "Draw from memory to improve visual retention",
@@ -684,7 +684,7 @@ struct LessonCurriculum {
             unlocks: ["beginner_challenge_05"]
         ),
         
-        DuolingoLesson(
+        Lesson(
             id: "beginner_challenge_05",
             title: "Quick Draw Challenge",
             description: "Speed sketching to overcome perfectionism",
@@ -718,8 +718,8 @@ struct LessonCurriculum {
     ]
     
     // MARK: - Intermediate Lessons (15 total) - Stub for now
-    static let intermediateLessons: [DuolingoLesson] = [
-        DuolingoLesson(
+    static let intermediateLessons: [Lesson] = [
+        Lesson(
             id: "intermediate_draw_01",
             title: "Gesture Drawing Sprint",
             description: "Capture movement and energy with quick figure sketches",
@@ -753,8 +753,8 @@ struct LessonCurriculum {
     ]
     
     // MARK: - Advanced Lessons (15 total) - Stub for now
-    static let advancedLessons: [DuolingoLesson] = [
-        DuolingoLesson(
+    static let advancedLessons: [Lesson] = [
+        Lesson(
             id: "advanced_draw_01",
             title: "3-Point Perspective Mastery",
             description: "Draw dynamic scenes from dramatic angles",
@@ -788,7 +788,7 @@ struct LessonCurriculum {
     ]
     
     // MARK: - Complete Curriculum
-    static var allLessons: [DuolingoLesson] {
+    static var allLessons: [Lesson] {
         beginnerDrawingLessons + beginnerTheoryLessons + beginnerCreativeLessons +
         intermediateLessons + advancedLessons
     }
