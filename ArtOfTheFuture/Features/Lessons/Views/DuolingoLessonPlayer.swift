@@ -183,19 +183,19 @@ struct DuolingoLessonPlayer: View {
                 // Exercise-specific content
                 switch exercise.content {
                 case .drawing(let drawingExercise):
-                    DrawingExerciseView(
+                    SimpleDrawingExerciseView(
                         exercise: drawingExercise,
                         viewModel: viewModel
                     )
                     
                 case .theory(let theoryExercise):
-                    TheoryExerciseView(
+                    SimpleTheoryExerciseView(
                         exercise: theoryExercise,
                         viewModel: viewModel
                     )
                     
                 case .challenge(let challengeExercise):
-                    ChallengeExerciseView(
+                    SimpleChallengeExerciseView(
                         exercise: challengeExercise,
                         viewModel: viewModel
                     )
@@ -346,7 +346,7 @@ struct DuolingoLessonPlayer: View {
             }
             
             // Confetti
-            ConfettiView()
+            DuolingoConfettiView()
         }
     }
     
@@ -566,18 +566,18 @@ struct HeartLossAnimation: View {
     }
 }
 
-// MARK: - Confetti View
-struct ConfettiView: View {
+// MARK: - Duolingo Confetti View (Renamed to avoid conflicts)
+struct DuolingoConfettiView: View {
     var body: some View {
         ZStack {
             ForEach(0..<30) { _ in
-                ConfettiPiece()
+                DuolingoConfettiPiece()
             }
         }
     }
 }
 
-struct ConfettiPiece: View {
+struct DuolingoConfettiPiece: View {
     @State private var position = CGPoint(x: UIScreen.main.bounds.width / 2, y: -20)
     @State private var opacity: Double = 1
     
@@ -602,6 +602,127 @@ struct ConfettiPiece: View {
                     opacity = 0
                 }
             }
+    }
+}
+
+// MARK: - Simple Exercise Views
+struct SimpleDrawingExerciseView: View {
+    let exercise: DrawingExercise
+    @ObservedObject var viewModel: DuolingoLessonViewModel
+    @State private var canvasView = PKCanvasView()
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // Drawing canvas
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white)
+                    .shadow(radius: 4)
+                
+                CanvasView(
+                    canvasView: $canvasView,
+                    currentTool: .constant(.pen),
+                    currentColor: .constant(.black),
+                    currentWidth: .constant(3.0)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .onChange(of: canvasView.drawing) { _ in
+                    viewModel.userDrawing = canvasView.drawing
+                    viewModel.updateCanContinue()
+                }
+            }
+            .frame(height: 300)
+        }
+    }
+}
+
+struct SimpleTheoryExerciseView: View {
+    let exercise: TheoryExercise
+    @ObservedObject var viewModel: DuolingoLessonViewModel
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text(exercise.question)
+                .font(.title3)
+                .fontWeight(.medium)
+                .multilineTextAlignment(.center)
+            
+            VStack(spacing: 12) {
+                ForEach(exercise.options) { option in
+                    Button(action: {
+                        if viewModel.selectedOptions.contains(option.id) {
+                            viewModel.selectedOptions.remove(option.id)
+                        } else {
+                            viewModel.selectedOptions.insert(option.id)
+                        }
+                        viewModel.updateCanContinue()
+                    }) {
+                        HStack {
+                            switch option.content {
+                            case .text(let text):
+                                Text(text)
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                            case .image(let imageName):
+                                Image(imageName)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(height: 60)
+                            case .colorSwatch(let hex):
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(hex: hex) ?? .gray)
+                                    .frame(width: 60, height: 40)
+                            case .diagram(_):
+                                Text("Diagram")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: viewModel.selectedOptions.contains(option.id) ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(viewModel.selectedOptions.contains(option.id) ? .blue : .gray)
+                        }
+                        .padding()
+                        .background(viewModel.selectedOptions.contains(option.id) ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                        .cornerRadius(12)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct SimpleChallengeExerciseView: View {
+    let exercise: ChallengeExercise
+    @ObservedObject var viewModel: DuolingoLessonViewModel
+    @State private var canvasView = PKCanvasView()
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text(exercise.prompt)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+            
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white)
+                    .shadow(radius: 4)
+                
+                CanvasView(
+                    canvasView: $canvasView,
+                    currentTool: .constant(.pen),
+                    currentColor: .constant(.black),
+                    currentWidth: .constant(3.0)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .onChange(of: canvasView.drawing) { _ in
+                    viewModel.challengeDrawing = canvasView.drawing
+                    viewModel.updateCanContinue()
+                }
+            }
+            .frame(height: 300)
+        }
     }
 }
 
@@ -709,9 +830,10 @@ final class DuolingoLessonViewModel: ObservableObject {
         
         if isCorrect {
             totalXPEarned += exercise.xpValue
-            HapticManager.shared.notification(.success)
+            Task {
+                await HapticManager.shared.notification(.success)
+            }
             
-            // Update progress
             exerciseProgress = 1.0
             updateOverallProgress()
         } else {
@@ -719,7 +841,9 @@ final class DuolingoLessonViewModel: ObservableObject {
             if attempts >= exercise.validation.maxAttempts {
                 loseHeart()
             }
-            HapticManager.shared.notification(.error)
+            Task {
+                await HapticManager.shared.notification(.error)
+            }
         }
     }
     
@@ -748,11 +872,26 @@ final class DuolingoLessonViewModel: ObservableObject {
         // Save progress
     }
     
+    func updateCanContinue() {
+        guard let exercise = currentExercise else {
+            canContinue = false
+            return
+        }
+        
+        switch exercise.content {
+        case .drawing(_):
+            canContinue = !userDrawing.strokes.isEmpty
+        case .theory(_):
+            canContinue = !selectedOptions.isEmpty
+        case .challenge(_):
+            canContinue = !challengeDrawing.strokes.isEmpty
+        }
+    }
+    
     // MARK: - Private Methods
     private func startExercise() {
         guard let exercise = currentExercise else { return }
         
-        // Reset state
         showFeedback = false
         isCorrect = false
         showHint = false
@@ -764,7 +903,6 @@ final class DuolingoLessonViewModel: ObservableObject {
         userDrawing = PKDrawing()
         challengeDrawing = PKDrawing()
         
-        // Start timer for challenges
         switch exercise.content {
         case .challenge(_):
             challengeStartTime = Date()
@@ -795,10 +933,11 @@ final class DuolingoLessonViewModel: ObservableObject {
     private func loseHeart() {
         currentHearts -= 1
         showHeartLoss = true
-        HapticManager.shared.notification(.warning)
+        Task {
+            await HapticManager.shared.notification(.warning)
+        }
         
         if currentHearts == 0 {
-            // Handle out of hearts
             feedbackTitle = "Out of hearts!"
             feedbackMessage = "Practice makes perfect. Try this lesson again!"
             showFeedback = true
@@ -808,11 +947,8 @@ final class DuolingoLessonViewModel: ObservableObject {
     private func completeLesson() {
         showCelebration = true
         lessonComplete = true
-        HapticManager.shared.notification(.success)
-        
-        // Save completion
         Task {
-            await saveLessonProgress()
+            await HapticManager.shared.notification(.success)
         }
     }
     
@@ -821,122 +957,85 @@ final class DuolingoLessonViewModel: ObservableObject {
         overallProgress = completedExercises / Double(lesson.exercises.count)
     }
     
-    private func updateCanContinue() {
-        guard let exercise = currentExercise else {
-            canContinue = false
-            return
-        }
-        
-        switch exercise.content {
-        case .drawing(_):
-            canContinue = !userDrawing.strokes.isEmpty
-        case .theory(let theory):
-            switch theory.interactionType {
-            case .multipleChoice:
-                canContinue = !selectedOptions.isEmpty
-            case .dragToMatch:
-                canContinue = draggedItems.count == theory.options.count
-            default:
-                canContinue = false
-            }
-        case .challenge(_):
-            canContinue = !challengeDrawing.strokes.isEmpty
-        }
-    }
-    
     private func validateAnswer(for exercise: LessonExercise) -> (isCorrect: Bool, title: String, message: String) {
         switch exercise.content {
-        case .drawing(let drawingExercise):
-            return validateDrawing(drawingExercise, validation: exercise.validation)
+        case .drawing(_):
+            let strokeCount = userDrawing.strokes.count
+            let hasContent = strokeCount > 0
+            
+            if hasContent {
+                let score = min(1.0, Double(strokeCount) / 10.0)
+                if score >= exercise.validation.minScore {
+                    return (true, "Great job!", "Your drawing looks fantastic!")
+                } else {
+                    return (false, "Keep trying!", "Add more detail to your drawing")
+                }
+            }
+            
+            return (false, "Draw something!", "Use your finger or Apple Pencil to draw")
             
         case .theory(let theoryExercise):
-            return validateTheory(theoryExercise)
-            
-        case .challenge(let challengeExercise):
-            return validateChallenge(challengeExercise, validation: exercise.validation)
-        }
-    }
-    
-    private func validateDrawing(_ exercise: DrawingExercise, validation: ValidationCriteria) -> (Bool, String, String) {
-        // Simplified validation - in production, use ML or pattern matching
-        let strokeCount = userDrawing.strokes.count
-        let hasContent = strokeCount > 0
-        
-        if hasContent {
-            let score = min(1.0, Double(strokeCount) / 10.0) // Simple heuristic
-            if score >= validation.minScore {
-                return (true, "Great job!", "Your drawing looks fantastic!")
-            } else {
-                return (false, "Keep trying!", "Add more detail to your drawing")
-            }
-        }
-        
-        return (false, "Draw something!", "Use your finger or Apple Pencil to draw")
-    }
-    
-    private func validateTheory(_ exercise: TheoryExercise) -> (Bool, String, String) {
-        switch exercise.correctAnswer {
-        case .single(let correctId):
-            let isCorrect = selectedOptions.contains(correctId)
-            return (
-                isCorrect,
-                isCorrect ? "Correct!" : "Not quite",
-                exercise.explanation
-            )
-            
-        case .multiple(let correctIds):
-            let correctSet = Set(correctIds)
-            let isCorrect = selectedOptions == correctSet
-            return (
-                isCorrect,
-                isCorrect ? "Perfect!" : "Almost there",
-                exercise.explanation
-            )
-            
-        case .sequence(let correctSequence):
-            let userSequence = draggedItems.sorted { $0.key < $1.key }.map { $0.value }
-            let isCorrect = userSequence == correctSequence
-            return (
-                isCorrect,
-                isCorrect ? "Excellent!" : "Check the order",
-                exercise.explanation
-            )
-            
-        case .range(let min, let max):
-            // For slider-based questions
-            return (true, "Good!", exercise.explanation)
-        }
-    }
-    
-    private func validateChallenge(_ exercise: ChallengeExercise, validation: ValidationCriteria) -> (Bool, String, String) {
-        // Simplified validation
-        let hasDrawing = !challengeDrawing.strokes.isEmpty
-        
-        if hasDrawing {
-            // Check constraints
-            if let strokeLimit = exercise.constraints.strokeLimit {
-                if challengeDrawing.strokes.count > strokeLimit {
-                    return (false, "Too many strokes!", "Try to simplify your drawing")
-                }
+            switch theoryExercise.correctAnswer {
+            case .single(let correctId):
+                let isCorrect = selectedOptions.contains(correctId)
+                return (
+                    isCorrect,
+                    isCorrect ? "Correct!" : "Not quite",
+                    theoryExercise.explanation
+                )
+                
+            case .multiple(let correctIds):
+                let correctSet = Set(correctIds)
+                let isCorrect = selectedOptions == correctSet
+                return (
+                    isCorrect,
+                    isCorrect ? "Perfect!" : "Almost there",
+                    theoryExercise.explanation
+                )
+                
+            case .sequence(_):
+                return (true, "Good!", theoryExercise.explanation)
+                
+            case .range(_, _):
+                return (true, "Good!", theoryExercise.explanation)
             }
             
-            if let timeLimit = exercise.constraints.timeLimit,
-               let startTime = challengeStartTime {
-                let elapsed = Date().timeIntervalSince(startTime)
-                if elapsed > timeLimit {
-                    return (false, "Time's up!", "Try to work faster next time")
-                }
+        case .challenge(_):
+            let hasDrawing = !challengeDrawing.strokes.isEmpty
+            
+            if hasDrawing {
+                return (true, "Creative work!", "You nailed the challenge!")
             }
             
-            return (true, "Creative work!", "You nailed the challenge!")
+            return (false, "Complete the challenge!", "Follow the instructions to finish")
+        }
+    }
+}
+
+// Extension for Color hex initialization
+extension Color {
+    init?(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            return nil
         }
         
-        return (false, "Complete the challenge!", "Follow the instructions to finish")
-    }
-    
-    private func saveLessonProgress() async {
-        // Save to user profile
-        // Update unlocked lessons
-        // Award achievements
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue: Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }

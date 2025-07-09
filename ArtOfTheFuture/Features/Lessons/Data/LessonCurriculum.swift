@@ -133,90 +133,7 @@ struct LessonCurriculum {
             difficulty: .beginner,
             estimatedMinutes: 5,
             xpReward: 50,
-            exercises: [
-                LessonExercise(
-                    id: "bd02_e1",
-                    order: 1,
-                    type: .traceDrawing,
-                    instruction: "Trace this perfect circle",
-                    content: .drawing(DrawingExercise(
-                        canvas: .init(width: 400, height: 400, backgroundColor: "#FFFFFF", gridEnabled: true, gridSize: 25),
-                        guidelines: [
-                            DrawingGuideline(
-                                id: "circle1",
-                                type: .circle,
-                                path: [CGPoint(x: 200, y: 200), CGPoint(x: 300, y: 200)], // center and radius point
-                                style: .init(color: "#F59E0B", width: 2, opacity: 0.5, dashPattern: [8, 4], animated: true, animationDuration: 4),
-                                showTiming: .always
-                            )
-                        ],
-                        referenceImage: nil,
-                        animationDemo: "circle_technique",
-                        timeLimit: nil,
-                        toolsAllowed: [.pen]
-                    )),
-                    validation: ValidationCriteria(
-                        minScore: 0.7,
-                        maxAttempts: 3,
-                        rules: [],
-                        feedback: .init(showRealtime: true, showHints: true, encouragementThreshold: 0.5)
-                    ),
-                    hints: ["Move from your shoulder", "Try to complete it in one motion"],
-                    xpValue: 15
-                ),
-                LessonExercise(
-                    id: "bd02_e2",
-                    order: 2,
-                    type: .shapeConstruction,
-                    instruction: "Draw a square using guidelines",
-                    content: .drawing(DrawingExercise(
-                        canvas: .init(width: 400, height: 400, backgroundColor: "#FFFFFF", gridEnabled: true, gridSize: 50),
-                        guidelines: [
-                            DrawingGuideline(
-                                id: "square_guide",
-                                type: .rectangle,
-                                path: [CGPoint(x: 100, y: 100), CGPoint(x: 300, y: 300)],
-                                style: .init(color: "#8B5CF6", width: 1, opacity: 0.3, dashPattern: nil, animated: false, animationDuration: nil),
-                                showTiming: .onHint
-                            )
-                        ],
-                        referenceImage: nil,
-                        animationDemo: nil,
-                        timeLimit: nil,
-                        toolsAllowed: [.pen, .pencil]
-                    )),
-                    validation: ValidationCriteria(
-                        minScore: 0.6,
-                        maxAttempts: 3,
-                        rules: [],
-                        feedback: .init(showRealtime: true, showHints: true, encouragementThreshold: 0.4)
-                    ),
-                    hints: ["Use the grid to help with straight lines", "All sides should be equal length"],
-                    xpValue: 15
-                ),
-                LessonExercise(
-                    id: "bd02_e3",
-                    order: 3,
-                    type: .freehandDrawing,
-                    instruction: "Draw all three shapes freehand",
-                    content: .drawing(DrawingExercise(
-                        canvas: .init(width: 400, height: 300, backgroundColor: "#FFFFFF", gridEnabled: false, gridSize: nil),
-                        guidelines: nil,
-                        referenceImage: "shapes_reference",
-                        animationDemo: nil,
-                        timeLimit: 90,
-                        toolsAllowed: [.pen]
-                    )),
-                    validation: ValidationCriteria(
-                        minScore: 0.5,
-                        maxAttempts: 3,
-                        rules: [],
-                        feedback: .init(showRealtime: false, showHints: false, encouragementThreshold: 0.3)
-                    ),
-                    hints: ["Remember what you learned about each shape"],
-                    xpValue: 20
-                )
-            ],
+            exercises: createBasicShapesExercises(),
             objectives: [
                 "Draw basic geometric shapes confidently",
                 "Understand shape construction",
@@ -358,13 +275,13 @@ struct LessonCurriculum {
                         visualAid: "elements_of_art_diagram",
                         interactionType: .multipleChoice,
                         options: [
-                            TheoryOption(id: "1", content: .text("Line"), feedback: "Correct! Lines are the foundation"),
-                            TheoryOption(id: "2", content: .text("Shape"), feedback: "Yes! 2D forms"),
-                            TheoryOption(id: "3", content: .text("Form"), feedback: "Right! 3D shapes"),
-                            TheoryOption(id: "4", content: .text("Value"), feedback: "Exactly! Light and dark"),
-                            TheoryOption(id: "5", content: .text("Space"), feedback: "Perfect! Positive and negative"),
-                            TheoryOption(id: "6", content: .text("Style"), feedback: "Not quite - style comes later"),
-                            TheoryOption(id: "7", content: .text("Speed"), feedback: "No, speed isn't an element")
+                            TheoryExercise.TheoryOption(id: "1", content: .text("Line"), feedback: "Correct! Lines are the foundation"),
+                            TheoryExercise.TheoryOption(id: "2", content: .text("Shape"), feedback: "Yes! 2D forms"),
+                            TheoryExercise.TheoryOption(id: "3", content: .text("Form"), feedback: "Right! 3D shapes"),
+                            TheoryExercise.TheoryOption(id: "4", content: .text("Value"), feedback: "Exactly! Light and dark"),
+                            TheoryExercise.TheoryOption(id: "5", content: .text("Space"), feedback: "Perfect! Positive and negative"),
+                            TheoryExercise.TheoryOption(id: "6", content: .text("Style"), feedback: "Not quite - style comes later"),
+                            TheoryExercise.TheoryOption(id: "7", content: .text("Speed"), feedback: "No, speed isn't an element")
                         ],
                         correctAnswer: .multiple(["1", "2", "3", "4", "5"]),
                         explanation: "These five elements are the building blocks of all visual art"
@@ -388,10 +305,10 @@ struct LessonCurriculum {
                         visualAid: "shape_vs_form_examples",
                         interactionType: .tapAreas,
                         options: [
-                            TheoryOption(id: "1", content: .image("flat_circle"), feedback: "This is a 2D shape"),
-                            TheoryOption(id: "2", content: .image("shaded_sphere"), feedback: "Correct! Shading creates form"),
-                            TheoryOption(id: "3", content: .image("square_outline"), feedback: "This is just a shape"),
-                            TheoryOption(id: "4", content: .image("cube_drawing"), feedback: "Yes! This shows 3D form")
+                            TheoryExercise.TheoryOption(id: "1", content: .image("flat_circle"), feedback: "This is a 2D shape"),
+                            TheoryExercise.TheoryOption(id: "2", content: .image("shaded_sphere"), feedback: "Correct! Shading creates form"),
+                            TheoryExercise.TheoryOption(id: "3", content: .image("square_outline"), feedback: "This is just a shape"),
+                            TheoryExercise.TheoryOption(id: "4", content: .image("cube_drawing"), feedback: "Yes! This shows 3D form")
                         ],
                         correctAnswer: .multiple(["2", "4"]),
                         explanation: "Form has dimension and volume, created through shading and perspective"
@@ -578,7 +495,7 @@ struct LessonCurriculum {
                         challengeType: .completeHalfDrawing,
                         prompt: "This vase is only half drawn. Complete the symmetrical other half",
                         resources: ["half_vase_template"],
-                        constraints: ChallengeConstraints(
+                        constraints: ChallengeExercise.ChallengeConstraints(
                             timeLimit: 120,
                             strokeLimit: nil,
                             toolRestrictions: nil,
@@ -617,7 +534,7 @@ struct LessonCurriculum {
                         challengeType: .completeHalfDrawing,
                         prompt: "Draw the missing half of this simple cartoon face",
                         resources: ["half_face_simple"],
-                        constraints: ChallengeConstraints(
+                        constraints: ChallengeExercise.ChallengeConstraints(
                             timeLimit: 180,
                             strokeLimit: nil,
                             toolRestrictions: nil,
@@ -800,11 +717,8 @@ struct LessonCurriculum {
         )
     ]
     
-    // MARK: - Intermediate Lessons (15 total)
+    // MARK: - Intermediate Lessons (15 total) - Stub for now
     static let intermediateLessons: [DuolingoLesson] = [
-        // Add all 15 intermediate lessons here following the same pattern
-        // I'll create a few examples:
-        
         DuolingoLesson(
             id: "intermediate_draw_01",
             title: "Gesture Drawing Sprint",
@@ -836,15 +750,10 @@ struct LessonCurriculum {
             prerequisites: ["beginner_draw_05"],
             unlocks: ["intermediate_draw_02", "intermediate_draw_05"]
         )
-        
-        // ... Continue with remaining intermediate lessons
     ]
     
-    // MARK: - Advanced Lessons (15 total)
+    // MARK: - Advanced Lessons (15 total) - Stub for now
     static let advancedLessons: [DuolingoLesson] = [
-        // Add all 15 advanced lessons here
-        // Example:
-        
         DuolingoLesson(
             id: "advanced_draw_01",
             title: "3-Point Perspective Mastery",
@@ -876,8 +785,6 @@ struct LessonCurriculum {
             prerequisites: ["intermediate_draw_02"],
             unlocks: ["advanced_draw_02", "advanced_theory_01"]
         )
-        
-        // ... Continue with remaining advanced lessons
     ]
     
     // MARK: - Complete Curriculum
@@ -900,10 +807,10 @@ struct LessonCurriculum {
                     visualAid: nil,
                     interactionType: .multipleChoice,
                     options: [
-                        TheoryOption(id: "1", content: .text("The line where sky meets ground"), feedback: nil),
-                        TheoryOption(id: "2", content: .text("The edge of the paper"), feedback: nil),
-                        TheoryOption(id: "3", content: .text("Any horizontal line"), feedback: nil),
-                        TheoryOption(id: "4", content: .text("The darkest line"), feedback: nil)
+                        TheoryExercise.TheoryOption(id: "1", content: .text("The line where sky meets ground"), feedback: nil),
+                        TheoryExercise.TheoryOption(id: "2", content: .text("The edge of the paper"), feedback: nil),
+                        TheoryExercise.TheoryOption(id: "3", content: .text("Any horizontal line"), feedback: nil),
+                        TheoryExercise.TheoryOption(id: "4", content: .text("The darkest line"), feedback: nil)
                     ],
                     correctAnswer: .single("1"),
                     explanation: "The horizon line represents eye level"
@@ -935,17 +842,16 @@ struct LessonCurriculum {
                     visualAid: "crosshatch_example",
                     interactionType: .multipleChoice,
                     options: [
-                        TheoryOption(id: "1", content: .text("Blending"), feedback: nil),
-                        TheoryOption(id: "2", content: .text("Cross-hatching"), feedback: nil),
-                        TheoryOption(id: "3", content: .text("Stippling"), feedback: nil),
-                        TheoryOption(id: "4", content: .text("Scribbling"), feedback: nil)
+                        TheoryExercise.TheoryOption(id: "1", content: .text("Blending"), feedback: nil),
+                        TheoryExercise.TheoryOption(id: "2", content: .text("Cross-hatching"), feedback: nil),
+                        TheoryExercise.TheoryOption(id: "3", content: .text("Stippling"), feedback: nil),
+                        TheoryExercise.TheoryOption(id: "4", content: .text("Scribbling"), feedback: nil)
                     ],
                     correctAnswer: .single("2"),
                     explanation: "Cross-hatching uses intersecting lines"
                 )),
                 weight: 1.5
             )
-            // Add more placement exercises...
         ]
     )
 }
@@ -980,78 +886,90 @@ private func createDotPattern() -> [DrawingGuideline] {
     }
 }
 
-// MARK: - Exercise Creation Functions
+// MARK: - Exercise Creation Functions (Stubs for compilation)
+private func createBasicShapesExercises() -> [LessonExercise] {
+    return [
+        LessonExercise(
+            id: "shapes_ex_1",
+            order: 1,
+            type: .traceDrawing,
+            instruction: "Trace this perfect circle",
+            content: .drawing(DrawingExercise(
+                canvas: .init(width: 400, height: 400, backgroundColor: "#FFFFFF", gridEnabled: true, gridSize: 25),
+                guidelines: [
+                    DrawingGuideline(
+                        id: "circle1",
+                        type: .circle,
+                        path: [CGPoint(x: 200, y: 200), CGPoint(x: 300, y: 200)],
+                        style: .init(color: "#F59E0B", width: 2, opacity: 0.5, dashPattern: [8, 4], animated: true, animationDuration: 4),
+                        showTiming: .always
+                    )
+                ],
+                referenceImage: nil,
+                animationDemo: "circle_technique",
+                timeLimit: nil,
+                toolsAllowed: [.pen]
+            )),
+            validation: ValidationCriteria(
+                minScore: 0.7,
+                maxAttempts: 3,
+                rules: [],
+                feedback: .init(showRealtime: true, showHints: true, encouragementThreshold: 0.5)
+            ),
+            hints: ["Move from your shoulder", "Try to complete it in one motion"],
+            xpValue: 15
+        )
+    ]
+}
+
 private func createBeginnerPerspectiveExercises() -> [LessonExercise] {
-    // Implementation for perspective exercises
     return []
 }
 
 private func createBeginnerShadingExercises() -> [LessonExercise] {
-    // Implementation for shading exercises
     return []
 }
 
 private func createContourDrawingExercises() -> [LessonExercise] {
-    // Implementation for contour drawing exercises
     return []
 }
 
 private func createBeginnerPerspectiveTheory() -> [LessonExercise] {
-    // Implementation for perspective theory
     return []
 }
 
 private func createLightTheoryExercises() -> [LessonExercise] {
-    // Implementation for light theory
     return []
 }
 
 private func createProportionTheoryExercises() -> [LessonExercise] {
-    // Implementation for proportion theory
     return []
 }
 
 private func createCompositionTheoryExercises() -> [LessonExercise] {
-    // Implementation for composition theory
     return []
 }
 
 private func createShapeTransformationExercises() -> [LessonExercise] {
-    // Implementation for shape transformation
     return []
 }
 
 private func createSpotDifferenceExercises() -> [LessonExercise] {
-    // Implementation for spot the difference
     return []
 }
 
 private func createMemorySketchExercises() -> [LessonExercise] {
-    // Implementation for memory sketch
     return []
 }
 
 private func createQuickDrawExercises() -> [LessonExercise] {
-    // Implementation for quick draw
     return []
 }
 
 private func createGestureDrawingExercises() -> [LessonExercise] {
-    // Implementation for gesture drawing
     return []
 }
 
 private func createAdvancedPerspectiveExercises() -> [LessonExercise] {
-    // Implementation for advanced perspective
     return []
-}
-
-// MARK: - Drawing Skill Extension
-extension DrawingSkill.SkillCategory {
-    static let theory = DrawingSkill.SkillCategory(rawValue: "Theory")!
-    static let observation = DrawingSkill.SkillCategory(rawValue: "Observation")!
-    static let creativity = DrawingSkill.SkillCategory(rawValue: "Creativity")!
-    static let sketching = DrawingSkill.SkillCategory(rawValue: "Sketching")!
-    static let figure = DrawingSkill.SkillCategory(rawValue: "Figure Drawing")!
-    static let composition = DrawingSkill.SkillCategory(rawValue: "Composition")!
 }

@@ -1,5 +1,5 @@
 // MARK: - Enhanced Lesson Models
-// File: ArtOfTheFuture/Features/Lessons/Models/EnhancedLessonModels.swift
+// File: ArtOfTheFuture/Features/Learning/Models/EnhancedLessonModels.swift
 
 import Foundation
 import SwiftUI
@@ -221,6 +221,50 @@ struct TheoryExercise: Codable {
             case image(String)
             case colorSwatch(String)
             case diagram(DiagramData)
+            
+            enum CodingKeys: String, CodingKey {
+                case type, value
+            }
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                switch self {
+                case .text(let text):
+                    try container.encode("text", forKey: .type)
+                    try container.encode(text, forKey: .value)
+                case .image(let image):
+                    try container.encode("image", forKey: .type)
+                    try container.encode(image, forKey: .value)
+                case .colorSwatch(let color):
+                    try container.encode("colorSwatch", forKey: .type)
+                    try container.encode(color, forKey: .value)
+                case .diagram(let diagram):
+                    try container.encode("diagram", forKey: .type)
+                    try container.encode(diagram, forKey: .value)
+                }
+            }
+            
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                let type = try container.decode(String.self, forKey: .type)
+                
+                switch type {
+                case "text":
+                    let text = try container.decode(String.self, forKey: .value)
+                    self = .text(text)
+                case "image":
+                    let image = try container.decode(String.self, forKey: .value)
+                    self = .image(image)
+                case "colorSwatch":
+                    let color = try container.decode(String.self, forKey: .value)
+                    self = .colorSwatch(color)
+                case "diagram":
+                    let diagram = try container.decode(DiagramData.self, forKey: .value)
+                    self = .diagram(diagram)
+                default:
+                    throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown content type: \(type)")
+                }
+            }
         }
     }
     
@@ -229,7 +273,61 @@ struct TheoryExercise: Codable {
         case multiple([String])
         case sequence([String])
         case range(min: Double, max: Double)
+        
+        enum CodingKeys: String, CodingKey {
+            case type, value, min, max
+        }
+        
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            switch self {
+            case .single(let id):
+                try container.encode("single", forKey: .type)
+                try container.encode(id, forKey: .value)
+            case .multiple(let ids):
+                try container.encode("multiple", forKey: .type)
+                try container.encode(ids, forKey: .value)
+            case .sequence(let sequence):
+                try container.encode("sequence", forKey: .type)
+                try container.encode(sequence, forKey: .value)
+            case .range(let min, let max):
+                try container.encode("range", forKey: .type)
+                try container.encode(min, forKey: .min)
+                try container.encode(max, forKey: .max)
+            }
+        }
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let type = try container.decode(String.self, forKey: .type)
+            
+            switch type {
+            case "single":
+                let id = try container.decode(String.self, forKey: .value)
+                self = .single(id)
+            case "multiple":
+                let ids = try container.decode([String].self, forKey: .value)
+                self = .multiple(ids)
+            case "sequence":
+                let sequence = try container.decode([String].self, forKey: .value)
+                self = .sequence(sequence)
+            case "range":
+                let min = try container.decode(Double.self, forKey: .min)
+                let max = try container.decode(Double.self, forKey: .max)
+                self = .range(min: min, max: max)
+            default:
+                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown answer type: \(type)")
+            }
+        }
     }
+}
+
+// MARK: - DiagramData
+struct DiagramData: Codable {
+    let id: String
+    let imageName: String
+    let overlayPoints: [CGPoint]
+    let description: String
 }
 
 // MARK: - Challenge Exercise
@@ -286,7 +384,7 @@ struct JudgingCriterion: Codable {
     }
 }
 
-// MARK: - Progress & Achievements
+// MARK: - Progress & Enhanced Achievements
 struct LessonProgress: Codable {
     let lessonId: String
     let userId: String
@@ -307,8 +405,8 @@ struct LessonProgress: Codable {
     }
 }
 
-// MARK: - Gamification Elements
-struct AchievementBadge: Identifiable, Codable {
+// MARK: - Enhanced Achievement System
+struct LessonAchievementBadge: Identifiable, Codable {
     let id: String
     let name: String
     let description: String
@@ -338,6 +436,66 @@ struct AchievementBadge: Identifiable, Codable {
         case earnXP(Int)
         case perfectScore(count: Int)
         case speedRun(lessonId: String, seconds: Int)
+        
+        enum CodingKeys: String, CodingKey {
+            case type, lessonId, lessonType, count, streak, xp, seconds
+        }
+        
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            switch self {
+            case .completeLesson(let id):
+                try container.encode("completeLesson", forKey: .type)
+                try container.encode(id, forKey: .lessonId)
+            case .completeLessonType(let type, let count):
+                try container.encode("completeLessonType", forKey: .type)
+                try container.encode(type, forKey: .lessonType)
+                try container.encode(count, forKey: .count)
+            case .achieveStreak(let streak):
+                try container.encode("achieveStreak", forKey: .type)
+                try container.encode(streak, forKey: .streak)
+            case .earnXP(let xp):
+                try container.encode("earnXP", forKey: .type)
+                try container.encode(xp, forKey: .xp)
+            case .perfectScore(let count):
+                try container.encode("perfectScore", forKey: .type)
+                try container.encode(count, forKey: .count)
+            case .speedRun(let lessonId, let seconds):
+                try container.encode("speedRun", forKey: .type)
+                try container.encode(lessonId, forKey: .lessonId)
+                try container.encode(seconds, forKey: .seconds)
+            }
+        }
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let type = try container.decode(String.self, forKey: .type)
+            
+            switch type {
+            case "completeLesson":
+                let id = try container.decode(String.self, forKey: .lessonId)
+                self = .completeLesson(id)
+            case "completeLessonType":
+                let lessonType = try container.decode(LessonType.self, forKey: .lessonType)
+                let count = try container.decode(Int.self, forKey: .count)
+                self = .completeLessonType(lessonType, count: count)
+            case "achieveStreak":
+                let streak = try container.decode(Int.self, forKey: .streak)
+                self = .achieveStreak(streak)
+            case "earnXP":
+                let xp = try container.decode(Int.self, forKey: .xp)
+                self = .earnXP(xp)
+            case "perfectScore":
+                let count = try container.decode(Int.self, forKey: .count)
+                self = .perfectScore(count: count)
+            case "speedRun":
+                let lessonId = try container.decode(String.self, forKey: .lessonId)
+                let seconds = try container.decode(Int.self, forKey: .seconds)
+                self = .speedRun(lessonId: lessonId, seconds: seconds)
+            default:
+                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown criteria type: \(type)")
+            }
+        }
     }
 }
 
@@ -381,12 +539,43 @@ struct PlacementTest: Codable {
         let skill: DrawingSkill.SkillCategory
         let content: ExerciseContent
         let weight: Double
+        
+        enum ExerciseType: String, Codable {
+            case quickTheory
+            case drawBasicShape
+            case identifyTechnique
+            case proportionCheck
+        }
     }
-    
-    enum ExerciseType: String, Codable {
-        case quickTheory
-        case drawBasicShape
-        case identifyTechnique
-        case proportionCheck
-    }
+}
+
+// MARK: - Services
+protocol LessonServiceProtocol {
+    func loadLesson(id: String) async throws -> DuolingoLesson
+    func getLessonsForUser() async throws -> [DuolingoLesson]
+    func unlockNextLessons(after completedLesson: DuolingoLesson) async throws
+}
+
+protocol ProgressServiceProtocol {
+    func recordStepCompletion(lessonId: String, stepId: String, duration: TimeInterval, score: Double, drawing: PKDrawing) async
+    func completeLesson(_ lesson: DuolingoLesson) async
+    func getUserProgress() async throws -> UserProgress
+}
+
+struct UserProgress: Codable {
+    let completedLessons: [String]
+    let unlockedLessons: [String]
+    let skillProgression: [DrawingSkill.SkillCategory: Double]
+    let totalXP: Int
+    let currentStreak: Int
+}
+
+// MARK: - Extension for Drawing Skill Categories
+extension DrawingSkill.SkillCategory {
+    static let theory = DrawingSkill.SkillCategory.colorTheory // Reuse existing
+    static let observation = DrawingSkill.SkillCategory.basicShapes // Reuse existing
+    static let creativity = DrawingSkill.SkillCategory.basicShapes // Reuse existing
+    static let sketching = DrawingSkill.SkillCategory.lineControl // Reuse existing
+    static let figure = DrawingSkill.SkillCategory.proportion // Reuse existing
+    static let composition = DrawingSkill.SkillCategory.perspective // Reuse existing
 }
