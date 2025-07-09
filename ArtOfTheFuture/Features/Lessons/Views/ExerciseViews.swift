@@ -9,7 +9,7 @@ struct DrawingExerciseView: View {
     let exercise: DrawingExercise
     @ObservedObject var viewModel: LessonViewModel
     @State private var canvasView = PKCanvasView()
-    @State private var currentTool: DrawingTool = .pen
+    @State private var currentTool: LessonDrawingTool = .pen
     @State private var currentColor = Color.black
     @State private var currentWidth: CGFloat = 3.0
     @State private var showGuidelines = true
@@ -77,7 +77,7 @@ struct DrawingExerciseView: View {
             .clipShape(RoundedRectangle(cornerRadius: 20))
             
             // Drawing tools
-            DrawingToolBar(
+            LessonDrawingToolBar(
                 currentTool: $currentTool,
                 currentColor: $currentColor,
                 currentWidth: $currentWidth,
@@ -390,7 +390,7 @@ struct GuidelinesLayer: View {
 struct CanvasViewBridge: UIViewRepresentable {
     @Binding var canvasView: PKCanvasView
     @Binding var drawing: PKDrawing
-    let currentTool: DrawingTool
+    let currentTool: LessonDrawingTool
     let currentColor: Color
     let currentWidth: CGFloat
     let onChange: () -> Void
@@ -434,12 +434,12 @@ struct CanvasViewBridge: UIViewRepresentable {
     }
 }
 
-struct DrawingToolBar: View {
-    @Binding var currentTool: DrawingTool
+struct LessonDrawingToolBar: View {
+    @Binding var currentTool: LessonDrawingTool
     @Binding var currentColor: Color
     @Binding var currentWidth: CGFloat
     @Binding var showGuidelines: Bool
-    let allowedTools: [DrawingTool]
+    let allowedTools: [LessonDrawingTool]
     let onClear: () -> Void
     let onUndo: () -> Void
     
@@ -519,7 +519,7 @@ struct DrawingToolBar: View {
 }
 
 struct ToolButton: View {
-    let tool: DrawingTool
+    let tool: LessonDrawingTool
     let isSelected: Bool
     let action: () -> Void
     

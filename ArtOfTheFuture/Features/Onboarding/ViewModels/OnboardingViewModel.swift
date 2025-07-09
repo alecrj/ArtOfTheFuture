@@ -73,7 +73,7 @@ protocol UserServiceProtocol {
     func saveOnboardingData(_ data: OnboardingData) async throws
     func getOnboardingData() async throws -> OnboardingData?
     func updateDailyProgress(_ progress: DailyProgress) async throws
-    func getWeeklyStats() async throws -> WeeklyStats
+    func getOnboardingOnboardingWeeklyStats() async throws -> OnboardingOnboardingWeeklyStats
 }
 
 // MARK: - User Service Implementation
@@ -116,8 +116,8 @@ final class UserService: UserServiceProtocol {
         userDefaults.set(encoded, forKey: key)
     }
     
-    func getWeeklyStats() async throws -> WeeklyStats {
-        var dayStats: [WeeklyStats.DayStats] = []
+    func getOnboardingOnboardingWeeklyStats() async throws -> OnboardingOnboardingWeeklyStats {
+        var dayStats: [OnboardingOnboardingWeeklyStats.DayStats] = []
         let calendar = Calendar.current
         let today = Date()
         
@@ -129,7 +129,7 @@ final class UserService: UserServiceProtocol {
             
             if let data = userDefaults.data(forKey: key),
                let progress = try? decoder.decode(DailyProgress.self, from: data) {
-                dayStats.append(WeeklyStats.DayStats(
+                dayStats.append(OnboardingOnboardingWeeklyStats.DayStats(
                     date: date,
                     minutes: progress.completedMinutes,
                     xp: progress.xpEarned,
@@ -137,7 +137,7 @@ final class UserService: UserServiceProtocol {
                 ))
             } else {
                 // No data for this day
-                dayStats.append(WeeklyStats.DayStats(
+                dayStats.append(OnboardingOnboardingWeeklyStats.DayStats(
                     date: date,
                     minutes: 0,
                     xp: 0,
@@ -151,7 +151,7 @@ final class UserService: UserServiceProtocol {
         let daysWithData = dayStats.filter { $0.minutes > 0 }.count
         let averageMinutes = daysWithData > 0 ? Double(totalMinutes) / Double(daysWithData) : 0
         
-        return WeeklyStats(
+        return OnboardingOnboardingWeeklyStats(
             days: dayStats.reversed(), // Oldest to newest
             totalMinutes: totalMinutes,
             totalXP: totalXP,

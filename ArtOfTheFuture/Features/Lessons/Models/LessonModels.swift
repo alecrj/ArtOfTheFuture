@@ -186,7 +186,7 @@ struct DrawingContent: Codable {
     let backgroundColor: String
     let guidelines: [Guideline]?
     let referenceImage: String?
-    let toolsAllowed: [DrawingTool]
+    let toolsAllowed: [LessonLessonDrawingTool]
     let timeLimit: TimeInterval?
     
     struct Guideline: Codable {
@@ -267,7 +267,7 @@ struct ValidationCriteria: Codable {
 }
 
 // MARK: - Drawing Tools
-enum DrawingTool: String, Codable, CaseIterable {
+enum LessonLessonDrawingTool: String, Codable, CaseIterable {
     case pen = "Pen"
     case pencil = "Pencil"
     case marker = "Marker"

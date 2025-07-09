@@ -304,7 +304,7 @@ struct DrawingExerciseView: View {
     let content: DrawingContent
     let onDrawingChanged: (PKDrawing) -> Void
     @State private var canvasView = PKCanvasView()
-    @State private var currentTool: DrawingTool = .pen
+    @State private var currentTool: LessonDrawingTool = .pen
     @State private var showGuidelines = true
     
     var body: some View {
@@ -643,7 +643,7 @@ struct AnswerOptionView: View {
 }
 
 struct ToolButton: View {
-    let tool: DrawingTool
+    let tool: LessonDrawingTool
     let isSelected: Bool
     let action: () -> Void
     

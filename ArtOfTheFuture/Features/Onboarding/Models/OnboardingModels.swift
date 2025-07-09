@@ -186,7 +186,7 @@ struct DashboardData: Codable {
     let currentStreak: Int
     let todayProgress: DailyProgress
     let recentArtworks: [Artwork]
-    let weeklyStats: WeeklyStats
+    let weeklyStats: OnboardingOnboardingWeeklyStats
 }
 
 struct DailyProgress: Codable {
@@ -205,7 +205,7 @@ struct DailyProgress: Codable {
     }
 }
 
-struct WeeklyStats: Codable {
+struct OnboardingOnboardingOnboardingWeeklyStats: Codable {
     let days: [DayStats]
     let totalMinutes: Int
     let totalXP: Int
