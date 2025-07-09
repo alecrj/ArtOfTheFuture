@@ -43,7 +43,7 @@ enum DifficultyLevel: String, Codable, CaseIterable {
 }
 
 // MARK: - Enhanced Lesson Structure
-struct DuolingoLesson: Identifiable, Codable {
+struct Lesson: Identifiable, Codable {
     let id: String
     let title: String
     let description: String
@@ -54,7 +54,7 @@ struct DuolingoLesson: Identifiable, Codable {
     let hearts: Int = 3 // Lives system
     
     // Content
-    let exercises: [LessonExercise]
+    let exercises: [LessonStep]
     let objectives: [String]
     let skills: [DrawingSkill]
     let tips: [String]
@@ -72,7 +72,7 @@ struct DuolingoLesson: Identifiable, Codable {
 }
 
 // MARK: - Exercise Types
-struct LessonExercise: Identifiable, Codable {
+struct LessonStep: Identifiable, Codable {
     let id: String
     let order: Int
     let type: ExerciseType
@@ -551,14 +551,14 @@ struct PlacementTest: Codable {
 
 // MARK: - Services
 protocol LessonServiceProtocol {
-    func loadLesson(id: String) async throws -> DuolingoLesson
-    func getLessonsForUser() async throws -> [DuolingoLesson]
-    func unlockNextLessons(after completedLesson: DuolingoLesson) async throws
+    func loadLesson(id: String) async throws -> Lesson
+    func getLessonsForUser() async throws -> [Lesson]
+    func unlockNextLessons(after completedLesson: Lesson) async throws
 }
 
 protocol ProgressServiceProtocol {
     func recordStepCompletion(lessonId: String, stepId: String, duration: TimeInterval, score: Double, drawing: PKDrawing) async
-    func completeLesson(_ lesson: DuolingoLesson) async
+    func completeLesson(_ lesson: Lesson) async
     func getUserProgress() async throws -> UserProgress
 }
 
