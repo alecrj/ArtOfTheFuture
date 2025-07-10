@@ -1,4 +1,4 @@
-// MARK: - Progress Service Protocol
+// MARK: - Progress Service Protocol (FIXED)
 // File: ArtOfTheFuture/Features/Lessons/Services/ProgressServiceProtocol.swift
 
 import Foundation

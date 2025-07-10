@@ -1,4 +1,4 @@
-// MARK: - Complete Unified Lesson Models
+// MARK: - Complete Unified Lesson Models (FIXED)
 // File: ArtOfTheFuture/Features/Lessons/Models/LessonModels.swift
 // SINGLE SOURCE OF TRUTH for all lesson-related models
 
@@ -17,8 +17,9 @@ struct Lesson: Identifiable, Codable {
     let estimatedMinutes: Int
     let xpReward: Int
     
-    // Content
+    // Content - FIXED to use proper exercise types
     let steps: [LessonStep]
+    let exercises: [LessonExercise] // Added missing exercises array
     let objectives: [String]
     let tips: [String]
     
@@ -26,33 +27,36 @@ struct Lesson: Identifiable, Codable {
     let prerequisites: [String]
     let unlocks: [String]
     
+    // System properties for gamification
+    let hearts: Int = 3
+    
     // Computed properties
     var totalSteps: Int { steps.count }
-    var icon: String { category.icon }
-    var color: Color { category.color }
+    var icon: String { category.iconName }
+    var color: Color { category.categoryColor }
     var isLocked: Bool { false } // Will be computed based on user progress
     var isCompleted: Bool { false } // Will be computed based on user progress
 }
 
 // MARK: - Lesson Types
 enum LessonType: String, Codable, CaseIterable {
-    case practice = "Practice"
-    case theory = "Theory"
-    case challenge = "Challenge"
+    case drawingPractice = "Practice"
+    case theoryFundamentals = "Theory"
+    case creativeChallenge = "Challenge"
     
-    var icon: String {
+    var iconName: String {
         switch self {
-        case .practice: return "hand.draw.fill"
-        case .theory: return "book.fill"
-        case .challenge: return "sparkles"
+        case .drawingPractice: return "hand.draw.fill"
+        case .theoryFundamentals: return "book.fill"
+        case .creativeChallenge: return "sparkles"
         }
     }
     
     var color: Color {
         switch self {
-        case .practice: return .blue
-        case .theory: return .purple
-        case .challenge: return .orange
+        case .drawingPractice: return .blue
+        case .theoryFundamentals: return .purple
+        case .creativeChallenge: return .orange
         }
     }
 }
@@ -66,7 +70,7 @@ enum LessonCategory: String, Codable, CaseIterable {
     case color = "Color"
     case advanced = "Advanced"
     
-    var icon: String {
+    var iconName: String {
         switch self {
         case .basics: return "pencil"
         case .drawing: return "scribble"
@@ -78,7 +82,7 @@ enum LessonCategory: String, Codable, CaseIterable {
         }
     }
     
-    var color: Color {
+    var categoryColor: Color {
         switch self {
         case .basics: return .blue
         case .drawing: return .green
@@ -104,13 +108,263 @@ enum DifficultyLevel: String, Codable, CaseIterable {
         }
     }
     
-    var color: Color {
+    var difficultyColor: Color {
         switch self {
         case .beginner: return .green
         case .intermediate: return .orange
         case .advanced: return .red
         }
     }
+}
+
+// MARK: - Lesson Exercise Model (ADDED MISSING TYPE)
+struct LessonExercise: Identifiable, Codable {
+    let id: String
+    let instruction: String
+    let content: ExerciseContent
+    let validation: ExerciseValidation
+    let hints: [String]
+    let xpValue: Int
+}
+
+// MARK: - Exercise Content Types (ADDED MISSING TYPES)
+enum ExerciseContent: Codable {
+    case drawing(DrawingExercise)
+    case theory(TheoryExercise)
+    case challenge(ChallengeExercise)
+    
+    private enum CodingKeys: String, CodingKey {
+        case type, data
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .drawing(let content):
+            try container.encode("drawing", forKey: .type)
+            try container.encode(content, forKey: .data)
+        case .theory(let content):
+            try container.encode("theory", forKey: .type)
+            try container.encode(content, forKey: .data)
+        case .challenge(let content):
+            try container.encode("challenge", forKey: .type)
+            try container.encode(content, forKey: .data)
+        }
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        
+        switch type {
+        case "drawing":
+            let content = try container.decode(DrawingExercise.self, forKey: .data)
+            self = .drawing(content)
+        case "theory":
+            let content = try container.decode(TheoryExercise.self, forKey: .data)
+            self = .theory(content)
+        case "challenge":
+            let content = try container.decode(ChallengeExercise.self, forKey: .data)
+            self = .challenge(content)
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown type: \(type)")
+        }
+    }
+}
+
+// MARK: - Drawing Exercise (ADDED MISSING TYPE)
+struct DrawingExercise: Codable {
+    let canvas: CanvasConfig
+    let guidelines: [DrawingGuideline]?
+    let referenceImage: String?
+    let toolsAllowed: [LessonDrawingTool]
+    let timeLimit: TimeInterval?
+    
+    struct CanvasConfig: Codable {
+        let width: CGFloat
+        let height: CGFloat
+        let backgroundColor: String
+        let gridEnabled: Bool
+        let gridSize: CGFloat?
+    }
+}
+
+// MARK: - Drawing Guideline (ADDED MISSING TYPE)
+struct DrawingGuideline: Codable {
+    let type: GuidelineType
+    let path: [CGPoint]
+    let style: GuidelineStyle
+    
+    enum GuidelineType: String, Codable {
+        case line, circle, curve, rectangle
+    }
+    
+    struct GuidelineStyle: Codable {
+        let color: String
+        let width: CGFloat
+        let opacity: Double
+        let dashPattern: [CGFloat]?
+        let animated: Bool
+    }
+}
+
+// MARK: - Theory Exercise (ADDED MISSING TYPE)
+struct TheoryExercise: Codable {
+    let question: String
+    let visualAid: String?
+    let interactionType: InteractionType
+    let options: [TheoryOption]
+    let correctAnswer: CorrectAnswer
+    let explanation: String
+    
+    enum InteractionType: String, Codable {
+        case multipleChoice
+        case tapAreas
+        case dragToMatch
+        case orderSequence
+        case slider
+    }
+    
+    struct TheoryOption: Codable, Identifiable {
+        let id: String
+        let content: OptionContent
+        
+        enum OptionContent: Codable {
+            case text(String)
+            case image(String)
+            case colorSwatch(String)
+            case diagram(Data)
+            
+            private enum CodingKeys: String, CodingKey {
+                case type, value
+            }
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                switch self {
+                case .text(let text):
+                    try container.encode("text", forKey: .type)
+                    try container.encode(text, forKey: .value)
+                case .image(let image):
+                    try container.encode("image", forKey: .type)
+                    try container.encode(image, forKey: .value)
+                case .colorSwatch(let color):
+                    try container.encode("color", forKey: .type)
+                    try container.encode(color, forKey: .value)
+                case .diagram(let data):
+                    try container.encode("diagram", forKey: .type)
+                    try container.encode(data, forKey: .value)
+                }
+            }
+            
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                let type = try container.decode(String.self, forKey: .type)
+                
+                switch type {
+                case "text":
+                    let text = try container.decode(String.self, forKey: .value)
+                    self = .text(text)
+                case "image":
+                    let image = try container.decode(String.self, forKey: .value)
+                    self = .image(image)
+                case "color":
+                    let color = try container.decode(String.self, forKey: .value)
+                    self = .colorSwatch(color)
+                case "diagram":
+                    let data = try container.decode(Data.self, forKey: .value)
+                    self = .diagram(data)
+                default:
+                    throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown type")
+                }
+            }
+        }
+    }
+    
+    enum CorrectAnswer: Codable {
+        case single(String)
+        case multiple([String])
+        case sequence([String])
+        case range(Double, Double)
+        
+        private enum CodingKeys: String, CodingKey {
+            case type, value, min, max
+        }
+        
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            switch self {
+            case .single(let answer):
+                try container.encode("single", forKey: .type)
+                try container.encode(answer, forKey: .value)
+            case .multiple(let answers):
+                try container.encode("multiple", forKey: .type)
+                try container.encode(answers, forKey: .value)
+            case .sequence(let sequence):
+                try container.encode("sequence", forKey: .type)
+                try container.encode(sequence, forKey: .value)
+            case .range(let min, let max):
+                try container.encode("range", forKey: .type)
+                try container.encode(min, forKey: .min)
+                try container.encode(max, forKey: .max)
+            }
+        }
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let type = try container.decode(String.self, forKey: .type)
+            
+            switch type {
+            case "single":
+                let answer = try container.decode(String.self, forKey: .value)
+                self = .single(answer)
+            case "multiple":
+                let answers = try container.decode([String].self, forKey: .value)
+                self = .multiple(answers)
+            case "sequence":
+                let sequence = try container.decode([String].self, forKey: .value)
+                self = .sequence(sequence)
+            case "range":
+                let min = try container.decode(Double.self, forKey: .min)
+                let max = try container.decode(Double.self, forKey: .max)
+                self = .range(min, max)
+            default:
+                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown type")
+            }
+        }
+    }
+}
+
+// MARK: - Challenge Exercise (ADDED MISSING TYPE)
+struct ChallengeExercise: Codable {
+    let challengeType: ChallengeType
+    let prompt: String
+    let resources: [String]
+    let constraints: ChallengeConstraints
+    
+    enum ChallengeType: String, Codable {
+        case completeHalfDrawing
+        case transformShape
+        case speedSketch
+        case memoryRecreation
+        case styleMimic
+        case findMistakes
+        case composition
+    }
+    
+    struct ChallengeConstraints: Codable {
+        let timeLimit: TimeInterval?
+        let strokeLimit: Int?
+        let colorPalette: [String]?
+        let toolRestrictions: [LessonDrawingTool]?
+    }
+}
+
+// MARK: - Exercise Validation (ADDED MISSING TYPE)
+struct ExerciseValidation: Codable {
+    let minScore: Double
+    let maxAttempts: Int
+    let autoCheck: Bool
 }
 
 // MARK: - Lesson Step Model
@@ -231,7 +485,7 @@ struct ChallengeContent: Codable {
     let challengeType: ChallengeType
     let prompt: String
     let resources: [String]
-    let constraints: [String: String]? // Simplified constraints
+    let constraints: [String: String]?
     
     enum ChallengeType: String, Codable {
         case speedDraw
@@ -288,6 +542,53 @@ enum LessonDrawingTool: String, Codable, CaseIterable {
             return PKInkingTool(.marker, color: color, width: width)
         case .eraser:
             return PKEraserTool(.bitmap)
+        }
+    }
+}
+
+// MARK: - Progress Models (SINGLE SOURCE OF TRUTH)
+struct LessonProgress: Codable {
+    let lessonId: String
+    var isCompleted: Bool = false
+    var isUnlocked: Bool = false
+    var bestScore: Double = 0.0
+    var totalAttempts: Int = 0
+    var stepProgress: [String: StepProgress] = [:]
+    var lastAttemptDate: Date?
+    var totalTimeSpent: TimeInterval = 0
+    
+    var completionPercentage: Double {
+        guard !stepProgress.isEmpty else { return 0 }
+        let completed = stepProgress.values.filter { $0.isCompleted }.count
+        return Double(completed) / Double(stepProgress.count)
+    }
+}
+
+struct StepProgress: Codable {
+    let stepId: String
+    var isCompleted: Bool = false
+    var attempts: Int = 0
+    var bestScore: Double = 0.0
+    var timeSpent: TimeInterval = 0
+    var lastAttemptDate: Date?
+}
+
+// MARK: - Weekly Stats
+struct WeeklyStats: Codable {
+    let days: [DayStats]
+    let totalMinutes: Int
+    let totalXP: Int
+    let averageMinutesPerDay: Double
+    
+    struct DayStats: Codable, Identifiable {
+        let id = UUID()
+        let date: Date
+        let minutes: Int
+        let xp: Int
+        let completed: Bool
+        
+        enum CodingKeys: String, CodingKey {
+            case date, minutes, xp, completed
         }
     }
 }
@@ -356,53 +657,6 @@ struct Badge: Codable, Identifiable {
             default:
                 throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown type")
             }
-        }
-    }
-}
-
-// MARK: - Progress Models
-struct LessonProgress: Codable {
-    let lessonId: String
-    var isCompleted: Bool = false
-    var isUnlocked: Bool = false
-    var bestScore: Double = 0.0
-    var totalAttempts: Int = 0
-    var stepProgress: [String: StepProgress] = [:]
-    var lastAttemptDate: Date?
-    var totalTimeSpent: TimeInterval = 0
-    
-    var completionPercentage: Double {
-        guard !stepProgress.isEmpty else { return 0 }
-        let completed = stepProgress.values.filter { $0.isCompleted }.count
-        return Double(completed) / Double(stepProgress.count)
-    }
-}
-
-struct StepProgress: Codable {
-    let stepId: String
-    var isCompleted: Bool = false
-    var attempts: Int = 0
-    var bestScore: Double = 0.0
-    var timeSpent: TimeInterval = 0
-    var lastAttemptDate: Date?
-}
-
-// MARK: - Weekly Stats
-struct WeeklyStats: Codable {
-    let days: [DayStats]
-    let totalMinutes: Int
-    let totalXP: Int
-    let averageMinutesPerDay: Double
-    
-    struct DayStats: Codable, Identifiable {
-        let id = UUID()
-        let date: Date
-        let minutes: Int
-        let xp: Int
-        let completed: Bool
-        
-        enum CodingKeys: String, CodingKey {
-            case date, minutes, xp, completed
         }
     }
 }

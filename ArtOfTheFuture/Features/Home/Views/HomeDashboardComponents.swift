@@ -401,33 +401,6 @@ final class HomeDashboardViewModel: ObservableObject {
     }
 }
 
-// MARK: - Lesson Category Extensions (Fixed)
-extension LessonCategory {
-    var color: Color {
-        switch self {
-        case .basics: return .blue
-        case .drawing: return .green
-        case .theory: return .purple
-        case .shading: return .orange
-        case .perspective: return .red
-        case .color: return .pink
-        case .advanced: return .indigo
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .basics: return "pencil"
-        case .drawing: return "scribble"
-        case .theory: return "book"
-        case .shading: return "circle.lefthalf.filled"
-        case .perspective: return "cube"
-        case .color: return "paintpalette"
-        case .advanced: return "star.fill"
-        }
-    }
-}
-
 // MARK: - Animated Progress Ring
 struct ProgressRing: View {
     let progress: Double

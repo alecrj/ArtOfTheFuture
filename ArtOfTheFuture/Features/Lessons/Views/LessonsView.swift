@@ -1,4 +1,4 @@
-// MARK: - Updated Lessons View
+// MARK: - Updated Lessons View (FIXED)
 // File: ArtOfTheFuture/Features/LessonsView.swift
 // Replace existing LessonsView.swift with this
 
@@ -183,7 +183,7 @@ struct LessonCard: View {
                 // Icon
                 ZStack {
                     Circle()
-                        .fill(lesson.isLocked ? Color.gray : lesson.category.color)
+                        .fill(lesson.isLocked ? Color.gray : lesson.category.categoryColor)
                         .frame(width: 60, height: 60)
                     
                     if lesson.isLocked {
@@ -195,7 +195,7 @@ struct LessonCard: View {
                             .foregroundColor(.white)
                             .font(.title2)
                     } else {
-                        Image(systemName: lesson.category.icon)
+                        Image(systemName: lesson.category.iconName)
                             .foregroundColor(.white)
                             .font(.title2)
                     }
@@ -256,17 +256,13 @@ struct LessonCard: View {
         .buttonStyle(.plain)
     }
     
-    private func difficultyColor(_ difficulty: Lesson.Difficulty) -> Color {
-        switch difficulty {
-        case .beginner: return .green
-        case .intermediate: return .orange
-        case .advanced: return .red
-        }
+    private func difficultyColor(_ difficulty: DifficultyLevel) -> Color {
+        return difficulty.difficultyColor
     }
 }
 
 struct TypeBadge: View {
-    let type: Lesson.LessonType
+    let type: LessonType
     
     var body: some View {
         Text(type.rawValue)
