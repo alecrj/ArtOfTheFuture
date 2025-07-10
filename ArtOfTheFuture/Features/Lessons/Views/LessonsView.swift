@@ -1,4 +1,4 @@
-// MARK: - Fixed Lessons View
+// MARK: - Enhanced Lessons View with Completion Tracking
 // File: ArtOfTheFuture/Features/Lessons/Views/LessonsView.swift
 
 import SwiftUI
@@ -32,7 +32,11 @@ struct LessonsView: View {
                     // Lessons Grid
                     LazyVStack(spacing: 12) {
                         ForEach(viewModel.filteredLessons) { lesson in
-                            LessonCard(lesson: lesson) {
+                            EnhancedLessonCard(
+                                lesson: lesson,
+                                isCompleted: viewModel.completedLessons.contains(lesson.id),
+                                isLocked: !viewModel.unlockedLessons.contains(lesson.id) && lesson.id != "lesson_001"
+                            ) {
                                 print("📚 Opening lesson: \(lesson.title)")
                                 print("📊 Lesson has \(lesson.steps.count) steps")
                                 selectedLesson = lesson
@@ -55,9 +59,121 @@ struct LessonsView: View {
         }
         .sheet(item: $selectedLesson) { lesson in
             LessonPlayerView(lesson: lesson)
+                .onDisappear {
+                    // Refresh lessons when returning from lesson player
+                    Task {
+                        await viewModel.loadLessons()
+                    }
+                }
         }
         .task {
             await viewModel.loadLessons()
+        }
+    }
+}
+
+// MARK: - Enhanced Lesson Card with Proper Status
+struct EnhancedLessonCard: View {
+    let lesson: Lesson
+    let isCompleted: Bool
+    let isLocked: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                // Status Icon
+                ZStack {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 60, height: 60)
+                    
+                    Image(systemName: statusIcon)
+                        .foregroundColor(.white)
+                        .font(.title2)
+                }
+                
+                // Content
+                VStack(alignment: .leading, spacing: 6) {
+                    // Title and Type Badge
+                    HStack {
+                        Text(lesson.title)
+                            .font(.headline)
+                            .foregroundColor(isLocked ? .secondary : .primary)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        TypeBadge(type: lesson.type)
+                    }
+                    
+                    Text(lesson.description)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                    
+                    // Stats
+                    HStack(spacing: 16) {
+                        Label("\(lesson.estimatedMinutes)m", systemImage: "clock")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Label("\(lesson.xpReward) XP", systemImage: "star.fill")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Label("\(lesson.steps.count) steps", systemImage: "list.number")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Text(lesson.difficulty.rawValue)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(lesson.difficulty.difficultyColor)
+                    }
+                }
+                
+                // Chevron or lock
+                Image(systemName: isLocked ? "lock.fill" : "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 3, y: 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        isCompleted ? Color.green.opacity(0.3) : Color.clear,
+                        lineWidth: 2
+                    )
+            )
+            .opacity(isLocked ? 0.6 : 1.0)
+        }
+        .disabled(isLocked)
+        .buttonStyle(.plain)
+    }
+    
+    private var statusColor: Color {
+        if isLocked {
+            return .gray
+        } else if isCompleted {
+            return .green
+        } else {
+            return lesson.category.categoryColor
+        }
+    }
+    
+    private var statusIcon: String {
+        if isLocked {
+            return "lock.fill"
+        } else if isCompleted {
+            return "checkmark.circle.fill"
+        } else {
+            return lesson.category.iconName
         }
     }
 }
@@ -170,94 +286,6 @@ struct FilterButton: View {
     }
 }
 
-struct LessonCard: View {
-    let lesson: Lesson
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(lesson.isLocked ? Color.gray : lesson.category.categoryColor)
-                        .frame(width: 60, height: 60)
-                    
-                    if lesson.isLocked {
-                        Image(systemName: "lock.fill")
-                            .foregroundColor(.white)
-                            .font(.title2)
-                    } else if lesson.isCompleted {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.white)
-                            .font(.title2)
-                    } else {
-                        Image(systemName: lesson.category.iconName)
-                            .foregroundColor(.white)
-                            .font(.title2)
-                    }
-                }
-                
-                // Content
-                VStack(alignment: .leading, spacing: 6) {
-                    // Title and Type Badge
-                    HStack {
-                        Text(lesson.title)
-                            .font(.headline)
-                            .foregroundColor(lesson.isLocked ? .secondary : .primary)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        TypeBadge(type: lesson.type)
-                    }
-                    
-                    Text(lesson.description)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                    
-                    // Stats
-                    HStack(spacing: 16) {
-                        Label("\(lesson.estimatedMinutes)m", systemImage: "clock")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Label("\(lesson.xpReward) XP", systemImage: "star.fill")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Label("\(lesson.steps.count) steps", systemImage: "list.number")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        Text(lesson.difficulty.rawValue)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(lesson.difficulty.difficultyColor)
-                    }
-                }
-                
-                // Chevron
-                if !lesson.isLocked {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.05), radius: 3, y: 1)
-            .opacity(lesson.isLocked ? 0.6 : 1.0)
-        }
-        .disabled(lesson.isLocked)
-        .buttonStyle(.plain)
-    }
-}
-
 struct TypeBadge: View {
     let type: LessonType
     
@@ -273,7 +301,7 @@ struct TypeBadge: View {
     }
 }
 
-// MARK: - View Model
+// MARK: - Enhanced View Model with Completion Tracking
 @MainActor
 final class LessonsViewModel: ObservableObject {
     @Published var lessons: [Lesson] = []
@@ -281,38 +309,77 @@ final class LessonsViewModel: ObservableObject {
     @Published var selectedFilter: LessonFilter = .all
     @Published var isLoading = false
     @Published var searchQuery = ""
+    @Published var completedLessons: Set<String> = []
+    @Published var unlockedLessons: Set<String> = ["lesson_001"] // First lesson always unlocked
     
     private let lessonService: LessonServiceProtocol
+    private let progressService: ProgressServiceProtocol
     
     var completedLessonsCount: Int {
-        lessons.filter(\.isCompleted).count
+        completedLessons.count
     }
     
     var totalXPEarned: Int {
-        lessons.filter(\.isCompleted).reduce(0) { $0 + $1.xpReward }
+        lessons.filter { completedLessons.contains($0.id) }
+               .reduce(0) { $0 + $1.xpReward }
     }
     
     init() {
-        // Use real lesson service, not mock data
         self.lessonService = LessonService.shared
+        self.progressService = Container.shared.progressService
     }
     
     func loadLessons() async {
         isLoading = true
-        print("🔄 Loading lessons...")
+        print("🔄 Loading lessons with completion status...")
         
         do {
+            // Load lessons
             lessons = try await lessonService.getAllLessons()
             print("✅ Loaded \(lessons.count) lessons")
-            for lesson in lessons {
-                print("📚 Lesson: \(lesson.title) - \(lesson.steps.count) steps")
-            }
+            
+            // Load completion status
+            await loadCompletionStatus()
+            
+            // Apply filters
             applyFilters()
+            
         } catch {
             print("❌ Error loading lessons: \(error)")
         }
         
         isLoading = false
+    }
+    
+    private func loadCompletionStatus() async {
+        // Load completed lessons from UserDefaults (simple approach)
+        let defaults = UserDefaults.standard
+        
+        // Get completed lessons
+        if let completedArray = defaults.array(forKey: "completedLessons") as? [String] {
+            completedLessons = Set(completedArray)
+            print("📚 Found \(completedLessons.count) completed lessons: \(completedLessons)")
+        }
+        
+        // Calculate unlocked lessons based on completion
+        var newUnlockedLessons: Set<String> = ["lesson_001"] // First lesson always unlocked
+        
+        for lesson in lessons {
+            // If all prerequisites are completed, unlock this lesson
+            if lesson.prerequisites.allSatisfy({ completedLessons.contains($0) }) {
+                newUnlockedLessons.insert(lesson.id)
+            }
+            
+            // If this lesson is completed, unlock its unlocks
+            if completedLessons.contains(lesson.id) {
+                for unlockedId in lesson.unlocks {
+                    newUnlockedLessons.insert(unlockedId)
+                }
+            }
+        }
+        
+        unlockedLessons = newUnlockedLessons
+        print("🔓 Unlocked lessons: \(unlockedLessons)")
     }
     
     func filterLessons(by filter: LessonFilter) {
@@ -339,9 +406,9 @@ final class LessonsViewModel: ObservableObject {
         case .challenges:
             filtered = filtered.filter { $0.type == .creativeChallenge }
         case .completed:
-            filtered = filtered.filter(\.isCompleted)
+            filtered = filtered.filter { completedLessons.contains($0.id) }
         case .available:
-            filtered = filtered.filter { !$0.isLocked }
+            filtered = filtered.filter { unlockedLessons.contains($0.id) }
         }
         
         // Apply search filter

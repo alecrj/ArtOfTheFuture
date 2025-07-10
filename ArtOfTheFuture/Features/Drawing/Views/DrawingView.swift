@@ -38,7 +38,7 @@ struct DrawingView: View {
     }
 }
 
-// MARK: - Canvas Controller (FIXED)
+// MARK: - Canvas Controller (FIXED COLOR CONVERSION)
 @MainActor
 final class CanvasController: ObservableObject {
     @Published var pkCanvasView = PKCanvasView()
@@ -56,9 +56,9 @@ final class CanvasController: ObservableObject {
     
     private func configureCanvas() {
         pkCanvasView.drawingPolicy = .anyInput
-        // FIXED: Set white background instead of clear to see black lines
-        pkCanvasView.backgroundColor = UIColor.white
-        pkCanvasView.isOpaque = true
+        // FIXED: Use proper system background
+        pkCanvasView.backgroundColor = UIColor.systemBackground
+        pkCanvasView.isOpaque = false // FIXED: Allow proper transparency
         pkCanvasView.layer.cornerRadius = 16
         pkCanvasView.clipsToBounds = true
     }
@@ -84,18 +84,48 @@ final class CanvasController: ObservableObject {
     }
     
     private func setActiveTool() {
-        // FIXED: Proper color conversion
-        let color = UIColor(selectedColor)
+        // FIXED: Proper color conversion to prevent inversion
+        let uiColor = convertSwiftUIColorToUIColor(selectedColor)
         
         switch activeTool {
         case .pen:
-            pkCanvasView.tool = PKInkingTool(.pen, color: color, width: strokeWidth)
+            pkCanvasView.tool = PKInkingTool(.pen, color: uiColor, width: strokeWidth)
         case .pencil:
-            pkCanvasView.tool = PKInkingTool(.pencil, color: color, width: strokeWidth)
+            pkCanvasView.tool = PKInkingTool(.pencil, color: uiColor, width: strokeWidth)
         case .marker:
-            pkCanvasView.tool = PKInkingTool(.marker, color: color, width: strokeWidth * 1.5)
+            pkCanvasView.tool = PKInkingTool(.marker, color: uiColor, width: strokeWidth * 1.5)
         case .eraser:
             pkCanvasView.tool = PKEraserTool(.bitmap)
+        }
+    }
+    
+    // FIXED: Proper color conversion method
+    private func convertSwiftUIColorToUIColor(_ color: Color) -> UIColor {
+        // Handle common colors explicitly to avoid conversion issues
+        switch color {
+        case .black:
+            return UIColor.label // Black in light mode, white in dark mode
+        case .white:
+            return UIColor.systemBackground // White in light mode, black in dark mode
+        case .red:
+            return UIColor.systemRed
+        case .blue:
+            return UIColor.systemBlue
+        case .green:
+            return UIColor.systemGreen
+        case .orange:
+            return UIColor.systemOrange
+        case .yellow:
+            return UIColor.systemYellow
+        case .purple:
+            return UIColor.systemPurple
+        case .pink:
+            return UIColor.systemPink
+        case .gray:
+            return UIColor.systemGray
+        default:
+            // For custom colors, use UIColor initializer
+            return UIColor(color)
         }
     }
     
@@ -137,7 +167,7 @@ struct DrawingCanvasArea: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white) // FIXED: White background for visibility
+                .fill(Color(.systemBackground)) // FIXED: Use system background
                 .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
             
             CanvasViewWrapper(controller: controller)
@@ -157,8 +187,7 @@ struct CanvasViewWrapper: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: PKCanvasView, context: Context) {
-        // FIXED: Removed problematic tool comparison
-        // Just ensure the tool is set correctly
+        // Tool updates are handled by the controller
     }
     
     func makeCoordinator() -> Coordinator {
@@ -330,24 +359,37 @@ struct TopBarButton: View {
     }
 }
 
-// MARK: - Tool Options Panel (FIXED)
+// MARK: - Tool Options Panel (FIXED COLORS)
 struct ToolOptionsPanel: View {
     @ObservedObject var controller: CanvasController
     
     var body: some View {
         HStack(spacing: 20) {
-            // Color selector
+            // Color selector with visual feedback
             Button {
                 controller.colorPickerVisible.toggle()
             } label: {
-                Circle()
-                    .fill(controller.selectedColor)
-                    .frame(width: 32, height: 32)
-                    .overlay(Circle().stroke(.primary, lineWidth: 2))
+                ZStack {
+                    Circle()
+                        .fill(controller.selectedColor)
+                        .frame(width: 32, height: 32)
+                        .overlay(Circle().stroke(.primary, lineWidth: 2))
+                    
+                    // Show color name for debugging
+                    if controller.selectedColor == .black {
+                        Text("B")
+                            .font(.caption2)
+                            .foregroundColor(.white)
+                    } else if controller.selectedColor == .white {
+                        Text("W")
+                            .font(.caption2)
+                            .foregroundColor(.black)
+                    }
+                }
             }
             .buttonStyle(BounceStyle())
             .popover(isPresented: $controller.colorPickerVisible) {
-                ColorPickerPanel(
+                FixedColorPickerPanel(
                     selectedColor: $controller.selectedColor,
                     onColorSelected: { color in
                         controller.updateColor(color)
@@ -380,16 +422,24 @@ struct ToolOptionsPanel: View {
     }
 }
 
-// MARK: - Color Picker Panel (FIXED)
-struct ColorPickerPanel: View {
+// MARK: - Fixed Color Picker Panel
+struct FixedColorPickerPanel: View {
     @Binding var selectedColor: Color
     let onColorSelected: (Color) -> Void
     
-    private let presetColors: [Color] = [
-        .black, .white, .gray,
-        .red, .orange, .yellow,
-        .green, .blue, .purple,
-        .pink, .brown, .cyan
+    private let presetColors: [(Color, String)] = [
+        (.black, "Black"),
+        (.white, "White"),
+        (.gray, "Gray"),
+        (.red, "Red"),
+        (.orange, "Orange"),
+        (.yellow, "Yellow"),
+        (.green, "Green"),
+        (.blue, "Blue"),
+        (.purple, "Purple"),
+        (.pink, "Pink"),
+        (.brown, "Brown"),
+        (.cyan, "Cyan")
     ]
     
     var body: some View {
@@ -398,16 +448,31 @@ struct ColorPickerPanel: View {
                 .font(.headline)
                 .padding(.top)
             
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(35)), count: 4), spacing: 8) {
-                ForEach(presetColors, id: \.self) { color in
-                    Circle()
-                        .fill(color)
-                        .frame(width: 30, height: 30)
-                        .overlay(Circle().stroke(.primary, lineWidth: selectedColor == color ? 3 : 1))
-                        .onTapGesture {
-                            selectedColor = color
-                            onColorSelected(color)
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(40)), count: 4), spacing: 8) {
+                ForEach(presetColors, id: \.1) { color, name in
+                    Button(action: {
+                        selectedColor = color
+                        onColorSelected(color)
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(color)
+                                .frame(width: 35, height: 35)
+                                .overlay(Circle().stroke(.primary, lineWidth: selectedColor == color ? 3 : 1))
+                            
+                            // Debug labels
+                            if color == .black {
+                                Text("B")
+                                    .font(.caption2)
+                                    .foregroundColor(.white)
+                            } else if color == .white {
+                                Text("W")
+                                    .font(.caption2)
+                                    .foregroundColor(.black)
+                            }
                         }
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal)
@@ -422,7 +487,7 @@ struct ColorPickerPanel: View {
             .padding(.horizontal)
             .padding(.bottom)
         }
-        .frame(width: 200, height: 280)
+        .frame(width: 200, height: 320)
     }
 }
 
@@ -439,7 +504,7 @@ struct ExportModalView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(maxHeight: 300)
-                        .background(Color.white)
+                        .background(Color(.systemBackground))
                         .cornerRadius(12)
                         .shadow(radius: 4)
                     

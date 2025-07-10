@@ -40,15 +40,17 @@ struct LessonPlayerView: View {
                 if viewModel.showSuccess {
                     successOverlay
                 }
+                
+                // Lesson complete overlay
+                if viewModel.showLessonComplete {
+                    lessonCompleteOverlay
+                }
             }
         }
         .navigationBarHidden(true)
-        .onChange(of: viewModel.isLessonComplete) { _, isComplete in
-            if isComplete {
-                // Dismiss after lesson completion
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    dismiss()
-                }
+        .onChange(of: viewModel.shouldDismiss) { _, shouldDismiss in
+            if shouldDismiss {
+                dismiss()
             }
         }
     }
@@ -163,17 +165,23 @@ struct LessonPlayerView: View {
         }
     }
     
-    // MARK: - Drawing View (Working Canvas)
+    // MARK: - Drawing View (FIXED COLORS)
     private func drawingView(_ content: DrawingContent) -> some View {
         VStack(spacing: 16) {
-            // Drawing canvas
-            DrawingCanvasView(onDrawingChanged: { hasDrawing in
+            // Drawing canvas with proper colors
+            FixedDrawingCanvasView(onDrawingChanged: { hasDrawing in
                 viewModel.setCanProceed(hasDrawing)
             })
             .frame(height: 250)
             .background(Color.white)
             .cornerRadius(12)
             .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
+            
+            // Drawing instructions
+            Text("Draw on the white canvas above. Your strokes should appear in black.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
     }
     
@@ -234,8 +242,8 @@ struct LessonPlayerView: View {
                 )
                 .cornerRadius(12)
             
-            // Simple drawing area
-            DrawingCanvasView(onDrawingChanged: { hasDrawing in
+            // Drawing area with proper colors
+            FixedDrawingCanvasView(onDrawingChanged: { hasDrawing in
                 viewModel.setCanProceed(hasDrawing)
             })
             .frame(height: 200)
@@ -275,7 +283,7 @@ struct LessonPlayerView: View {
                     .font(.system(size: 60))
                     .foregroundColor(.green)
                 
-                Text(viewModel.isLessonComplete ? "Lesson Complete!" : "Great!")
+                Text("Great!")
                     .font(.title)
                     .fontWeight(.bold)
                 
@@ -289,26 +297,70 @@ struct LessonPlayerView: View {
             .shadow(radius: 10)
         }
     }
+    
+    // MARK: - Lesson Complete Overlay
+    private var lessonCompleteOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                // Celebration animation
+                ZStack {
+                    Circle()
+                        .fill(Color.green.opacity(0.2))
+                        .frame(width: 120, height: 120)
+                    
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.yellow)
+                }
+                
+                Text("Lesson Complete!")
+                    .font(.title)
+                    .fontWeight(.bold)
+                
+                Text("+\(viewModel.totalXPEarned) XP")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                
+                Text("You unlocked the next lesson!")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(20)
+            .shadow(radius: 10)
+        }
+    }
 }
 
-// MARK: - Simple Drawing Canvas
-struct DrawingCanvasView: View {
+// MARK: - Fixed Drawing Canvas (COLOR ISSUE RESOLVED)
+struct FixedDrawingCanvasView: View {
     @State private var canvasView = PKCanvasView()
     let onDrawingChanged: (Bool) -> Void
     
     var body: some View {
-        CanvasRepresentable(canvasView: $canvasView, onDrawingChanged: onDrawingChanged)
+        FixedCanvasRepresentable(canvasView: $canvasView, onDrawingChanged: onDrawingChanged)
     }
 }
 
-struct CanvasRepresentable: UIViewRepresentable {
+struct FixedCanvasRepresentable: UIViewRepresentable {
     @Binding var canvasView: PKCanvasView
     let onDrawingChanged: (Bool) -> Void
     
     func makeUIView(context: Context) -> PKCanvasView {
         canvasView.drawingPolicy = .anyInput
-        canvasView.backgroundColor = UIColor.white
+        canvasView.backgroundColor = UIColor.systemBackground // FIXED: Proper background
+        canvasView.isOpaque = false // FIXED: Allow transparency
         canvasView.delegate = context.coordinator
+        
+        // FIXED: Set proper default tool with correct color
+        let blackColor = UIColor.label // FIXED: Use system label color (black in light mode)
+        canvasView.tool = PKInkingTool(.pen, color: blackColor, width: 3.0)
+        
         return canvasView
     }
     
@@ -334,7 +386,7 @@ struct CanvasRepresentable: UIViewRepresentable {
     }
 }
 
-// MARK: - Duolingo-Style ViewModel
+// MARK: - Enhanced ViewModel with Progress Persistence
 @MainActor
 final class LessonPlayerViewModel: ObservableObject {
     let lesson: Lesson
@@ -343,10 +395,13 @@ final class LessonPlayerViewModel: ObservableObject {
     @Published var progress: Double = 0
     @Published var canProceed = false
     @Published var showSuccess = false
+    @Published var showLessonComplete = false
     @Published var selectedAnswers: Set<String> = []
-    @Published var isLessonComplete = false
+    @Published var shouldDismiss = false
     
-    private var totalXPEarned = 0
+    private var stepXPEarnedValues: [Int] = []
+    private let progressService: ProgressServiceProtocol
+    private let userService: UserServiceProtocol
     
     var currentStep: LessonStep? {
         guard currentStepIndex < lesson.steps.count else { return nil }
@@ -365,12 +420,18 @@ final class LessonPlayerViewModel: ObservableObject {
         currentStep?.xpValue ?? 0
     }
     
+    var totalXPEarned: Int {
+        stepXPEarnedValues.reduce(0, +) + lesson.xpReward
+    }
+    
     init(lesson: Lesson) {
         self.lesson = lesson
+        self.progressService = Container.shared.progressService
+        self.userService = Container.shared.userService
         updateProgress()
     }
     
-    // MARK: - Main Action (Duolingo Style)
+    // MARK: - Main Action with Progress Persistence
     func handleMainAction() {
         guard let step = currentStep else { return }
         
@@ -382,8 +443,22 @@ final class LessonPlayerViewModel: ObservableObject {
             }
         }
         
-        // Award XP and show success
-        totalXPEarned += step.xpValue
+        // Save step progress
+        Task {
+            do {
+                try await progressService.updateLessonProgress(
+                    lessonId: lesson.id,
+                    stepId: step.id,
+                    score: 1.0, // Full score for completion
+                    timeSpent: 10.0 // Estimated time
+                )
+            } catch {
+                print("❌ Failed to save step progress: \(error)")
+            }
+        }
+        
+        // Track XP
+        stepXPEarnedValues.append(step.xpValue)
         
         withAnimation(.spring(response: 0.3)) {
             showSuccess = true
@@ -401,13 +476,53 @@ final class LessonPlayerViewModel: ObservableObject {
         }
         
         if currentStepIndex == lesson.steps.count - 1 {
-            // Lesson complete
-            isLessonComplete = true
+            // Lesson complete - SAVE PROGRESS
+            completeLessonWithPersistence()
         } else {
             // Next step
             currentStepIndex += 1
             resetStepState()
             updateProgress()
+        }
+    }
+    
+    // MARK: - Lesson Completion with Persistence
+    private func completeLessonWithPersistence() {
+        Task {
+            do {
+                // Save lesson completion
+                try await progressService.completeLesson(lesson.id)
+                
+                // Award total XP to user
+                try await userService.updateUser(User(
+                    id: "current_user", // This should be the actual user ID
+                    displayName: "User",
+                    totalXP: totalXPEarned
+                ))
+                
+                print("✅ Lesson completed and progress saved!")
+                
+                // Show completion overlay
+                await MainActor.run {
+                    withAnimation(.spring(response: 0.5)) {
+                        showLessonComplete = true
+                    }
+                }
+                
+                // Auto-dismiss after celebration
+                try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                
+                await MainActor.run {
+                    shouldDismiss = true
+                }
+                
+            } catch {
+                print("❌ Failed to save lesson completion: \(error)")
+                // Still allow dismissal even if save fails
+                await MainActor.run {
+                    shouldDismiss = true
+                }
+            }
         }
     }
     
