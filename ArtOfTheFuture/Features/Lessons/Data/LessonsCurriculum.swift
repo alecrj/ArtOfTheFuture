@@ -1,6 +1,5 @@
-// MARK: - Lessons Curriculum (FIXED)
+// MARK: - Fixed Lessons Curriculum
 // File: ArtOfTheFuture/Features/Lessons/Data/LessonsCurriculum.swift
-// SINGLE SOURCE OF TRUTH for all curriculum content
 
 import Foundation
 import SwiftUI
@@ -9,16 +8,12 @@ struct Curriculum {
     
     // MARK: - All Lessons
     static let allLessons: [Lesson] = [
-        // Beginner Lessons
+        // Beginner Lessons - Start Simple and Build Up
         beginnerLesson001,
         beginnerLesson002,
         beginnerLesson003,
-        
-        // Theory Lessons
-        theoryLesson001,
-        
-        // Challenge Lessons
-        challengeLesson001
+        beginnerLesson004,
+        beginnerLesson005
     ]
     
     // MARK: - All Badges
@@ -53,28 +48,30 @@ struct Curriculum {
 // MARK: - Lesson Definitions
 extension Curriculum {
     
+    // LESSON 1: Welcome & Introduction
     static let beginnerLesson001 = Lesson(
         id: "lesson_001",
-        title: "Drawing Straight Lines",
-        description: "Master the fundamental skill of drawing confident, straight lines",
-        type: .drawingPractice, // FIXED: was .practice
+        title: "Welcome to Drawing!",
+        description: "Learn the basics of digital drawing and get started with your first strokes",
+        type: .drawingPractice,
         category: .basics,
         difficulty: .beginner,
-        estimatedMinutes: 5,
+        estimatedMinutes: 3,
         xpReward: 50,
         steps: [
             LessonStep(
                 id: "step_001_1",
                 order: 1,
-                title: "Introduction to Line Drawing",
-                instruction: "Learn the basics of holding your pencil and drawing straight lines",
+                title: "Welcome, Artist!",
+                instruction: "Ready to start your artistic journey? Let's begin with the fundamentals!",
                 content: .introduction(IntroContent(
-                    displayImage: "line_drawing_intro",
+                    displayImage: nil,
                     animationName: nil,
                     bulletPoints: [
-                        "Hold your pencil with a relaxed grip",
-                        "Use your whole arm, not just your wrist",
-                        "Practice smooth, confident strokes"
+                        "Hold your Apple Pencil naturally and comfortably",
+                        "Start with simple shapes and strokes",
+                        "Don't worry about perfection - practice makes progress!",
+                        "Have fun and let your creativity flow"
                     ]
                 )),
                 validation: ValidationCriteria(
@@ -89,20 +86,130 @@ extension Curriculum {
                     requiresAllCorrect: true
                 ),
                 hints: [],
-                xpValue: 10
+                xpValue: 25
             ),
             LessonStep(
                 id: "step_001_2",
                 order: 2,
-                title: "Practice Horizontal Lines",
-                instruction: "Draw 5 horizontal lines across the canvas",
+                title: "Your First Drawing",
+                instruction: "Try making some marks on the canvas. Draw anything you like!",
                 content: .drawing(DrawingContent(
-                    canvasSize: CGSize(width: 400, height: 300),
+                    canvasSize: CGSize(width: 350, height: 250),
+                    backgroundColor: "#FFFFFF",
+                    guidelines: nil,
+                    referenceImage: nil,
+                    toolsAllowed: [.pen, .pencil]
+                )),
+                validation: ValidationCriteria(
+                    minScore: 0.5,
+                    maxAttempts: 1,
+                    rules: [],
+                    feedback: ValidationCriteria.FeedbackConfig(
+                        showRealtime: false,
+                        showHints: false,
+                        encouragementThreshold: 0.3
+                    ),
+                    requiresAllCorrect: false
+                ),
+                hints: ["Just start drawing!", "There's no wrong way to begin"],
+                xpValue: 25
+            )
+        ],
+        exercises: [],
+        objectives: [
+            "Get comfortable with digital drawing",
+            "Make your first marks on the canvas",
+            "Build confidence with the tools"
+        ],
+        tips: [
+            "Relax and have fun",
+            "Every artist started with a single line",
+            "Practice is the key to improvement"
+        ],
+        prerequisites: [],
+        unlocks: ["lesson_002"]
+    )
+    
+    // LESSON 2: Drawing Straight Lines
+    static let beginnerLesson002 = Lesson(
+        id: "lesson_002",
+        title: "Drawing Straight Lines",
+        description: "Master the fundamental skill of drawing confident, straight lines",
+        type: .drawingPractice,
+        category: .basics,
+        difficulty: .beginner,
+        estimatedMinutes: 5,
+        xpReward: 75,
+        steps: [
+            LessonStep(
+                id: "step_002_1",
+                order: 1,
+                title: "Line Drawing Basics",
+                instruction: "What's the secret to drawing straight lines?",
+                content: .theory(TheoryContent(
+                    question: "Which technique helps you draw straighter lines?",
+                    visualAid: nil,
+                    answerType: .singleChoice,
+                    options: [
+                        TheoryContent.AnswerOption(
+                            id: "opt1",
+                            text: "Drawing very slowly and carefully",
+                            image: nil
+                        ),
+                        TheoryContent.AnswerOption(
+                            id: "opt2",
+                            text: "Using your whole arm, not just your wrist",
+                            image: nil
+                        ),
+                        TheoryContent.AnswerOption(
+                            id: "opt3",
+                            text: "Pressing harder on the pencil",
+                            image: nil
+                        )
+                    ],
+                    correctAnswers: ["opt2"],
+                    explanation: "Using your whole arm creates smoother, more controlled lines than just using your wrist!"
+                )),
+                validation: ValidationCriteria(
+                    minScore: 1.0,
+                    maxAttempts: 2,
+                    rules: [],
+                    feedback: ValidationCriteria.FeedbackConfig(
+                        showRealtime: true,
+                        showHints: true,
+                        encouragementThreshold: 1.0
+                    ),
+                    requiresAllCorrect: true
+                ),
+                hints: ["Think about which part of your body moves when drawing"],
+                xpValue: 25
+            ),
+            LessonStep(
+                id: "step_002_2",
+                order: 2,
+                title: "Practice Horizontal Lines",
+                instruction: "Draw 3 horizontal lines across the canvas using the blue guidelines",
+                content: .drawing(DrawingContent(
+                    canvasSize: CGSize(width: 350, height: 250),
                     backgroundColor: "#FFFFFF",
                     guidelines: [
                         DrawingContent.Guideline(
                             type: .line,
-                            path: [CGPoint(x: 50, y: 100), CGPoint(x: 350, y: 100)],
+                            path: [CGPoint(x: 50, y: 80), CGPoint(x: 300, y: 80)],
+                            color: "#3B82F6",
+                            width: 2,
+                            dashed: true
+                        ),
+                        DrawingContent.Guideline(
+                            type: .line,
+                            path: [CGPoint(x: 50, y: 125), CGPoint(x: 300, y: 125)],
+                            color: "#3B82F6",
+                            width: 2,
+                            dashed: true
+                        ),
+                        DrawingContent.Guideline(
+                            type: .line,
+                            path: [CGPoint(x: 50, y: 170), CGPoint(x: 300, y: 170)],
                             color: "#3B82F6",
                             width: 2,
                             dashed: true
@@ -122,97 +229,64 @@ extension Curriculum {
                     ),
                     requiresAllCorrect: false
                 ),
-                hints: ["Keep your hand steady", "Draw slowly and deliberately"],
-                xpValue: 25
-            ),
-            LessonStep(
-                id: "step_001_3",
-                order: 3,
-                title: "Practice Vertical Lines",
-                instruction: "Draw 5 vertical lines from top to bottom",
-                content: .drawing(DrawingContent(
-                    canvasSize: CGSize(width: 400, height: 300),
-                    backgroundColor: "#FFFFFF",
-                    guidelines: [
-                        DrawingContent.Guideline(
-                            type: .line,
-                            path: [CGPoint(x: 200, y: 50), CGPoint(x: 200, y: 250)],
-                            color: "#10B981",
-                            width: 2,
-                            dashed: true
-                        )
-                    ],
-                    referenceImage: nil,
-                    toolsAllowed: [.pen]
-                )),
-                validation: ValidationCriteria(
-                    minScore: 0.7,
-                    maxAttempts: 3,
-                    rules: [],
-                    feedback: ValidationCriteria.FeedbackConfig(
-                        showRealtime: true,
-                        showHints: true,
-                        encouragementThreshold: 0.5
-                    ),
-                    requiresAllCorrect: false
-                ),
-                hints: ["Use your shoulder, not your wrist", "Practice the motion in the air first"],
-                xpValue: 15
+                hints: ["Use your shoulder, not your wrist", "Try to follow the blue guidelines"],
+                xpValue: 50
             )
         ],
-        exercises: [], // FIXED: Added missing exercises parameter
+        exercises: [],
         objectives: [
+            "Understand proper arm movement for line drawing",
             "Draw straight horizontal lines",
-            "Draw straight vertical lines",
-            "Understand proper pencil grip"
+            "Use guidelines effectively"
         ],
         tips: [
-            "Relax your grip on the pencil",
-            "Use your shoulder and elbow for longer lines",
-            "Practice makes perfect"
+            "Practice the motion in the air first",
+            "Speed can help with smoothness",
+            "Don't worry about perfection"
         ],
-        prerequisites: [],
-        unlocks: ["lesson_002"]
+        prerequisites: ["lesson_001"],
+        unlocks: ["lesson_003"]
     )
     
-    static let beginnerLesson002 = Lesson(
-        id: "lesson_002",
-        title: "Basic Shapes: Circles",
-        description: "Learn to draw perfect circles with confidence",
-        type: .drawingPractice, // FIXED: was .practice
+    // LESSON 3: Drawing Circles
+    static let beginnerLesson003 = Lesson(
+        id: "lesson_003",
+        title: "Drawing Circles",
+        description: "Learn to draw smooth, confident circles",
+        type: .drawingPractice,
         category: .basics,
         difficulty: .beginner,
-        estimatedMinutes: 8,
-        xpReward: 75,
+        estimatedMinutes: 6,
+        xpReward: 100,
         steps: [
             LessonStep(
-                id: "step_002_1",
+                id: "step_003_1",
                 order: 1,
-                title: "Circle Theory",
-                instruction: "What makes a good circle?",
+                title: "Circle Technique",
+                instruction: "What's the best way to draw a circle?",
                 content: .theory(TheoryContent(
-                    question: "Which technique helps draw smoother circles?",
-                    visualAid: "circle_techniques",
+                    question: "Which approach works best for drawing smooth circles?",
+                    visualAid: nil,
                     answerType: .singleChoice,
                     options: [
                         TheoryContent.AnswerOption(
                             id: "opt1",
-                            text: "Drawing very slowly",
+                            text: "Draw very slowly and carefully",
                             image: nil
                         ),
                         TheoryContent.AnswerOption(
                             id: "opt2",
-                            text: "Using shoulder movement",
+                            text: "Draw quickly in one smooth motion",
                             image: nil
                         ),
                         TheoryContent.AnswerOption(
                             id: "opt3",
-                            text: "Drawing with fingers only",
+                            text: "Draw in small segments",
                             image: nil
                         )
                     ],
                     correctAnswers: ["opt2"],
-                    explanation: "Using your shoulder creates smoother, more controlled circular motions"
+                    explanation: "Quick, confident circular motions create smoother circles than slow, careful drawing!"
                 )),
                 validation: ValidationCriteria(
                     minScore: 1.0,
@@ -220,27 +294,34 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: true,
-                        showHints: false,
+                        showHints: true,
                         encouragementThreshold: 1.0
                     ),
                     requiresAllCorrect: true
                 ),
-                hints: ["Think about the motion your arm makes"],
-                xpValue: 20
+                hints: ["Think about the difference between slow and fast movements"],
+                xpValue: 30
             ),
             LessonStep(
-                id: "step_002_2",
+                id: "step_003_2",
                 order: 2,
                 title: "Practice Circles",
-                instruction: "Draw 3 circles using the guidelines",
+                instruction: "Draw 2 circles using the circular guidelines. Try to make them smooth!",
                 content: .drawing(DrawingContent(
-                    canvasSize: CGSize(width: 400, height: 300),
+                    canvasSize: CGSize(width: 350, height: 250),
                     backgroundColor: "#FFFFFF",
                     guidelines: [
                         DrawingContent.Guideline(
                             type: .circle,
-                            path: [CGPoint(x: 150, y: 150), CGPoint(x: 200, y: 150)],
-                            color: "#F59E0B",
+                            path: [CGPoint(x: 120, y: 125), CGPoint(x: 170, y: 125)],
+                            color: "#10B981",
+                            width: 2,
+                            dashed: true
+                        ),
+                        DrawingContent.Guideline(
+                            type: .circle,
+                            path: [CGPoint(x: 230, y: 125), CGPoint(x: 280, y: 125)],
+                            color: "#10B981",
                             width: 2,
                             dashed: true
                         )
@@ -259,47 +340,48 @@ extension Curriculum {
                     ),
                     requiresAllCorrect: false
                 ),
-                hints: ["Move from your shoulder", "Don't worry about perfection"],
-                xpValue: 30
+                hints: ["Move from your shoulder", "Try a quick, confident motion", "Practice makes perfect!"],
+                xpValue: 70
             )
         ],
-        exercises: [], // FIXED: Added missing exercises parameter
+        exercises: [],
         objectives: [
             "Understand circle drawing technique",
-            "Draw circles using shoulder movement",
-            "Practice consistent circular motions"
+            "Draw smooth circular motions",
+            "Practice confident strokes"
         ],
         tips: [
-            "Ghost the motion before touching paper",
+            "Ghost the motion before touching the canvas",
             "Speed helps with smoothness",
             "Practice circles of different sizes"
         ],
-        prerequisites: ["lesson_001"],
-        unlocks: ["lesson_003"]
+        prerequisites: ["lesson_002"],
+        unlocks: ["lesson_004"]
     )
     
-    static let beginnerLesson003 = Lesson(
-        id: "lesson_003",
-        title: "Basic Shapes: Squares",
+    // LESSON 4: Basic Shapes - Squares
+    static let beginnerLesson004 = Lesson(
+        id: "lesson_004",
+        title: "Drawing Squares",
         description: "Master drawing squares and rectangles with clean edges",
-        type: .drawingPractice, // FIXED: was .practice
+        type: .drawingPractice,
         category: .basics,
         difficulty: .beginner,
-        estimatedMinutes: 6,
-        xpReward: 60,
+        estimatedMinutes: 5,
+        xpReward: 85,
         steps: [
             LessonStep(
-                id: "step_003_1",
+                id: "step_004_1",
                 order: 1,
                 title: "Square Construction",
-                instruction: "Practice drawing squares with equal sides",
+                instruction: "Practice drawing a square using the rectangular guidelines",
                 content: .drawing(DrawingContent(
-                    canvasSize: CGSize(width: 400, height: 300),
+                    canvasSize: CGSize(width: 350, height: 250),
                     backgroundColor: "#FFFFFF",
                     guidelines: [
                         DrawingContent.Guideline(
                             type: .rectangle,
-                            path: [CGPoint(x: 150, y: 100), CGPoint(x: 250, y: 200)],
+                            path: [CGPoint(x: 125, y: 75), CGPoint(x: 225, y: 175)],
                             color: "#8B5CF6",
                             width: 2,
                             dashed: true
@@ -319,105 +401,78 @@ extension Curriculum {
                     ),
                     requiresAllCorrect: false
                 ),
-                hints: ["Focus on parallel lines", "Check your corners"],
-                xpValue: 35
+                hints: ["Focus on parallel lines", "Take your time with the corners", "Use the guidelines to help"],
+                xpValue: 85
             )
         ],
-        exercises: [], // FIXED: Added missing exercises parameter
+        exercises: [],
         objectives: [
             "Draw squares with equal sides",
             "Understand parallel lines",
             "Practice corner construction"
         ],
         tips: [
-            "Use construction lines first",
-            "Check proportions frequently",
+            "Each side should be the same length",
+            "Keep your lines parallel",
             "Clean lines matter more than perfect angles"
         ],
-        prerequisites: ["lesson_002"],
-        unlocks: ["theory_001"]
+        prerequisites: ["lesson_003"],
+        unlocks: ["lesson_005"]
     )
     
-    static let theoryLesson001 = Lesson(
-        id: "theory_001",
-        title: "Drawing Fundamentals",
-        description: "Learn the core principles that guide all good drawings",
-        type: .theoryFundamentals, // FIXED: was .theory
-        category: .theory,
+    // LESSON 5: Creative Challenge
+    static let beginnerLesson005 = Lesson(
+        id: "lesson_005",
+        title: "Creative Challenge",
+        description: "Use everything you've learned to create something amazing!",
+        type: .creativeChallenge,
+        category: .basics,
         difficulty: .beginner,
-        estimatedMinutes: 4,
-        xpReward: 40,
+        estimatedMinutes: 7,
+        xpReward: 150,
         steps: [
             LessonStep(
-                id: "step_theory_001_1",
+                id: "step_005_1",
                 order: 1,
-                title: "Elements of Art",
-                instruction: "Identify the basic elements that make up all drawings",
+                title: "Shape Knowledge Check",
+                instruction: "Let's review what you've learned!",
                 content: .theory(TheoryContent(
-                    question: "Which of these are the fundamental elements of art?",
-                    visualAid: "elements_of_art",
+                    question: "Which shapes have you learned to draw?",
+                    visualAid: nil,
                     answerType: .multipleChoice,
                     options: [
-                        TheoryContent.AnswerOption(id: "1", text: "Line", image: nil),
-                        TheoryContent.AnswerOption(id: "2", text: "Shape", image: nil),
-                        TheoryContent.AnswerOption(id: "3", text: "Form", image: nil),
-                        TheoryContent.AnswerOption(id: "4", text: "Value", image: nil),
-                        TheoryContent.AnswerOption(id: "5", text: "Space", image: nil),
-                        TheoryContent.AnswerOption(id: "6", text: "Color", image: nil)
+                        TheoryContent.AnswerOption(id: "1", text: "Straight lines", image: nil),
+                        TheoryContent.AnswerOption(id: "2", text: "Circles", image: nil),
+                        TheoryContent.AnswerOption(id: "3", text: "Squares", image: nil),
+                        TheoryContent.AnswerOption(id: "4", text: "Triangles", image: nil)
                     ],
-                    correctAnswers: ["1", "2", "3", "4", "5"],
-                    explanation: "Line, shape, form, value, and space are the fundamental elements of art"
+                    correctAnswers: ["1", "2", "3"],
+                    explanation: "You've learned lines, circles, and squares! Triangles will come in future lessons."
                 )),
                 validation: ValidationCriteria(
-                    minScore: 0.8,
+                    minScore: 1.0,
                     maxAttempts: 2,
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: true,
                         showHints: true,
-                        encouragementThreshold: 0.6
+                        encouragementThreshold: 1.0
                     ),
-                    requiresAllCorrect: false
+                    requiresAllCorrect: true
                 ),
-                hints: ["Think about the building blocks of visual art"],
-                xpValue: 40
-            )
-        ],
-        exercises: [], // FIXED: Added missing exercises parameter
-        objectives: [
-            "Understand the elements of art",
-            "Build artistic vocabulary",
-            "Apply theory to practice"
-        ],
-        tips: [
-            "Look for these elements in artwork around you",
-            "Every drawing uses these principles",
-            "Theory improves your practical skills"
-        ],
-        prerequisites: ["lesson_003"],
-        unlocks: ["challenge_001"]
-    )
-    
-    static let challengeLesson001 = Lesson(
-        id: "challenge_001",
-        title: "Creative Shape Challenge",
-        description: "Transform basic shapes into creative drawings",
-        type: .creativeChallenge, // FIXED: was .challenge
-        category: .basics,
-        difficulty: .beginner,
-        estimatedMinutes: 10,
-        xpReward: 100,
-        steps: [
+                hints: ["Think about the lessons you just completed"],
+                xpValue: 50
+            ),
             LessonStep(
-                id: "step_challenge_001_1",
-                order: 1,
-                title: "Shape Transformation",
-                instruction: "Turn this circle into something creative",
+                id: "step_005_2",
+                order: 2,
+                title: "Create Your Masterpiece",
+                instruction: "Use lines, circles, and squares to create anything you want! Maybe a house, a face, or something completely abstract!",
                 content: .challenge(ChallengeContent(
                     challengeType: .freestyle,
-                    prompt: "Use this circle as a starting point to create anything you want!",
-                    resources: ["circle_template"],
-                    constraints: ["timeLimit": "300"] // 5 minutes
+                    prompt: "Combine lines, circles, and squares to create your first masterpiece!",
+                    resources: [],
+                    constraints: nil
                 )),
                 validation: ValidationCriteria(
                     minScore: 0.5,
@@ -430,22 +485,22 @@ extension Curriculum {
                     ),
                     requiresAllCorrect: false
                 ),
-                hints: ["Think outside the box!", "There's no wrong answer"],
+                hints: ["Combine shapes creatively", "There's no wrong answer!", "Have fun with it!"],
                 xpValue: 100
             )
         ],
-        exercises: [], // FIXED: Added missing exercises parameter
+        exercises: [],
         objectives: [
+            "Apply all learned techniques",
             "Practice creative thinking",
-            "Apply basic shapes creatively",
             "Build drawing confidence"
         ],
         tips: [
+            "Use what you've learned",
             "Don't overthink it",
-            "Simple additions can transform shapes",
-            "Have fun with it!"
+            "Creativity is more important than perfection"
         ],
-        prerequisites: ["theory_001"],
+        prerequisites: ["lesson_004"],
         unlocks: []
     )
 }
