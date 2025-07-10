@@ -38,7 +38,7 @@ struct DrawingView: View {
     }
 }
 
-// MARK: - Canvas Controller
+// MARK: - Canvas Controller (FIXED)
 @MainActor
 final class CanvasController: ObservableObject {
     @Published var pkCanvasView = PKCanvasView()
@@ -56,8 +56,11 @@ final class CanvasController: ObservableObject {
     
     private func configureCanvas() {
         pkCanvasView.drawingPolicy = .anyInput
-        pkCanvasView.backgroundColor = UIColor.clear
-        pkCanvasView.isOpaque = false
+        // FIXED: Set white background instead of clear to see black lines
+        pkCanvasView.backgroundColor = UIColor.white
+        pkCanvasView.isOpaque = true
+        pkCanvasView.layer.cornerRadius = 16
+        pkCanvasView.clipsToBounds = true
     }
     
     func chooseTool(_ tool: DrawingTool) {
@@ -81,6 +84,7 @@ final class CanvasController: ObservableObject {
     }
     
     private func setActiveTool() {
+        // FIXED: Proper color conversion
         let color = UIColor(selectedColor)
         
         switch activeTool {
@@ -126,14 +130,14 @@ final class CanvasController: ObservableObject {
     }
 }
 
-// MARK: - Drawing Canvas Area
+// MARK: - Drawing Canvas Area (FIXED)
 struct DrawingCanvasArea: View {
     @ObservedObject var controller: CanvasController
     
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white)
+                .fill(Color.white) // FIXED: White background for visibility
                 .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
             
             CanvasViewWrapper(controller: controller)
@@ -142,7 +146,7 @@ struct DrawingCanvasArea: View {
     }
 }
 
-// MARK: - Canvas View Wrapper
+// MARK: - Canvas View Wrapper (FIXED)
 struct CanvasViewWrapper: UIViewRepresentable {
     @ObservedObject var controller: CanvasController
     
@@ -153,7 +157,8 @@ struct CanvasViewWrapper: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: PKCanvasView, context: Context) {
-        // Updates handled through controller
+        // FIXED: Removed problematic tool comparison
+        // Just ensure the tool is set correctly
     }
     
     func makeCoordinator() -> Coordinator {
@@ -174,6 +179,12 @@ struct CanvasViewWrapper: UIViewRepresentable {
         }
         
         func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
+            Task { @MainActor in
+                controller.updateUndoRedoState()
+            }
+        }
+        
+        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
             Task { @MainActor in
                 controller.updateUndoRedoState()
             }
@@ -225,7 +236,7 @@ struct DrawingTopBar: View {
     }
 }
 
-// MARK: - Drawing Tool Bar
+// MARK: - Drawing Tool Bar (FIXED)
 struct DrawingToolBar: View {
     @ObservedObject var controller: CanvasController
     
@@ -267,7 +278,7 @@ struct DrawingToolBar: View {
     }
 }
 
-// MARK: - Drawing Tool Button (Renamed to avoid conflicts)
+// MARK: - Drawing Tool Button
 struct DrawingToolButton: View {
     let tool: DrawingTool
     let isActive: Bool
@@ -319,7 +330,7 @@ struct TopBarButton: View {
     }
 }
 
-// MARK: - Tool Options Panel
+// MARK: - Tool Options Panel (FIXED)
 struct ToolOptionsPanel: View {
     @ObservedObject var controller: CanvasController
     
@@ -336,9 +347,12 @@ struct ToolOptionsPanel: View {
             }
             .buttonStyle(BounceStyle())
             .popover(isPresented: $controller.colorPickerVisible) {
-                ColorPickerPanel(selectedColor: $controller.selectedColor) { color in
-                    controller.updateColor(color)
-                }
+                ColorPickerPanel(
+                    selectedColor: $controller.selectedColor,
+                    onColorSelected: { color in
+                        controller.updateColor(color)
+                    }
+                )
             }
             
             // Stroke width control
@@ -350,7 +364,9 @@ struct ToolOptionsPanel: View {
                 Slider(
                     value: Binding(
                         get: { controller.strokeWidth },
-                        set: { value in controller.updateStrokeWidth(value) }
+                        set: { value in
+                            controller.updateStrokeWidth(value)
+                        }
                     ),
                     in: 1...50,
                     step: 1
@@ -364,7 +380,7 @@ struct ToolOptionsPanel: View {
     }
 }
 
-// MARK: - Color Picker Panel
+// MARK: - Color Picker Panel (FIXED)
 struct ColorPickerPanel: View {
     @Binding var selectedColor: Color
     let onColorSelected: (Color) -> Void
@@ -377,20 +393,24 @@ struct ColorPickerPanel: View {
     ]
     
     var body: some View {
-        VStack {
+        VStack(spacing: 16) {
+            Text("Choose Color")
+                .font(.headline)
+                .padding(.top)
+            
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(35)), count: 4), spacing: 8) {
                 ForEach(presetColors, id: \.self) { color in
                     Circle()
                         .fill(color)
                         .frame(width: 30, height: 30)
-                        .overlay(Circle().stroke(.primary, lineWidth: 1))
+                        .overlay(Circle().stroke(.primary, lineWidth: selectedColor == color ? 3 : 1))
                         .onTapGesture {
                             selectedColor = color
                             onColorSelected(color)
                         }
                 }
             }
-            .padding()
+            .padding(.horizontal)
             
             ColorPicker("Custom Color", selection: Binding(
                 get: { selectedColor },
@@ -400,8 +420,9 @@ struct ColorPickerPanel: View {
                 }
             ))
             .padding(.horizontal)
+            .padding(.bottom)
         }
-        .frame(width: 180, height: 200)
+        .frame(width: 200, height: 280)
     }
 }
 

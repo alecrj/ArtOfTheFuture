@@ -1,4 +1,4 @@
-// MARK: - Fixed Lessons Curriculum (No Hearts Parameter)
+// MARK: - Clean Lessons Curriculum (NO HINTS - Duolingo Style)
 // File: ArtOfTheFuture/Features/Lessons/Data/LessonsCurriculum.swift
 
 import Foundation
@@ -8,7 +8,7 @@ struct Curriculum {
     
     // MARK: - All Lessons
     static let allLessons: [Lesson] = [
-        // Beginner Lessons - Start Simple and Build Up
+        // Beginner Lessons - Clear, Simple, Progressive
         beginnerLesson001,
         beginnerLesson002,
         beginnerLesson003,
@@ -45,10 +45,10 @@ struct Curriculum {
     ]
 }
 
-// MARK: - Lesson Definitions
+// MARK: - Lesson Definitions (Clean & Focused)
 extension Curriculum {
     
-    // LESSON 1: Welcome & Introduction
+    // LESSON 1: Welcome & Introduction (Cleaner without hints)
     static let beginnerLesson001 = Lesson(
         id: "lesson_001",
         title: "Welcome to Drawing!",
@@ -63,15 +63,15 @@ extension Curriculum {
                 id: "step_001_1",
                 order: 1,
                 title: "Welcome, Artist!",
-                instruction: "Ready to start your artistic journey? Let's begin with the fundamentals!",
+                instruction: "Ready to start your artistic journey? Let's begin with the fundamentals of digital drawing!",
                 content: .introduction(IntroContent(
                     displayImage: nil,
                     animationName: nil,
                     bulletPoints: [
                         "Hold your Apple Pencil naturally and comfortably",
-                        "Start with simple shapes and strokes",
-                        "Don't worry about perfection - practice makes progress!",
-                        "Have fun and let your creativity flow"
+                        "Start with simple shapes and practice basic strokes",
+                        "Focus on smooth, confident movements",
+                        "Don't worry about perfection—practice makes progress!"
                     ]
                 )),
                 validation: ValidationCriteria(
@@ -80,19 +80,17 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: false,
-                        showHints: false,
                         encouragementThreshold: 1.0
                     ),
                     requiresAllCorrect: true
                 ),
-                hints: [],
                 xpValue: 25
             ),
             LessonStep(
                 id: "step_001_2",
                 order: 2,
                 title: "Your First Drawing",
-                instruction: "Try making some marks on the canvas. Draw anything you like!",
+                instruction: "Try making some marks on the white canvas below. Draw anything you like—there's no wrong way to start!",
                 content: .drawing(DrawingContent(
                     canvasSize: CGSize(width: 350, height: 250),
                     backgroundColor: "#FFFFFF",
@@ -106,32 +104,29 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: false,
-                        showHints: false,
                         encouragementThreshold: 0.3
                     ),
                     requiresAllCorrect: false
                 ),
-                hints: ["Just start drawing!", "There's no wrong way to begin"],
                 xpValue: 25
             )
         ],
         exercises: [],
         objectives: [
-            "Get comfortable with digital drawing",
+            "Get comfortable with digital drawing tools",
             "Make your first marks on the canvas",
-            "Build confidence with the tools"
+            "Build confidence with the drawing interface"
         ],
         tips: [
-            "Relax and have fun",
+            "Relax and have fun with your first drawing",
             "Every artist started with a single line",
-            "Practice is the key to improvement"
+            "Regular practice is the key to improvement"
         ],
         prerequisites: [],
         unlocks: ["lesson_002"]
-        // hearts parameter removed - uses default value of 3
     )
     
-    // LESSON 2: Drawing Straight Lines
+    // LESSON 2: Drawing Straight Lines (Clear instruction focus)
     static let beginnerLesson002 = Lesson(
         id: "lesson_002",
         title: "Drawing Straight Lines",
@@ -145,7 +140,7 @@ extension Curriculum {
             LessonStep(
                 id: "step_002_1",
                 order: 1,
-                title: "Line Drawing Basics",
+                title: "Line Drawing Technique",
                 instruction: "What's the secret to drawing straight lines?",
                 content: .theory(TheoryContent(
                     question: "Which technique helps you draw straighter lines?",
@@ -177,19 +172,17 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: true,
-                        showHints: true,
                         encouragementThreshold: 1.0
                     ),
                     requiresAllCorrect: true
                 ),
-                hints: ["Think about which part of your body moves when drawing"],
                 xpValue: 25
             ),
             LessonStep(
                 id: "step_002_2",
                 order: 2,
                 title: "Practice Horizontal Lines",
-                instruction: "Draw 3 horizontal lines across the canvas using the blue guidelines",
+                instruction: "Now let's practice! Draw 3 horizontal lines across the canvas using the blue guidelines. Use your shoulder and arm for smooth motion.",
                 content: .drawing(DrawingContent(
                     canvasSize: CGSize(width: 350, height: 250),
                     backgroundColor: "#FFFFFF",
@@ -225,32 +218,29 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: true,
-                        showHints: true,
                         encouragementThreshold: 0.5
                     ),
                     requiresAllCorrect: false
                 ),
-                hints: ["Use your shoulder, not your wrist", "Try to follow the blue guidelines"],
                 xpValue: 50
             )
         ],
         exercises: [],
         objectives: [
             "Understand proper arm movement for line drawing",
-            "Draw straight horizontal lines",
-            "Use guidelines effectively"
+            "Draw straight horizontal lines using guidelines",
+            "Practice smooth, confident strokes"
         ],
         tips: [
-            "Practice the motion in the air first",
-            "Speed can help with smoothness",
-            "Don't worry about perfection"
+            "Practice the motion in the air before touching the canvas",
+            "Speed can help with smoothness—don't go too slow",
+            "Focus on the end point, not the pencil tip"
         ],
         prerequisites: ["lesson_001"],
         unlocks: ["lesson_003"]
-        // hearts parameter removed - uses default value of 3
     )
     
-    // LESSON 3: Drawing Circles
+    // LESSON 3: Drawing Circles (Clean instruction)
     static let beginnerLesson003 = Lesson(
         id: "lesson_003",
         title: "Drawing Circles",
@@ -296,19 +286,17 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: true,
-                        showHints: true,
                         encouragementThreshold: 1.0
                     ),
                     requiresAllCorrect: true
                 ),
-                hints: ["Think about the difference between slow and fast movements"],
                 xpValue: 30
             ),
             LessonStep(
                 id: "step_003_2",
                 order: 2,
                 title: "Practice Circles",
-                instruction: "Draw 2 circles using the circular guidelines. Try to make them smooth!",
+                instruction: "Draw 2 circles using the circular guidelines. Remember: quick, confident motion from your shoulder!",
                 content: .drawing(DrawingContent(
                     canvasSize: CGSize(width: 350, height: 250),
                     backgroundColor: "#FFFFFF",
@@ -337,12 +325,10 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: true,
-                        showHints: true,
                         encouragementThreshold: 0.4
                     ),
                     requiresAllCorrect: false
                 ),
-                hints: ["Move from your shoulder", "Try a quick, confident motion", "Practice makes perfect!"],
                 xpValue: 70
             )
         ],
@@ -350,19 +336,18 @@ extension Curriculum {
         objectives: [
             "Understand circle drawing technique",
             "Draw smooth circular motions",
-            "Practice confident strokes"
+            "Practice confident, quick strokes"
         ],
         tips: [
             "Ghost the motion before touching the canvas",
-            "Speed helps with smoothness",
-            "Practice circles of different sizes"
+            "Speed helps with smoothness—trust your arm",
+            "Practice circles of different sizes to build muscle memory"
         ],
         prerequisites: ["lesson_002"],
         unlocks: ["lesson_004"]
-        // hearts parameter removed - uses default value of 3
     )
     
-    // LESSON 4: Basic Shapes - Squares
+    // LESSON 4: Basic Shapes - Squares (Clear focus)
     static let beginnerLesson004 = Lesson(
         id: "lesson_004",
         title: "Drawing Squares",
@@ -377,7 +362,7 @@ extension Curriculum {
                 id: "step_004_1",
                 order: 1,
                 title: "Square Construction",
-                instruction: "Practice drawing a square using the rectangular guidelines",
+                instruction: "Practice drawing a square using the rectangular guidelines. Focus on making parallel lines and clean corners.",
                 content: .drawing(DrawingContent(
                     canvasSize: CGSize(width: 350, height: 250),
                     backgroundColor: "#FFFFFF",
@@ -399,32 +384,29 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: true,
-                        showHints: true,
                         encouragementThreshold: 0.5
                     ),
                     requiresAllCorrect: false
                 ),
-                hints: ["Focus on parallel lines", "Take your time with the corners", "Use the guidelines to help"],
                 xpValue: 85
             )
         ],
         exercises: [],
         objectives: [
             "Draw squares with equal sides",
-            "Understand parallel lines",
+            "Understand parallel lines and right angles",
             "Practice corner construction"
         ],
         tips: [
             "Each side should be the same length",
-            "Keep your lines parallel",
+            "Keep opposite lines parallel",
             "Clean lines matter more than perfect angles"
         ],
         prerequisites: ["lesson_003"],
         unlocks: ["lesson_005"]
-        // hearts parameter removed - uses default value of 3
     )
     
-    // LESSON 5: Creative Challenge
+    // LESSON 5: Creative Challenge (Motivating conclusion)
     static let beginnerLesson005 = Lesson(
         id: "lesson_005",
         title: "Creative Challenge",
@@ -438,8 +420,8 @@ extension Curriculum {
             LessonStep(
                 id: "step_005_1",
                 order: 1,
-                title: "Shape Knowledge Check",
-                instruction: "Let's review what you've learned!",
+                title: "Knowledge Check",
+                instruction: "Let's review what you've mastered!",
                 content: .theory(TheoryContent(
                     question: "Which shapes have you learned to draw?",
                     visualAid: nil,
@@ -451,7 +433,7 @@ extension Curriculum {
                         TheoryContent.AnswerOption(id: "4", text: "Triangles", image: nil)
                     ],
                     correctAnswers: ["1", "2", "3"],
-                    explanation: "You've learned lines, circles, and squares! Triangles will come in future lessons."
+                    explanation: "Excellent! You've mastered lines, circles, and squares. Triangles are coming in future lessons!"
                 )),
                 validation: ValidationCriteria(
                     minScore: 1.0,
@@ -459,19 +441,17 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: true,
-                        showHints: true,
                         encouragementThreshold: 1.0
                     ),
                     requiresAllCorrect: true
                 ),
-                hints: ["Think about the lessons you just completed"],
                 xpValue: 50
             ),
             LessonStep(
                 id: "step_005_2",
                 order: 2,
                 title: "Create Your Masterpiece",
-                instruction: "Use lines, circles, and squares to create anything you want! Maybe a house, a face, or something completely abstract!",
+                instruction: "Now it's time to create! Use lines, circles, and squares to draw anything you want. Maybe a house, a face, or something completely abstract. Let your creativity flow!",
                 content: .challenge(ChallengeContent(
                     challengeType: .freestyle,
                     prompt: "Combine lines, circles, and squares to create your first masterpiece!",
@@ -484,28 +464,25 @@ extension Curriculum {
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
                         showRealtime: false,
-                        showHints: false,
                         encouragementThreshold: 0.3
                     ),
                     requiresAllCorrect: false
                 ),
-                hints: ["Combine shapes creatively", "There's no wrong answer!", "Have fun with it!"],
                 xpValue: 100
             )
         ],
         exercises: [],
         objectives: [
-            "Apply all learned techniques",
-            "Practice creative thinking",
-            "Build drawing confidence"
+            "Apply all learned techniques in one drawing",
+            "Practice creative thinking and composition",
+            "Build confidence in your artistic abilities"
         ],
         tips: [
-            "Use what you've learned",
-            "Don't overthink it",
+            "Use what you've learned in creative combinations",
+            "There's no wrong answer in creative challenges",
             "Creativity is more important than perfection"
         ],
         prerequisites: ["lesson_004"],
         unlocks: []
-        // hearts parameter removed - uses default value of 3
     )
 }

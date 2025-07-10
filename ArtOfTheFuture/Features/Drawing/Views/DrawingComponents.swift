@@ -32,7 +32,7 @@ enum DrawingTool: String, CaseIterable {
     }
 }
 
-// MARK: - Canvas View
+// MARK: - Canvas View (FIXED)
 struct CanvasView: UIViewRepresentable {
     @Binding var canvasView: PKCanvasView
     @Binding var currentTool: DrawingTool
@@ -41,8 +41,8 @@ struct CanvasView: UIViewRepresentable {
     
     func makeUIView(context: Context) -> PKCanvasView {
         canvasView.drawingPolicy = .anyInput
-        canvasView.backgroundColor = .clear
-        canvasView.isOpaque = false
+        canvasView.backgroundColor = UIColor.white // FIXED: White background
+        canvasView.isOpaque = true
         canvasView.delegate = context.coordinator
         updateTool()
         return canvasView
@@ -58,7 +58,8 @@ struct CanvasView: UIViewRepresentable {
     
     private func updateTool() {
         let uiColor = UIColor(currentColor)
-        canvasView.tool = currentTool.pkTool(color: uiColor, width: currentWidth)
+        let tool = currentTool.pkTool(color: uiColor, width: currentWidth)
+        canvasView.tool = tool
     }
     
     class Coordinator: NSObject, PKCanvasViewDelegate {
@@ -77,7 +78,7 @@ struct CanvasView: UIViewRepresentable {
         }
         
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-            // Drawing changed - this will trigger the onChange in the parent view
+            // Drawing changed
         }
     }
 }
@@ -123,7 +124,7 @@ final class DrawingViewModel: ObservableObject {
     }
 }
 
-// MARK: - Tool Button (Renamed for clarity)
+// MARK: - Tool Button (FIXED)
 struct ToolSelectorButton: View {
     let tool: DrawingTool
     let isSelected: Bool
@@ -134,13 +135,30 @@ struct ToolSelectorButton: View {
             VStack(spacing: 4) {
                 Image(systemName: tool.icon)
                     .font(.title2)
+                    .foregroundColor(isSelected ? .white : .primary)
+                
                 Text(tool.rawValue)
                     .font(.caption2)
+                    .foregroundColor(isSelected ? .white : .secondary)
             }
             .frame(width: 60, height: 60)
-            .background(isSelected ? Color.accentColor : Color(.systemGray5))
-            .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(12)
+            .background(
+                // FIXED: Proper view structure
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(
+                        isSelected ?
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ) :
+                        LinearGradient(
+                            colors: [Color(.systemGray5), Color(.systemGray5)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(isSelected ? Color.clear : Color(.systemGray4), lineWidth: 1)
@@ -183,7 +201,7 @@ struct ColorPickerSheet: View {
     
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 20) {
                 ColorPicker("Choose Color", selection: $selectedColor)
                     .padding()
                 
@@ -262,7 +280,7 @@ struct EditArtworkView: View {
     
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 0) {
                 // Canvas
                 CanvasView(
                     canvasView: $canvasView,
@@ -324,6 +342,7 @@ struct EditArtworkView: View {
             updatedArtwork.modifiedAt = Date()
             updatedArtwork.duration += additionalDuration
             updatedArtwork.strokeCount = canvasView.drawing.strokes.count
+            
             // Generate new thumbnail
             if let thumbnailData = await viewModel.galleryService.generateThumbnail(
                 for: canvasView.drawing,
@@ -331,8 +350,23 @@ struct EditArtworkView: View {
             ) {
                 updatedArtwork.thumbnailData = thumbnailData
             }
+            
             try? await viewModel.galleryService.updateArtwork(updatedArtwork)
             dismiss()
         }
+    }
+}
+
+// MARK: - Extensions
+extension UIColor {
+    convenience init(_ color: Color) {
+        let uiColor = UIColor(color)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        self.init(red: red, green: green, blue: blue, alpha: alpha)
     }
 }

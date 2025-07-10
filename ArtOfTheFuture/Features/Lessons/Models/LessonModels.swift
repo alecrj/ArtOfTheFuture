@@ -1,4 +1,4 @@
-// MARK: - Complete Unified Lesson Models (FIXED - Hearts Optional)
+// MARK: - Complete Unified Lesson Models (NO HINTS - Clean & Focused)
 // File: ArtOfTheFuture/Features/Lessons/Models/LessonModels.swift
 // SINGLE SOURCE OF TRUTH for all lesson-related models
 
@@ -27,7 +27,7 @@ struct Lesson: Identifiable, Codable {
     let prerequisites: [String]
     let unlocks: [String]
     
-    // System properties for gamification - FIXED: Made optional with default
+    // System properties for gamification - Made optional with default
     var hearts: Int = 3
     
     // Computed properties
@@ -117,13 +117,12 @@ enum DifficultyLevel: String, Codable, CaseIterable {
     }
 }
 
-// MARK: - Lesson Exercise Model
+// MARK: - Lesson Exercise Model (NO HINTS)
 struct LessonExercise: Identifiable, Codable {
     let id: String
     let instruction: String
     let content: ExerciseContent
     let validation: ExerciseValidation
-    let hints: [String]
     let xpValue: Int
 }
 
@@ -367,7 +366,7 @@ struct ExerciseValidation: Codable {
     let autoCheck: Bool
 }
 
-// MARK: - Lesson Step Model
+// MARK: - Lesson Step Model (NO HINTS - Clean & Simple)
 struct LessonStep: Identifiable, Codable {
     let id: String
     let order: Int
@@ -375,8 +374,8 @@ struct LessonStep: Identifiable, Codable {
     let instruction: String
     let content: StepContent
     let validation: ValidationCriteria
-    let hints: [String]
     let xpValue: Int
+    // REMOVED: hints property for cleaner UX
 }
 
 // MARK: - Step Content Types
@@ -495,7 +494,7 @@ struct ChallengeContent: Codable {
     }
 }
 
-// MARK: - Validation
+// MARK: - Validation (Simplified - Focus on Clear Instructions)
 struct ValidationCriteria: Codable {
     let minScore: Double
     let maxAttempts: Int
@@ -511,8 +510,8 @@ struct ValidationCriteria: Codable {
     
     struct FeedbackConfig: Codable {
         let showRealtime: Bool
-        let showHints: Bool
         let encouragementThreshold: Double
+        // REMOVED: showHints - focusing on clear instructions instead
     }
 }
 

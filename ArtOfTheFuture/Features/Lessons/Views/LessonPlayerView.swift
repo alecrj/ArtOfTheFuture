@@ -1,6 +1,3 @@
-// MARK: - Fixed Lesson Player View
-// File: ArtOfTheFuture/Features/Lessons/Views/LessonPlayerView.swift
-
 import SwiftUI
 import PencilKit
 
@@ -13,111 +10,83 @@ struct LessonPlayerView: View {
     init(lesson: Lesson) {
         self.lesson = lesson
         _viewModel = StateObject(wrappedValue: LessonPlayerViewModel(lesson: lesson))
-        print("🎯 LessonPlayerView initialized with: \(lesson.title)")
-        print("📝 Lesson has \(lesson.steps.count) steps")
     }
     
     var body: some View {
         NavigationView {
             ZStack {
-                // Background
-                Color(.systemBackground)
-                    .ignoresSafeArea()
+                // Background gradient like Duolingo
+                LinearGradient(
+                    colors: [Color(.systemBackground), Color(.systemGray6)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // Header
-                    playerHeader
+                    lessonHeader
                     
                     // Content
                     if let currentStep = viewModel.currentStep {
                         ScrollView {
-                            VStack(spacing: 20) {
+                            VStack(spacing: 24) {
                                 StepContentView(
                                     step: currentStep,
                                     viewModel: viewModel
                                 )
                                 .padding()
-                                
-                                // Feedback
-                                if viewModel.showFeedback {
-                                    feedbackView
-                                        .padding(.horizontal)
-                                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                                }
                             }
                         }
-                    } else {
-                        // Debug empty state
-                        VStack(spacing: 20) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 60))
-                                .foregroundColor(.orange)
-                            
-                            Text("No lesson content")
-                                .font(.headline)
-                            
-                            Text("Lesson: \(lesson.title)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            Text("Steps: \(lesson.steps.count)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            Text("Current Index: \(viewModel.currentStepIndex)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     
-                    // Controls
-                    if viewModel.currentStep != nil || lesson.steps.isEmpty {
-                        playerControls
-                            .background(Color(.systemBackground))
-                    }
+                    // Bottom controls - Always visible like Duolingo
+                    bottomControls
+                        .background(Color(.systemBackground))
+                        .shadow(color: .black.opacity(0.1), radius: 5, y: -2)
                 }
             }
             
-            // Success overlay
+            // Success celebration overlay
             if viewModel.showSuccess {
                 SuccessOverlay(
-                    xpEarned: viewModel.xpEarned,
+                    title: viewModel.isLessonComplete ? "Lesson Complete!" : "Excellent!",
+                    xpEarned: viewModel.stepXPEarned,
                     onContinue: {
-                        withAnimation {
-                            viewModel.showSuccess = false
-                        }
-                        if viewModel.isComplete {
+                        viewModel.handleSuccessContinue()
+                        if viewModel.isLessonComplete {
                             dismiss()
-                        } else {
-                            viewModel.nextStep()
                         }
                     }
                 )
                 .zIndex(2)
             }
+            
+            // Feedback overlay for incorrect answers
+            if viewModel.showFeedback && !viewModel.isCorrect {
+                FeedbackOverlay(
+                    isCorrect: false,
+                    message: viewModel.feedbackMessage,
+                    onTryAgain: {
+                        viewModel.hideFeeback()
+                    }
+                )
+                .zIndex(1)
+            }
         }
         .navigationBarHidden(true)
         .alert("Exit Lesson?", isPresented: $showingExitAlert) {
             Button("Exit", role: .destructive) {
-                Task {
-                    await viewModel.saveProgress()
-                    dismiss()
-                }
+                dismiss()
             }
             Button("Continue", role: .cancel) { }
         } message: {
             Text("Your progress will be saved")
         }
-        .onAppear {
-            print("🎬 LessonPlayerView appeared")
-            print("📊 Current step: \(viewModel.currentStepIndex)")
-            print("📝 Total steps: \(lesson.steps.count)")
-        }
     }
     
     // MARK: - Header
-    private var playerHeader: some View {
+    private var lessonHeader: some View {
         VStack(spacing: 12) {
             HStack {
                 Button(action: { showingExitAlert = true }) {
@@ -141,20 +110,25 @@ struct LessonPlayerView: View {
                 HeartsView(lives: viewModel.lives, maxLives: 3)
             }
             
-            // Progress
-            ProgressView(value: viewModel.progress)
-                .progressViewStyle(LinearProgressViewStyle(tint: lesson.category.categoryColor))
+            // Progress bar - Duolingo style
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(.systemGray5))
+                        .frame(height: 8)
+                    
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(lesson.category.categoryColor)
+                        .frame(width: geometry.size.width * viewModel.progress, height: 8)
+                        .animation(.spring(response: 0.6), value: viewModel.progress)
+                }
+            }
+            .frame(height: 8)
             
             HStack {
-                if lesson.steps.count > 0 {
-                    Text("Step \(viewModel.currentStepIndex + 1) of \(lesson.steps.count)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text("No steps available")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Text("Step \(viewModel.currentStepIndex + 1) of \(lesson.steps.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 
                 Spacer()
                 
@@ -168,98 +142,49 @@ struct LessonPlayerView: View {
         }
         .padding()
         .background(Color(.systemBackground))
-        .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
     }
     
-    // MARK: - Feedback
-    private var feedbackView: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Image(systemName: viewModel.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .font(.title)
-                    .foregroundColor(viewModel.isCorrect ? .green : .red)
-                
-                VStack(alignment: .leading) {
-                    Text(viewModel.isCorrect ? "Excellent!" : "Not quite")
-                        .font(.headline)
-                    
-                    if !viewModel.feedbackMessage.isEmpty {
-                        Text(viewModel.feedbackMessage)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-            }
-            
-            if !viewModel.isCorrect && viewModel.lives > 0 {
-                Button("Try Again") {
-                    viewModel.tryAgain()
-                }
-                .font(.subheadline)
-                .foregroundColor(.blue)
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(viewModel.isCorrect ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-        )
-    }
-    
-    // MARK: - Controls
-    private var playerControls: some View {
-        VStack(spacing: 16) {
+    // MARK: - Bottom Controls (Duolingo Style - No Hints)
+    private var bottomControls: some View {
+        VStack(spacing: 0) {
+            // Main action button area
             HStack(spacing: 16) {
-                if viewModel.currentStepIndex > 0 {
-                    Button(action: viewModel.previousStep) {
-                        Label("Previous", systemImage: "chevron.left")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(.systemGray5))
-                            .cornerRadius(12)
-                    }
-                }
-                
+                // Main action button - Duolingo style
                 Button(action: viewModel.handleMainAction) {
-                    HStack {
-                        Text(viewModel.mainActionTitle)
-                        if viewModel.canContinue {
-                            Image(systemName: "arrow.right")
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(viewModel.canContinue ? lesson.category.categoryColor : Color(.systemGray4))
-                    .foregroundColor(viewModel.canContinue ? .white : .secondary)
-                    .cornerRadius(12)
+                    Text(viewModel.mainActionTitle)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            Group {
+                                if viewModel.canProceed {
+                                    lesson.category.categoryColor
+                                } else {
+                                    Color(.systemGray4)
+                                }
+                            }
+                        )
+                        .cornerRadius(16)
                 }
-                .disabled(!viewModel.canContinue && !viewModel.showFeedback)
+                .disabled(!viewModel.canProceed)
+                .animation(.easeInOut(duration: 0.2), value: viewModel.canProceed)
             }
-            
-            // Hints
-            if let hints = viewModel.currentStep?.hints, !hints.isEmpty {
-                Button(action: viewModel.showHint) {
-                    Label("Hint", systemImage: "lightbulb")
-                        .font(.subheadline)
-                        .foregroundColor(.orange)
-                }
-            }
+            .padding()
         }
-        .padding()
     }
 }
 
-// MARK: - Step Content View
+// MARK: - Step Content View (Simplified - No Hints)
 struct StepContentView: View {
     let step: LessonStep
     @ObservedObject var viewModel: LessonPlayerViewModel
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             // Title and instruction
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 Text(step.title)
                     .font(.title2)
                     .fontWeight(.bold)
@@ -269,170 +194,156 @@ struct StepContentView: View {
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
+                    .lineLimit(nil)
             }
             
             // Content based on step type
             stepContentView
-            
-            // Hints
-            if viewModel.showingHint && !step.hints.isEmpty {
-                HintView(hints: step.hints)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
         }
-        .animation(.spring(response: 0.5), value: viewModel.showingHint)
     }
     
     @ViewBuilder
     private var stepContentView: some View {
         switch step.content {
         case .introduction(let content):
-            IntroductionView(content: content)
+            IntroductionView(content: content, viewModel: viewModel)
             
         case .drawing(let content):
             DrawingExerciseView(
                 content: content,
-                onDrawingChanged: { drawing in
-                    viewModel.updateDrawing(drawing)
-                }
+                viewModel: viewModel
             )
             
         case .theory(let content):
             TheoryExerciseView(
                 content: content,
-                selectedAnswers: $viewModel.selectedAnswers
+                viewModel: viewModel
             )
             
         case .challenge(let content):
             ChallengeExerciseView(
                 content: content,
-                onDrawingChanged: { drawing in
-                    viewModel.updateDrawing(drawing)
-                }
+                viewModel: viewModel
             )
         }
     }
 }
 
-// MARK: - Content Type Views
+// MARK: - Content Views (Simplified - No Hints)
 struct IntroductionView: View {
     let content: IntroContent
+    @ObservedObject var viewModel: LessonPlayerViewModel
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Main visual
+        VStack(spacing: 24) {
+            // Hero visual
             ZStack {
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 20)
                     .fill(
                         LinearGradient(
-                            colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
+                            colors: [.blue.opacity(0.8), .purple.opacity(0.8)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .frame(height: 200)
                 
-                VStack(spacing: 12) {
-                    Image(systemName: "paintbrush.pointed.fill")
+                VStack(spacing: 16) {
+                    Image(systemName: "sparkles")
                         .font(.system(size: 60))
                         .foregroundColor(.white)
                     
                     Text("Let's Learn!")
-                        .font(.title2)
+                        .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                 }
             }
             
-            // Bullet points
+            // Key points - Clear and instructional
             if !content.bulletPoints.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     ForEach(Array(content.bulletPoints.enumerated()), id: \.offset) { _, point in
-                        HStack(alignment: .top) {
+                        HStack(alignment: .top, spacing: 12) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                                 .font(.title3)
+                            
                             Text(point)
-                                .font(.subheadline)
+                                .font(.body)
+                            
                             Spacer()
                         }
                     }
                 }
                 .padding()
                 .background(Color(.systemGray6))
-                .cornerRadius(12)
+                .cornerRadius(16)
             }
+        }
+        .onAppear {
+            // Introduction steps can proceed immediately
+            viewModel.setCanProceed(true)
         }
     }
 }
 
 struct DrawingExerciseView: View {
     let content: DrawingContent
-    let onDrawingChanged: (PKDrawing) -> Void
-    @State private var canvasView = PKCanvasView()
-    @State private var currentTool: DrawingTool = .pen
-    @State private var showGuidelines = true
+    @ObservedObject var viewModel: LessonPlayerViewModel
+    @StateObject private var canvasController = CanvasController()
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Canvas
+        VStack(spacing: 20) {
+            // Canvas with guidelines
             ZStack {
+                // White background for visibility
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white)
-                    .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                    .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
                 
-                // Guidelines overlay
-                if showGuidelines && content.guidelines != nil {
-                    GuidelinesOverlay(guidelines: content.guidelines ?? [])
+                // Guidelines overlay (if any)
+                if let guidelines = content.guidelines {
+                    GuidelinesOverlay(guidelines: guidelines)
                         .allowsHitTesting(false)
                 }
                 
-                // Canvas
-                CanvasView(
-                    canvasView: $canvasView,
-                    currentTool: $currentTool,
-                    currentColor: .constant(.black),
-                    currentWidth: .constant(3.0)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .onChange(of: canvasView.drawing) { oldValue, newValue in
-                    onDrawingChanged(newValue)
-                }
+                // Drawing canvas
+                CanvasViewWrapper(controller: canvasController)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .onChange(of: canvasController.pkCanvasView.drawing) { oldValue, newValue in
+                        viewModel.updateDrawing(newValue)
+                    }
             }
-            .frame(width: min(content.canvasSize.width, 350),
-                   height: min(content.canvasSize.height, 350))
+            .frame(
+                width: min(content.canvasSize.width, 350),
+                height: min(content.canvasSize.height, 250)
+            )
             
-            // Tools
-            HStack(spacing: 20) {
+            // Drawing tools - Simple and clean
+            HStack(spacing: 16) {
                 ForEach(content.toolsAllowed, id: \.self) { tool in
                     LessonToolButton(
                         tool: tool,
-                        isSelected: currentTool == tool.toDrawingTool(),
-                        action: { currentTool = tool.toDrawingTool() }
+                        isSelected: canvasController.activeTool == tool.toDrawingTool(),
+                        action: {
+                            canvasController.chooseTool(tool.toDrawingTool())
+                        }
                     )
                 }
                 
                 Spacer()
                 
+                // Clear button with encouraging icon
                 Button(action: {
-                    canvasView.drawing = PKDrawing()
-                    onDrawingChanged(PKDrawing())
+                    canvasController.clearAction()
+                    viewModel.updateDrawing(PKDrawing())
                 }) {
-                    Image(systemName: "trash")
-                        .foregroundColor(.red)
+                    Image(systemName: "arrow.clockwise")
+                        .foregroundColor(.orange)
                         .frame(width: 44, height: 44)
                         .background(Color(.systemGray5))
                         .clipShape(Circle())
-                }
-                
-                if content.guidelines != nil {
-                    Button(action: { showGuidelines.toggle() }) {
-                        Image(systemName: showGuidelines ? "eye.fill" : "eye.slash")
-                            .foregroundColor(.blue)
-                            .frame(width: 44, height: 44)
-                            .background(Color(.systemGray5))
-                            .clipShape(Circle())
-                    }
                 }
             }
             .padding()
@@ -444,47 +355,28 @@ struct DrawingExerciseView: View {
 
 struct TheoryExerciseView: View {
     let content: TheoryContent
-    @Binding var selectedAnswers: Set<String>
+    @ObservedObject var viewModel: LessonPlayerViewModel
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Visual aid placeholder
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray6))
-                    .frame(height: 150)
-                
-                VStack {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.largeTitle)
-                        .foregroundColor(.orange)
-                    Text("Theory")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
+        VStack(spacing: 24) {
+            // Question - More prominent and clear
             Text(content.question)
                 .font(.title3)
                 .fontWeight(.medium)
                 .multilineTextAlignment(.center)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
             
+            // Answer options - Clean and clear
             VStack(spacing: 12) {
                 ForEach(content.options) { option in
                     AnswerOptionView(
                         option: option,
-                        isSelected: selectedAnswers.contains(option.id),
+                        isSelected: viewModel.selectedAnswers.contains(option.id),
                         allowsMultiple: content.answerType == .multipleChoice,
                         action: {
-                            if content.answerType == .singleChoice {
-                                selectedAnswers = [option.id]
-                            } else {
-                                if selectedAnswers.contains(option.id) {
-                                    selectedAnswers.remove(option.id)
-                                } else {
-                                    selectedAnswers.insert(option.id)
-                                }
-                            }
+                            viewModel.selectAnswer(option.id, allowsMultiple: content.answerType == .multipleChoice)
                         }
                     )
                 }
@@ -495,34 +387,36 @@ struct TheoryExerciseView: View {
 
 struct ChallengeExerciseView: View {
     let content: ChallengeContent
-    let onDrawingChanged: (PKDrawing) -> Void
-    @State private var canvasView = PKCanvasView()
+    @ObservedObject var viewModel: LessonPlayerViewModel
+    @StateObject private var canvasController = CanvasController()
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
+            // Challenge prompt - Exciting and motivating
             Text(content.prompt)
                 .font(.headline)
                 .multilineTextAlignment(.center)
                 .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
+                .background(
+                    LinearGradient(
+                        colors: [.orange.opacity(0.2), .pink.opacity(0.2)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
             
             // Drawing canvas
             ZStack {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.white)
-                    .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+                    .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
                 
-                CanvasView(
-                    canvasView: $canvasView,
-                    currentTool: .constant(.pen),
-                    currentColor: .constant(.black),
-                    currentWidth: .constant(3.0)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .onChange(of: canvasView.drawing) { oldValue, newValue in
-                    onDrawingChanged(newValue)
-                }
+                CanvasViewWrapper(controller: canvasController)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .onChange(of: canvasController.pkCanvasView.drawing) { oldValue, newValue in
+                        viewModel.updateDrawing(newValue)
+                    }
             }
             .frame(height: 300)
         }
@@ -540,38 +434,15 @@ struct HeartsView: View {
                 Image(systemName: index < lives ? "heart.fill" : "heart")
                     .foregroundColor(index < lives ? .red : .gray)
                     .font(.title3)
+                    .scaleEffect(index < lives ? 1.0 : 0.8)
                     .animation(.spring(response: 0.3), value: lives)
             }
         }
     }
 }
 
-struct HintView: View {
-    let hints: [String]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "lightbulb.fill")
-                    .foregroundColor(.orange)
-                Text("Hints")
-                    .fontWeight(.medium)
-            }
-            
-            ForEach(Array(hints.enumerated()), id: \.offset) { _, hint in
-                Text("• \(hint)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.1))
-        .cornerRadius(12)
-    }
-}
-
 struct SuccessOverlay: View {
+    let title: String
     let xpEarned: Int
     let onContinue: () -> Void
     @State private var scale: CGFloat = 0
@@ -584,22 +455,32 @@ struct SuccessOverlay: View {
                 .opacity(opacity)
             
             VStack(spacing: 30) {
-                Image(systemName: "star.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.yellow)
-                    .scaleEffect(scale)
+                // Success animation
+                ZStack {
+                    Circle()
+                        .fill(Color.green.opacity(0.2))
+                        .frame(width: 120, height: 120)
+                        .scaleEffect(scale)
+                    
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 80))
+                        .foregroundColor(.green)
+                        .scaleEffect(scale)
+                }
                 
-                Text("Excellent!")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .scaleEffect(scale)
-                
-                Text("+\(xpEarned) XP")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.yellow)
-                    .scaleEffect(scale)
+                VStack(spacing: 16) {
+                    Text(title)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .scaleEffect(scale)
+                    
+                    Text("+\(xpEarned) XP")
+                        .font(.title)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.yellow)
+                        .scaleEffect(scale)
+                }
                 
                 Button(action: onContinue) {
                     Text("Continue")
@@ -627,6 +508,348 @@ struct SuccessOverlay: View {
     }
 }
 
+struct FeedbackOverlay: View {
+    let isCorrect: Bool
+    let message: String
+    let onTryAgain: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(.red)
+                
+                Text("Not quite right")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                
+                if !message.isEmpty {
+                    Text(message)
+                        .font(.body)
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+                
+                Button(action: onTryAgain) {
+                    Text("Try Again")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(width: 200)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(25)
+                }
+            }
+            .padding()
+        }
+        .onAppear {
+            Task {
+                await HapticManager.shared.notification(.error)
+            }
+        }
+    }
+}
+
+// MARK: - Enhanced ViewModel (Duolingo-style - No Hints)
+@MainActor
+final class LessonPlayerViewModel: ObservableObject {
+    let lesson: Lesson
+    
+    @Published var currentStepIndex = 0
+    @Published var lives = 3
+    @Published var progress: Double = 0
+    @Published var showSuccess = false
+    @Published var showFeedback = false
+    @Published var isCorrect = false
+    @Published var feedbackMessage = ""
+    @Published var canProceed = false
+    
+    // Exercise state
+    @Published var selectedAnswers: Set<String> = []
+    @Published var currentDrawing: PKDrawing = PKDrawing()
+    
+    private var totalXPEarned = 0
+    
+    var currentStep: LessonStep? {
+        guard currentStepIndex < lesson.steps.count else { return nil }
+        return lesson.steps[currentStepIndex]
+    }
+    
+    var mainActionTitle: String {
+        if canProceed {
+            return currentStepIndex == lesson.steps.count - 1 ? "Complete" : "Continue"
+        } else {
+            switch currentStep?.content {
+            case .introduction:
+                return "Continue"
+            case .drawing, .challenge:
+                return "Submit Drawing"
+            case .theory:
+                return "Submit Answer"
+            default:
+                return "Continue"
+            }
+        }
+    }
+    
+    var isLessonComplete: Bool {
+        currentStepIndex >= lesson.steps.count - 1
+    }
+    
+    var stepXPEarned: Int {
+        currentStep?.xpValue ?? 0
+    }
+    
+    init(lesson: Lesson) {
+        self.lesson = lesson
+        updateProgress()
+        checkInitialState()
+    }
+    
+    // MARK: - Public Methods
+    func handleMainAction() {
+        guard let step = currentStep else { return }
+        
+        if canProceed {
+            // Proceed to next step or complete
+            if isCorrect || step.content.isIntroduction {
+                // Award XP and show success
+                totalXPEarned += step.xpValue
+                showSuccessAndProceed()
+            } else {
+                proceedToNextStep()
+            }
+        } else {
+            // Validate current answer
+            validateCurrentAnswer()
+        }
+    }
+    
+    func selectAnswer(_ answerId: String, allowsMultiple: Bool) {
+        if allowsMultiple {
+            if selectedAnswers.contains(answerId) {
+                selectedAnswers.remove(answerId)
+            } else {
+                selectedAnswers.insert(answerId)
+            }
+        } else {
+            selectedAnswers = [answerId]
+        }
+        updateCanProceed()
+    }
+    
+    func updateDrawing(_ drawing: PKDrawing) {
+        currentDrawing = drawing
+        updateCanProceed()
+    }
+    
+    func setCanProceed(_ canProceed: Bool) {
+        self.canProceed = canProceed
+    }
+    
+    func hideFeeback() {
+        withAnimation(.spring(response: 0.3)) {
+            showFeedback = false
+        }
+        resetStepState()
+    }
+    
+    func handleSuccessContinue() {
+        withAnimation(.spring(response: 0.3)) {
+            showSuccess = false
+        }
+        
+        if !isLessonComplete {
+            proceedToNextStep()
+        }
+    }
+    
+    // MARK: - Private Methods
+    private func checkInitialState() {
+        guard let step = currentStep else { return }
+        
+        // Introduction steps can proceed immediately
+        if case .introduction = step.content {
+            canProceed = true
+        }
+    }
+    
+    private func validateCurrentAnswer() {
+        guard let step = currentStep else { return }
+        
+        let result = validateStep(step)
+        isCorrect = result.isCorrect
+        feedbackMessage = result.message
+        
+        if isCorrect {
+            // Immediate success feedback
+            setCanProceed(true)
+            Task {
+                await HapticManager.shared.notification(.success)
+            }
+        } else {
+            // Show error feedback
+            lives -= 1
+            withAnimation(.spring(response: 0.3)) {
+                showFeedback = true
+            }
+            Task {
+                await HapticManager.shared.notification(.error)
+            }
+            
+            // If out of lives, allow progression anyway
+            if lives <= 0 {
+                isCorrect = true
+                setCanProceed(true)
+            }
+        }
+    }
+    
+    private func validateStep(_ step: LessonStep) -> (isCorrect: Bool, message: String) {
+        switch step.content {
+        case .introduction:
+            return (true, "")
+            
+        case .drawing:
+            let hasDrawing = !currentDrawing.strokes.isEmpty
+            return (hasDrawing, hasDrawing ? "Great work!" : "Try drawing something!")
+            
+        case .theory(let content):
+            let correct = Set(content.correctAnswers)
+            let isCorrect = selectedAnswers == correct
+            return (isCorrect, isCorrect ? "Correct!" : content.explanation)
+            
+        case .challenge:
+            let hasDrawing = !currentDrawing.strokes.isEmpty
+            return (hasDrawing, hasDrawing ? "Creative solution!" : "Show us your creativity!")
+        }
+    }
+    
+    private func updateCanProceed() {
+        guard let step = currentStep else { return }
+        
+        switch step.content {
+        case .introduction:
+            canProceed = true
+        case .drawing, .challenge:
+            canProceed = !currentDrawing.strokes.isEmpty
+        case .theory:
+            canProceed = !selectedAnswers.isEmpty
+        }
+    }
+    
+    private func showSuccessAndProceed() {
+        withAnimation(.spring(response: 0.5)) {
+            showSuccess = true
+        }
+    }
+    
+    private func proceedToNextStep() {
+        if currentStepIndex < lesson.steps.count - 1 {
+            currentStepIndex += 1
+            resetStepState()
+            updateProgress()
+            checkInitialState()
+        }
+    }
+    
+    private func resetStepState() {
+        selectedAnswers.removeAll()
+        currentDrawing = PKDrawing()
+        isCorrect = false
+        feedbackMessage = ""
+        canProceed = false
+    }
+    
+    private func updateProgress() {
+        let totalSteps = max(lesson.steps.count, 1)
+        withAnimation(.spring(response: 0.6)) {
+            progress = Double(currentStepIndex + 1) / Double(totalSteps)
+        }
+    }
+}
+
+// MARK: - Extensions
+extension StepContent {
+    var isIntroduction: Bool {
+        if case .introduction = self {
+            return true
+        }
+        return false
+    }
+}
+
+// Supporting views continued...
+struct AnswerOptionView: View {
+    let option: TheoryContent.AnswerOption
+    let isSelected: Bool
+    let allowsMultiple: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: isSelected ?
+                    (allowsMultiple ? "checkmark.square.fill" : "circle.fill") :
+                    (allowsMultiple ? "square" : "circle"))
+                    .foregroundColor(isSelected ? .blue : .gray)
+                    .font(.title3)
+                
+                Text(option.text)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+                
+                Spacer()
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3), value: isSelected)
+    }
+}
+
+struct LessonToolButton: View {
+    let tool: LessonDrawingTool
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: tool.icon)
+                    .font(.title3)
+                    .foregroundColor(isSelected ? .white : .primary)
+                
+                Text(tool.rawValue)
+                    .font(.caption2)
+                    .foregroundColor(isSelected ? .white : .secondary)
+            }
+            .frame(width: 60, height: 60)
+            .background(isSelected ? Color.blue : Color(.systemGray5))
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .animation(.spring(response: 0.3), value: isSelected)
+    }
+}
+
+// Add guidelines overlay and other supporting views...
 struct GuidelinesOverlay: View {
     let guidelines: [DrawingContent.Guideline]
     
@@ -693,280 +916,6 @@ struct GuidelinesOverlay: View {
     }
 }
 
-struct AnswerOptionView: View {
-    let option: TheoryContent.AnswerOption
-    let isSelected: Bool
-    let allowsMultiple: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                Image(systemName: isSelected ?
-                    (allowsMultiple ? "checkmark.square.fill" : "circle.fill") :
-                    (allowsMultiple ? "square" : "circle"))
-                    .foregroundColor(isSelected ? .blue : .gray)
-                
-                Text(option.text)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-            }
-            .padding()
-            .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemGray6))
-            .cornerRadius(12)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct LessonToolButton: View {
-    let tool: LessonDrawingTool
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: tool.icon)
-                    .font(.title3)
-                Text(tool.rawValue)
-                    .font(.caption2)
-            }
-            .foregroundColor(isSelected ? .white : .primary)
-            .frame(width: 50, height: 50)
-            .background(isSelected ? Color.blue : Color(.systemGray5))
-            .cornerRadius(12)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - View Model
-@MainActor
-final class LessonPlayerViewModel: ObservableObject {
-    let lesson: Lesson
-    private let progressService = ProgressService.shared
-    
-    @Published var currentStepIndex = 0
-    @Published var lives = 3
-    @Published var progress: Double = 0
-    @Published var showFeedback = false
-    @Published var isCorrect = false
-    @Published var feedbackMessage = ""
-    @Published var canContinue = false
-    @Published var showingHint = false
-    @Published var showSuccess = false
-    @Published var isComplete = false
-    @Published var xpEarned = 0
-    
-    // Exercise state
-    @Published var selectedAnswers: Set<String> = []
-    @Published var currentDrawing: PKDrawing?
-    
-    var currentStep: LessonStep? {
-        guard currentStepIndex >= 0 && currentStepIndex < lesson.steps.count else {
-            print("❌ Current step index \(currentStepIndex) out of bounds for \(lesson.steps.count) steps")
-            return nil
-        }
-        return lesson.steps[currentStepIndex]
-    }
-    
-    var mainActionTitle: String {
-        if showFeedback {
-            return isCorrect ? "Continue" : "Got it"
-        } else if canContinue {
-            return "Check"
-        } else {
-            switch currentStep?.content {
-            case .introduction:
-                return "Continue"
-            default:
-                return "Submit"
-            }
-        }
-    }
-    
-    init(lesson: Lesson) {
-        self.lesson = lesson
-        print("🎯 LessonPlayerViewModel initialized")
-        print("📚 Lesson: \(lesson.title)")
-        print("📝 Steps: \(lesson.steps.count)")
-        
-        self.updateCanContinue()
-        self.updateProgress()
-        
-        // For introduction steps, allow immediate continuation
-        if let firstStep = lesson.steps.first,
-           case .introduction = firstStep.content {
-            canContinue = true
-        }
-    }
-    
-    // MARK: - Actions
-    func handleMainAction() {
-        if showFeedback {
-            if isCorrect {
-                completeStep()
-            } else {
-                tryAgain()
-            }
-        } else {
-            checkAnswer()
-        }
-    }
-    
-    func checkAnswer() {
-        guard let step = currentStep else { return }
-        
-        let result = validateAnswer(for: step)
-        isCorrect = result.isCorrect
-        feedbackMessage = result.message
-        
-        withAnimation(.spring(response: 0.5)) {
-            showFeedback = true
-        }
-        
-        if !isCorrect {
-            lives -= 1
-            if lives == 0 {
-                feedbackMessage = "Out of attempts. Let's move on!"
-                isCorrect = true // Force progression
-            }
-        }
-        
-        Task {
-            await HapticManager.shared.notification(isCorrect ? .success : .error)
-        }
-    }
-    
-    func completeStep() {
-        guard let step = currentStep else { return }
-        
-        // Award XP
-        if isCorrect {
-            xpEarned += step.xpValue
-        }
-        
-        // Check if lesson complete
-        if currentStepIndex == lesson.steps.count - 1 {
-            isComplete = true
-            withAnimation {
-                showSuccess = true
-            }
-        } else {
-            nextStep()
-        }
-    }
-    
-    func nextStep() {
-        if currentStepIndex < lesson.steps.count - 1 {
-            currentStepIndex += 1
-            resetStepState()
-            updateProgress()
-        }
-    }
-    
-    func previousStep() {
-        if currentStepIndex > 0 {
-            currentStepIndex -= 1
-            resetStepState()
-            updateProgress()
-        }
-    }
-    
-    func tryAgain() {
-        withAnimation {
-            showFeedback = false
-        }
-        resetStepState()
-    }
-    
-    func showHint() {
-        withAnimation {
-            showingHint = true
-        }
-    }
-    
-    func updateDrawing(_ drawing: PKDrawing) {
-        currentDrawing = drawing
-        updateCanContinue()
-    }
-    
-    func saveProgress() async {
-        // Progress saving implementation
-    }
-    
-    // MARK: - Private
-    private func updateProgress() {
-        let totalSteps = max(lesson.steps.count, 1)
-        withAnimation {
-            progress = Double(currentStepIndex + 1) / Double(totalSteps)
-        }
-    }
-    
-    private func updateCanContinue() {
-        guard let step = currentStep else {
-            canContinue = true
-            return
-        }
-        
-        switch step.content {
-        case .introduction:
-            canContinue = true
-        case .drawing:
-            canContinue = currentDrawing?.strokes.isEmpty == false
-        case .theory:
-            canContinue = !selectedAnswers.isEmpty
-        case .challenge:
-            canContinue = currentDrawing?.strokes.isEmpty == false
-        }
-    }
-    
-    private func resetStepState() {
-        showFeedback = false
-        isCorrect = false
-        feedbackMessage = ""
-        showingHint = false
-        selectedAnswers.removeAll()
-        currentDrawing = nil
-        updateCanContinue()
-    }
-    
-    private func validateAnswer(for step: LessonStep) -> (isCorrect: Bool, message: String) {
-        switch step.content {
-        case .introduction:
-            return (true, "")
-            
-        case .drawing:
-            let hasDrawing = currentDrawing?.strokes.isEmpty == false
-            return (hasDrawing, hasDrawing ? "Great drawing!" : "Please draw something")
-            
-        case .theory(let content):
-            let correct = Set(content.correctAnswers)
-            let isCorrect = selectedAnswers == correct
-            return (isCorrect, isCorrect ? "Correct!" : content.explanation)
-            
-        case .challenge:
-            let hasDrawing = currentDrawing?.strokes.isEmpty == false
-            return (hasDrawing, hasDrawing ? "Creative work!" : "Give it a try!")
-        }
-    }
-}
-
-// MARK: - Tool Conversion Extension
-extension LessonDrawingTool {
-    func toDrawingTool() -> DrawingTool {
-        switch self {
-        case .pen: return .pen
-        case .pencil: return .pencil
-        case .marker: return .marker
-        case .eraser: return .eraser
-        }
-    }
-}
-
-// MARK: - Color Extension
 extension Color {
     init?(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -991,5 +940,24 @@ extension Color {
             blue:  Double(b) / 255,
             opacity: Double(a) / 255
         )
+    }
+}
+
+extension LessonDrawingTool {
+    func toDrawingTool() -> DrawingTool {
+        switch self {
+        case .pen: return .pen
+        case .pencil: return .pencil
+        case .marker: return .marker
+        case .eraser: return .eraser
+        }
+    }
+}
+
+#Preview {
+    if let lesson = Curriculum.allLessons.first {
+        LessonPlayerView(lesson: lesson)
+    } else {
+        Text("No lessons available")
     }
 }
