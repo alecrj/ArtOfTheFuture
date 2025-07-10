@@ -270,137 +270,6 @@ struct SharedConfettiPiece: View {
     }
 }
 
-// MARK: - Home Dashboard View Model
-@MainActor
-final class HomeDashboardViewModel: ObservableObject {
-    @Published var userName = "Artist"
-    @Published var currentStreak = 0
-    @Published var todayProgress = DailyProgress(
-        targetMinutes: 15,
-        completedMinutes: 0,
-        lessonsCompleted: 0,
-        xpEarned: 0
-    )
-    @Published var recommendedLessons: [Lesson] = []
-    @Published var recentArtworks: [Artwork] = []
-    @Published var weeklyStats = WeeklyStats(
-        days: [],
-        totalMinutes: 0,
-        totalXP: 0,
-        averageMinutesPerDay: 0
-    )
-    @Published var achievements: [Achievement] = []
-    @Published var isLoading = false
-    
-    private let userService: UserServiceProtocol
-    private let galleryService: GalleryServiceProtocol
-    
-    init(
-        userService: UserServiceProtocol? = nil,
-        galleryService: GalleryServiceProtocol? = nil
-    ) {
-        self.userService = userService ?? UserService()
-        self.galleryService = galleryService ?? Container.shared.galleryService
-    }
-    
-    func loadDashboard() async {
-        isLoading = true
-        
-        // Load user data
-        if let userId = UserDefaults.standard.string(forKey: "currentUserId"),
-           let user = try? await userService.getUser(id: userId) {
-            userName = user.displayName
-            currentStreak = user.currentStreak
-        }
-        
-        // Load today's progress
-        await loadTodayProgress()
-        
-        // Load weekly stats
-        if let stats = try? await userService.getWeeklyStats() {
-            weeklyStats = stats
-        }
-        
-        // Load recommended lessons
-        await loadRecommendedLessons()
-        
-        // Load recent artworks
-        await loadRecentArtworks()
-        
-        // Load achievements
-        loadAchievements()
-        
-        isLoading = false
-    }
-    
-    func refreshDashboard() async {
-        await loadDashboard()
-    }
-    
-    private func loadTodayProgress() async {
-        // This would load from actual data
-        // For now, using mock data
-        let targetMinutes = UserDefaults.standard.object(forKey: "dailyGoalMinutes") as? Int ?? 15
-        
-        todayProgress = DailyProgress(
-            targetMinutes: targetMinutes,
-            completedMinutes: Int.random(in: 0...targetMinutes),
-            lessonsCompleted: Int.random(in: 0...3),
-            xpEarned: Int.random(in: 0...200)
-        )
-    }
-    
-    private func loadRecommendedLessons() async {
-        // This would use the recommendation engine
-        recommendedLessons = MockDataService.shared.getMockLessons()
-            .filter { !$0.isLocked }
-            .prefix(5)
-            .map { $0 }
-    }
-    
-    private func loadRecentArtworks() async {
-        if let artworks = try? await galleryService.loadArtworks() {
-            recentArtworks = artworks
-                .sorted { $0.modifiedAt > $1.modifiedAt }
-                .prefix(5)
-                .map { $0 }
-        }
-    }
-    
-    private func loadAchievements() {
-        // Mock achievements
-        achievements = [
-            Achievement(
-                id: "1",
-                title: "First Steps",
-                description: "Complete your first lesson",
-                icon: "shoe.2.fill",
-                unlockedDate: Date(),
-                progress: 1.0,
-                xpReward: 50
-            ),
-            Achievement(
-                id: "2",
-                title: "Artist in Training",
-                description: "Draw for 5 days in a row",
-                icon: "paintpalette.fill",
-                unlockedDate: nil,
-                progress: Double(min(currentStreak, 5)) / 5.0,
-                xpReward: 100
-            ),
-            Achievement(
-                id: "3",
-                title: "Color Explorer",
-                description: "Use 10 different colors",
-                icon: "eyedropper.halffull",
-                unlockedDate: nil,
-                progress: 0.7,
-                xpReward: 75
-            )
-        ]
-    }
-}
-
 // MARK: - Animated Progress Ring
 struct ProgressRing: View {
     let progress: Double
@@ -473,5 +342,154 @@ struct LevelBadge: View {
                     .foregroundColor(.secondary)
             }
         }
+    }
+}
+
+// MARK: - Streak Badge
+struct StreakBadge: View {
+    let streak: Int
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 4) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: streak > 0 ? [.orange, .red] : [.gray, .gray],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: "flame.fill")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                }
+                
+                VStack(spacing: 2) {
+                    Text("\(streak)")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(streak > 0 ? .orange : .gray)
+                    
+                    Text("Streak")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .scaleEffect(streak > 0 ? 1.0 : 0.9)
+        .animation(.spring(response: 0.3), value: streak)
+    }
+}
+
+// MARK: - Quick Action Button
+struct QuickActionButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 50, height: 50)
+                    .background(
+                        LinearGradient(
+                            colors: [color, color.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .clipShape(Circle())
+                    .shadow(color: color.opacity(0.3), radius: 4, y: 2)
+                
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Recommended Lesson Card
+struct RecommendedLessonCard: View {
+    let lesson: Lesson
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 12) {
+                // Header
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(lesson.title)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .lineLimit(1)
+                        
+                        Text(lesson.category.rawValue)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // XP Badge
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.caption2)
+                            .foregroundColor(.yellow)
+                        
+                        Text("\(lesson.xpReward)")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.yellow)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.yellow.opacity(0.2))
+                    .cornerRadius(12)
+                }
+                
+                // Description
+                Text(lesson.description)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                
+                // Footer
+                HStack {
+                    Label("\(lesson.estimatedMinutes)m", systemImage: "clock")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Text(lesson.difficulty.rawValue)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(lesson.difficulty.difficultyColor)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(lesson.difficulty.difficultyColor.opacity(0.2))
+                        .cornerRadius(8)
+                }
+            }
+            .padding()
+            .frame(width: 240)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
+        }
+        .buttonStyle(.plain)
     }
 }

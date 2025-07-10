@@ -2,41 +2,412 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab = 0
+    @StateObject private var tabViewModel = MainTabViewModel()
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeDashboardView() // FIXED: Changed from HomeView() to HomeDashboardView()
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
-                }
-                .tag(0)
+        ZStack {
+            TabView(selection: $selectedTab) {
+                HomeDashboardView()
+                    .tabItem {
+                        Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
+                    }
+                    .tag(0)
+                
+                LessonsView()
+                    .tabItem {
+                        Label("Learn", systemImage: selectedTab == 1 ? "book.fill" : "book")
+                    }
+                    .tag(1)
+                    .badge(tabViewModel.hasNewLessons ? "New" : nil)
+                
+                DrawingView()
+                    .tabItem {
+                        Label("Draw", systemImage: selectedTab == 2 ? "paintbrush.fill" : "paintbrush")
+                    }
+                    .tag(2)
+                
+                GalleryView()
+                    .tabItem {
+                        Label("Gallery", systemImage: selectedTab == 3 ? "photo.stack.fill" : "photo.stack")
+                    }
+                    .tag(3)
+                    .badge(tabViewModel.newArtworkCount > 0 ? "\(tabViewModel.newArtworkCount)" : nil)
+                
+                ProfileView()
+                    .tabItem {
+                        Label("Profile", systemImage: selectedTab == 4 ? "person.circle.fill" : "person.circle")
+                    }
+                    .tag(4)
+            }
+            .accentColor(.blue)
+            .onAppear {
+                setupTabBarAppearance()
+            }
             
-            LessonsView()
-                .tabItem {
-                    Label("Learn", systemImage: "book.fill")
-                }
-                .tag(1)
+            // Global XP celebration overlay
+            if tabViewModel.showXPCelebration {
+                GlobalXPCelebrationView(
+                    xpGained: tabViewModel.xpGained,
+                    totalXP: tabViewModel.totalXP,
+                    newLevel: tabViewModel.newLevel,
+                    onDismiss: {
+                        tabViewModel.dismissXPCelebration()
+                    }
+                )
+                .zIndex(1000)
+            }
             
-            DrawingView()
-                .tabItem {
-                    Label("Draw", systemImage: "paintbrush.fill")
-                }
-                .tag(2)
-            
-            ChallengesView()
-                .tabItem {
-                    Label("Challenges", systemImage: "flag.fill")
-                }
-                .tag(3)
-            
-            ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person.circle.fill")
-                }
-                .tag(4)
+            // Achievement notification overlay
+            if let newAchievement = tabViewModel.newAchievement {
+                AchievementNotificationView(
+                    achievement: newAchievement,
+                    onDismiss: {
+                        tabViewModel.dismissAchievement()
+                    }
+                )
+                .zIndex(999)
+            }
         }
-        .accentColor(.blue)
+        .onChange(of: selectedTab) { oldValue, newValue in
+            Task {
+                await HapticManager.shared.selection()
+                tabViewModel.trackTabSwitch(to: newValue)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .xpGained)) { notification in
+            if let xpAmount = notification.userInfo?["amount"] as? Int {
+                tabViewModel.handleXPGain(amount: xpAmount)
+            }
+        }
+        .task {
+            await tabViewModel.initialize()
+        }
     }
+    
+    private func setupTabBarAppearance() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor.systemBackground
+        
+        // Customize tab bar item appearance
+        appearance.stackedLayoutAppearance.normal.iconColor = UIColor.systemGray
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+            .foregroundColor: UIColor.systemGray
+        ]
+        
+        appearance.stackedLayoutAppearance.selected.iconColor = UIColor.systemBlue
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: UIColor.systemBlue
+        ]
+        
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+}
+
+// MARK: - Global XP Celebration View
+struct GlobalXPCelebrationView: View {
+    let xpGained: Int
+    let totalXP: Int
+    let newLevel: Int?
+    let onDismiss: () -> Void
+    
+    @State private var isAnimating = false
+    @State private var showConfetti = false
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onDismiss)
+            
+            VStack(spacing: 32) {
+                // Main celebration
+                ZStack {
+                    // Confetti explosion
+                    if showConfetti {
+                        ForEach(0..<30, id: \.self) { index in
+                            ConfettiParticle(index: index)
+                        }
+                    }
+                    
+                    // XP animation
+                    VStack(spacing: 24) {
+                        // XP burst animation
+                        ZStack {
+                            ForEach(0..<8, id: \.self) { index in
+                                Image(systemName: "star.fill")
+                                    .font(.title)
+                                    .foregroundColor(.yellow)
+                                    .offset(
+                                        x: isAnimating ? cos(Double(index) * .pi / 4) * 60 : 0,
+                                        y: isAnimating ? sin(Double(index) * .pi / 4) * 60 : 0
+                                    )
+                                    .opacity(isAnimating ? 0.3 : 1.0)
+                                    .animation(
+                                        .easeOut(duration: 1.5).delay(Double(index) * 0.05),
+                                        value: isAnimating
+                                    )
+                            }
+                            
+                            Text("+\(xpGained)")
+                                .font(.system(size: 60, weight: .black, design: .rounded))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.yellow, .orange],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .scaleEffect(isAnimating ? 1.2 : 0.5)
+                                .animation(.spring(response: 0.8, dampingFraction: 0.6), value: isAnimating)
+                        }
+                        
+                        // Level up notification (if applicable)
+                        if let newLevel = newLevel {
+                            VStack(spacing: 12) {
+                                Text("🎉 LEVEL UP! 🎉")
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                
+                                Text("You're now Level \(newLevel)!")
+                                    .font(.title2)
+                                    .foregroundColor(.white.opacity(0.9))
+                            }
+                            .scaleEffect(isAnimating ? 1.0 : 0.8)
+                            .opacity(isAnimating ? 1.0 : 0.0)
+                            .animation(.spring(response: 1.0).delay(0.5), value: isAnimating)
+                        }
+                        
+                        // Total XP display
+                        VStack(spacing: 8) {
+                            Text("Total XP: \(totalXP)")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            
+                            Text("Amazing progress! Keep it up!")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        .opacity(isAnimating ? 1.0 : 0.0)
+                        .offset(y: isAnimating ? 0 : 20)
+                        .animation(.easeOut(duration: 0.8).delay(1.0), value: isAnimating)
+                    }
+                }
+                
+                // Continue button
+                PremiumButton("Continue", style: .success) {
+                    onDismiss()
+                }
+                .frame(maxWidth: 200)
+                .opacity(isAnimating ? 1.0 : 0.0)
+                .animation(.easeOut(duration: 0.5).delay(1.5), value: isAnimating)
+            }
+            .padding()
+        }
+        .onAppear {
+            withAnimation {
+                isAnimating = true
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                showConfetti = true
+            }
+            
+            // Auto dismiss after 4 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                onDismiss()
+            }
+        }
+    }
+}
+
+// MARK: - Achievement Notification View
+struct AchievementNotificationView: View {
+    let achievement: Achievement
+    let onDismiss: () -> Void
+    
+    @State private var isVisible = false
+    
+    var body: some View {
+        VStack {
+            Spacer()
+            
+            PremiumCard {
+                HStack(spacing: 16) {
+                    Image(systemName: achievement.icon)
+                        .font(.title)
+                        .foregroundColor(.yellow)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Achievement Unlocked!")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
+                        
+                        Text(achievement.title)
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        
+                        Text(achievement.description)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    VStack {
+                        Button(action: onDismiss) {
+                            Image(systemName: "xmark")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                }
+                .padding()
+            }
+            .padding(.horizontal)
+            .offset(y: isVisible ? 0 : 100)
+            .opacity(isVisible ? 1 : 0)
+            .animation(.spring(response: 0.6), value: isVisible)
+        }
+        .onAppear {
+            isVisible = true
+            
+            // Auto dismiss after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                onDismiss()
+            }
+        }
+    }
+}
+
+// MARK: - Confetti Particle
+struct ConfettiParticle: View {
+    let index: Int
+    @State private var position = CGPoint.zero
+    @State private var rotation = 0.0
+    @State private var scale = 1.0
+    
+    let colors: [Color] = [.red, .orange, .yellow, .green, .blue, .purple, .pink]
+    
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(colors.randomElement()!)
+            .frame(width: 12, height: 8)
+            .scaleEffect(scale)
+            .rotationEffect(.degrees(rotation))
+            .position(position)
+            .onAppear {
+                let angle = Double.random(in: 0...(2 * .pi))
+                let distance = CGFloat.random(in: 150...300)
+                
+                withAnimation(.easeOut(duration: 3.0)) {
+                    position = CGPoint(
+                        x: cos(angle) * distance,
+                        y: sin(angle) * distance - 200
+                    )
+                    rotation = Double.random(in: -720...720)
+                    scale = 0.1
+                }
+            }
+    }
+}
+
+// MARK: - Main Tab ViewModel
+@MainActor
+final class MainTabViewModel: ObservableObject {
+    @Published var showXPCelebration = false
+    @Published var xpGained = 0
+    @Published var totalXP = 0
+    @Published var newLevel: Int?
+    @Published var newAchievement: Achievement?
+    @Published var hasNewLessons = false
+    @Published var newArtworkCount = 0
+    
+    private let progressService: ProgressServiceProtocol
+    private var previousXP = 0
+    private var previousLevel = 1
+    
+    init() {
+        self.progressService = Container.shared.progressService
+    }
+    
+    func initialize() async {
+        await loadInitialData()
+        setupNotifications()
+    }
+    
+    private func loadInitialData() async {
+        let progressService = self.progressService as! ProgressService
+        totalXP = progressService.getTotalXP()
+        previousXP = totalXP
+        previousLevel = (totalXP / 100) + 1
+        
+        // Check for new lessons, artworks, etc.
+        checkForNewContent()
+    }
+    
+    func handleXPGain(amount: Int) {
+        xpGained = amount
+        totalXP += amount
+        
+        let newLevel = (totalXP / 100) + 1
+        if newLevel > previousLevel {
+            self.newLevel = newLevel
+            previousLevel = newLevel
+        }
+        
+        showXPCelebration = true
+        
+        Task {
+            await HapticManager.shared.notification(.success)
+        }
+    }
+    
+    func dismissXPCelebration() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            showXPCelebration = false
+        }
+        
+        // Reset values after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.xpGained = 0
+            self.newLevel = nil
+        }
+    }
+    
+    func dismissAchievement() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            newAchievement = nil
+        }
+    }
+    
+    func trackTabSwitch(to tab: Int) {
+        // Analytics tracking for tab switches
+        print("📊 Switched to tab: \(tab)")
+    }
+    
+    private func setupNotifications() {
+        // Setup for various app notifications
+    }
+    
+    private func checkForNewContent() {
+        // Check for new lessons
+        hasNewLessons = false // Implement actual logic
+        
+        // Check for new artworks
+        newArtworkCount = 0 // Implement actual logic
+    }
+}
+
+// MARK: - Notification Extensions
+extension Notification.Name {
+    static let xpGained = Notification.Name("xpGained")
+    static let achievementUnlocked = Notification.Name("achievementUnlocked")
+    static let lessonCompleted = Notification.Name("lessonCompleted")
 }
 
 #Preview {
