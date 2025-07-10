@@ -13,56 +13,69 @@ struct LessonPlayerView: View {
     init(lesson: Lesson) {
         self.lesson = lesson
         _viewModel = StateObject(wrappedValue: LessonPlayerViewModel(lesson: lesson))
+        print("🎯 LessonPlayerView initialized with: \(lesson.title)")
+        print("📝 Lesson has \(lesson.steps.count) steps")
     }
     
     var body: some View {
-        ZStack {
-            // Background - FIXED: Use white background
-            Color.white
-                .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Header
-                playerHeader
-                    .zIndex(1) // Ensure header is on top
+        NavigationView {
+            ZStack {
+                // Background
+                Color(.systemBackground)
+                    .ignoresSafeArea()
                 
-                // Content
-                if let currentStep = viewModel.currentStep {
-                    // Lesson content
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            StepContentView(
-                                step: currentStep,
-                                viewModel: viewModel
-                            )
-                            .padding()
-                            
-                            // Feedback
-                            if viewModel.showFeedback {
-                                feedbackView
-                                    .padding(.horizontal)
-                                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                VStack(spacing: 0) {
+                    // Header
+                    playerHeader
+                    
+                    // Content
+                    if let currentStep = viewModel.currentStep {
+                        ScrollView {
+                            VStack(spacing: 20) {
+                                StepContentView(
+                                    step: currentStep,
+                                    viewModel: viewModel
+                                )
+                                .padding()
+                                
+                                // Feedback
+                                if viewModel.showFeedback {
+                                    feedbackView
+                                        .padding(.horizontal)
+                                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                                }
                             }
                         }
+                    } else {
+                        // Debug empty state
+                        VStack(spacing: 20) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 60))
+                                .foregroundColor(.orange)
+                            
+                            Text("No lesson content")
+                                .font(.headline)
+                            
+                            Text("Lesson: \(lesson.title)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            Text("Steps: \(lesson.steps.count)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            Text("Current Index: \(viewModel.currentStepIndex)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                } else {
-                    // Empty state
-                    VStack(spacing: 20) {
-                        Image(systemName: "book.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                        
-                        Text("Loading lesson content...")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
+                    
+                    // Controls
+                    if viewModel.currentStep != nil || lesson.steps.isEmpty {
+                        playerControls
+                            .background(Color(.systemBackground))
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                
-                // Controls
-                if viewModel.currentStep != nil {
-                    playerControls
-                        .background(Color.white)
                 }
             }
             
@@ -96,6 +109,11 @@ struct LessonPlayerView: View {
         } message: {
             Text("Your progress will be saved")
         }
+        .onAppear {
+            print("🎬 LessonPlayerView appeared")
+            print("📊 Current step: \(viewModel.currentStepIndex)")
+            print("📝 Total steps: \(lesson.steps.count)")
+        }
     }
     
     // MARK: - Header
@@ -128,9 +146,15 @@ struct LessonPlayerView: View {
                 .progressViewStyle(LinearProgressViewStyle(tint: lesson.category.categoryColor))
             
             HStack {
-                Text("Step \(viewModel.currentStepIndex + 1) of \(lesson.steps.count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if lesson.steps.count > 0 {
+                    Text("Step \(viewModel.currentStepIndex + 1) of \(lesson.steps.count)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("No steps available")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 
                 Spacer()
                 
@@ -143,7 +167,7 @@ struct LessonPlayerView: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
     }
     
@@ -424,21 +448,19 @@ struct TheoryExerciseView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            // Visual aid
-            if content.visualAid == nil {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.systemGray6))
-                        .frame(height: 150)
-                    
-                    VStack {
-                        Image(systemName: "lightbulb.fill")
-                            .font(.largeTitle)
-                            .foregroundColor(.orange)
-                        Text("Theory")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    }
+            // Visual aid placeholder
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray6))
+                    .frame(height: 150)
+                
+                VStack {
+                    Image(systemName: "lightbulb.fill")
+                        .font(.largeTitle)
+                        .foregroundColor(.orange)
+                    Text("Theory")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
                 }
             }
             
@@ -720,7 +742,7 @@ struct LessonToolButton: View {
     }
 }
 
-// MARK: - View Model (FIXED)
+// MARK: - View Model
 @MainActor
 final class LessonPlayerViewModel: ObservableObject {
     let lesson: Lesson
@@ -743,7 +765,10 @@ final class LessonPlayerViewModel: ObservableObject {
     @Published var currentDrawing: PKDrawing?
     
     var currentStep: LessonStep? {
-        guard currentStepIndex >= 0 && currentStepIndex < lesson.steps.count else { return nil }
+        guard currentStepIndex >= 0 && currentStepIndex < lesson.steps.count else {
+            print("❌ Current step index \(currentStepIndex) out of bounds for \(lesson.steps.count) steps")
+            return nil
+        }
         return lesson.steps[currentStepIndex]
     }
     
@@ -764,8 +789,18 @@ final class LessonPlayerViewModel: ObservableObject {
     
     init(lesson: Lesson) {
         self.lesson = lesson
+        print("🎯 LessonPlayerViewModel initialized")
+        print("📚 Lesson: \(lesson.title)")
+        print("📝 Steps: \(lesson.steps.count)")
+        
         self.updateCanContinue()
         self.updateProgress()
+        
+        // For introduction steps, allow immediate continuation
+        if let firstStep = lesson.steps.first,
+           case .introduction = firstStep.content {
+            canContinue = true
+        }
     }
     
     // MARK: - Actions

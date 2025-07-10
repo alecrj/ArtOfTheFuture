@@ -1,4 +1,4 @@
-// MARK: - Updated Lessons View (FIXED)
+// MARK: - Fixed Lessons View
 // File: ArtOfTheFuture/Features/Lessons/Views/LessonsView.swift
 
 import SwiftUI
@@ -6,7 +6,6 @@ import SwiftUI
 struct LessonsView: View {
     @StateObject private var viewModel = LessonsViewModel()
     @State private var selectedLesson: Lesson?
-    @State private var showingLesson = false
     @State private var searchText = ""
     
     var body: some View {
@@ -34,8 +33,9 @@ struct LessonsView: View {
                     LazyVStack(spacing: 12) {
                         ForEach(viewModel.filteredLessons) { lesson in
                             LessonCard(lesson: lesson) {
+                                print("📚 Opening lesson: \(lesson.title)")
+                                print("📊 Lesson has \(lesson.steps.count) steps")
                                 selectedLesson = lesson
-                                showingLesson = true
                             }
                             .padding(.horizontal)
                         }
@@ -53,10 +53,8 @@ struct LessonsView: View {
                 await viewModel.loadLessons()
             }
         }
-        .fullScreenCover(isPresented: $showingLesson) {
-            if let lesson = selectedLesson {
-                LessonPlayerView(lesson: lesson)
-            }
+        .sheet(item: $selectedLesson) { lesson in
+            LessonPlayerView(lesson: lesson)
         }
         .task {
             await viewModel.loadLessons()
@@ -229,12 +227,16 @@ struct LessonCard: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
+                        Label("\(lesson.steps.count) steps", systemImage: "list.number")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
                         Spacer()
                         
                         Text(lesson.difficulty.rawValue)
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(difficultyColor(lesson.difficulty))
+                            .foregroundColor(lesson.difficulty.difficultyColor)
                     }
                 }
                 
@@ -253,10 +255,6 @@ struct LessonCard: View {
         }
         .disabled(lesson.isLocked)
         .buttonStyle(.plain)
-    }
-    
-    private func difficultyColor(_ difficulty: DifficultyLevel) -> Color {
-        return difficulty.difficultyColor
     }
 }
 
@@ -285,7 +283,6 @@ final class LessonsViewModel: ObservableObject {
     @Published var searchQuery = ""
     
     private let lessonService: LessonServiceProtocol
-    private let progressService: ProgressServiceProtocol
     
     var completedLessonsCount: Int {
         lessons.filter(\.isCompleted).count
@@ -295,19 +292,24 @@ final class LessonsViewModel: ObservableObject {
         lessons.filter(\.isCompleted).reduce(0) { $0 + $1.xpReward }
     }
     
-    init(lessonService: LessonServiceProtocol? = nil, progressService: ProgressServiceProtocol? = nil) {
-        self.lessonService = lessonService ?? Container.shared.lessonService
-        self.progressService = progressService ?? Container.shared.progressService
+    init() {
+        // Use real lesson service, not mock data
+        self.lessonService = LessonService.shared
     }
     
     func loadLessons() async {
         isLoading = true
+        print("🔄 Loading lessons...")
         
         do {
-            lessons = try await lessonService.getLessonsForUser()
+            lessons = try await lessonService.getAllLessons()
+            print("✅ Loaded \(lessons.count) lessons")
+            for lesson in lessons {
+                print("📚 Lesson: \(lesson.title) - \(lesson.steps.count) steps")
+            }
             applyFilters()
         } catch {
-            print("Error loading lessons: \(error)")
+            print("❌ Error loading lessons: \(error)")
         }
         
         isLoading = false

@@ -41,8 +41,9 @@ struct CanvasView: UIViewRepresentable {
     
     func makeUIView(context: Context) -> PKCanvasView {
         canvasView.drawingPolicy = .anyInput
-        canvasView.backgroundColor = .systemBackground
+        canvasView.backgroundColor = .clear
         canvasView.isOpaque = false
+        canvasView.delegate = context.coordinator
         updateTool()
         return canvasView
     }
@@ -51,9 +52,33 @@ struct CanvasView: UIViewRepresentable {
         updateTool()
     }
     
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
     private func updateTool() {
         let uiColor = UIColor(currentColor)
         canvasView.tool = currentTool.pkTool(color: uiColor, width: currentWidth)
+    }
+    
+    class Coordinator: NSObject, PKCanvasViewDelegate {
+        let parent: CanvasView
+        
+        init(_ parent: CanvasView) {
+            self.parent = parent
+        }
+        
+        func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
+            // Tool usage began
+        }
+        
+        func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
+            // Tool usage ended
+        }
+        
+        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+            // Drawing changed - this will trigger the onChange in the parent view
+        }
     }
 }
 
