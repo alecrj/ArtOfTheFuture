@@ -1,4 +1,4 @@
-// MARK: - Lessons Curriculum
+// MARK: - Lessons Curriculum (FIXED)
 // File: ArtOfTheFuture/Features/Lessons/Data/LessonsCurriculum.swift
 // SINGLE SOURCE OF TRUTH for all curriculum content
 
@@ -57,7 +57,7 @@ extension Curriculum {
         id: "lesson_001",
         title: "Drawing Straight Lines",
         description: "Master the fundamental skill of drawing confident, straight lines",
-        type: .practice,
+        type: .drawingPractice, // FIXED: was .practice
         category: .basics,
         difficulty: .beginner,
         estimatedMinutes: 5,
@@ -160,6 +160,7 @@ extension Curriculum {
                 xpValue: 15
             )
         ],
+        exercises: [], // FIXED: Added missing exercises parameter
         objectives: [
             "Draw straight horizontal lines",
             "Draw straight vertical lines",
@@ -178,7 +179,7 @@ extension Curriculum {
         id: "lesson_002",
         title: "Basic Shapes: Circles",
         description: "Learn to draw perfect circles with confidence",
-        type: .practice,
+        type: .drawingPractice, // FIXED: was .practice
         category: .basics,
         difficulty: .beginner,
         estimatedMinutes: 8,
@@ -262,6 +263,7 @@ extension Curriculum {
                 xpValue: 30
             )
         ],
+        exercises: [], // FIXED: Added missing exercises parameter
         objectives: [
             "Understand circle drawing technique",
             "Draw circles using shoulder movement",
@@ -280,7 +282,7 @@ extension Curriculum {
         id: "lesson_003",
         title: "Basic Shapes: Squares",
         description: "Master drawing squares and rectangles with clean edges",
-        type: .practice,
+        type: .drawingPractice, // FIXED: was .practice
         category: .basics,
         difficulty: .beginner,
         estimatedMinutes: 6,
@@ -321,6 +323,7 @@ extension Curriculum {
                 xpValue: 35
             )
         ],
+        exercises: [], // FIXED: Added missing exercises parameter
         objectives: [
             "Draw squares with equal sides",
             "Understand parallel lines",
@@ -339,7 +342,7 @@ extension Curriculum {
         id: "theory_001",
         title: "Drawing Fundamentals",
         description: "Learn the core principles that guide all good drawings",
-        type: .theory,
+        type: .theoryFundamentals, // FIXED: was .theory
         category: .theory,
         difficulty: .beginner,
         estimatedMinutes: 4,
@@ -380,6 +383,7 @@ extension Curriculum {
                 xpValue: 40
             )
         ],
+        exercises: [], // FIXED: Added missing exercises parameter
         objectives: [
             "Understand the elements of art",
             "Build artistic vocabulary",
@@ -398,7 +402,7 @@ extension Curriculum {
         id: "challenge_001",
         title: "Creative Shape Challenge",
         description: "Transform basic shapes into creative drawings",
-        type: .challenge,
+        type: .creativeChallenge, // FIXED: was .challenge
         category: .basics,
         difficulty: .beginner,
         estimatedMinutes: 10,
@@ -430,6 +434,7 @@ extension Curriculum {
                 xpValue: 100
             )
         ],
+        exercises: [], // FIXED: Added missing exercises parameter
         objectives: [
             "Practice creative thinking",
             "Apply basic shapes creatively",
