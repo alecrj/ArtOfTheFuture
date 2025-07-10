@@ -57,9 +57,15 @@ struct CanvasView: UIViewRepresentable {
     }
     
     private func updateTool() {
-        let uiColor = UIColor(currentColor)
+        // FIXED: Proper color conversion without circular reference
+        let uiColor = convertToUIColor(currentColor)
         let tool = currentTool.pkTool(color: uiColor, width: currentWidth)
         canvasView.tool = tool
+    }
+    
+    // FIXED: Safe color conversion
+    private func convertToUIColor(_ color: Color) -> UIColor {
+        return UIColor(color)
     }
     
     class Coordinator: NSObject, PKCanvasViewDelegate {
@@ -354,19 +360,5 @@ struct EditArtworkView: View {
             try? await viewModel.galleryService.updateArtwork(updatedArtwork)
             dismiss()
         }
-    }
-}
-
-// MARK: - Extensions
-extension UIColor {
-    convenience init(_ color: Color) {
-        let uiColor = UIColor(color)
-        var red: CGFloat = 0
-        var green: CGFloat = 0
-        var blue: CGFloat = 0
-        var alpha: CGFloat = 0
-        
-        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        self.init(red: red, green: green, blue: blue, alpha: alpha)
     }
 }
