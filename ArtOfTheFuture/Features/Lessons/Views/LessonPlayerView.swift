@@ -17,56 +17,75 @@ struct LessonPlayerView: View {
     
     var body: some View {
         ZStack {
-            // Background
-            LinearGradient(
-                colors: [lesson.category.categoryColor.opacity(0.05), Color(.systemBackground)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            // Background - Fix: Use proper color
+            Color(.systemBackground)
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Header
                 playerHeader
+                    .zIndex(1) // Ensure header is on top
                 
                 // Content
-                ScrollView {
+                if viewModel.isLoading {
+                    // Loading state
                     VStack(spacing: 20) {
-                        // Current step content
-                        if let currentStep = viewModel.currentStep {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text("Loading lesson...")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.currentStep != nil {
+                    // Lesson content
+                    ScrollView {
+                        VStack(spacing: 20) {
                             StepContentView(
-                                step: currentStep,
+                                step: viewModel.currentStep!,
                                 viewModel: viewModel
                             )
                             .padding()
-                        } else {
-                            // Fallback content
-                            VStack(spacing: 20) {
-                                Image(systemName: "book.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(lesson.category.categoryColor)
-                                
-                                Text("Loading lesson...")
-                                    .font(.headline)
-                                
-                                Text(lesson.description)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
+                            
+                            // Feedback
+                            if viewModel.showFeedback {
+                                feedbackView
+                                    .padding(.horizontal)
+                                    .transition(.move(edge: .bottom).combined(with: .opacity))
                             }
-                            .padding()
-                        }
-                        
-                        // Feedback
-                        if viewModel.showFeedback {
-                            feedbackView
-                                .padding(.horizontal)
                         }
                     }
+                } else {
+                    // Error state
+                    VStack(spacing: 20) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.orange)
+                        
+                        Text("Unable to load lesson")
+                            .font(.headline)
+                        
+                        Text(lesson.description)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        Button("Try Again") {
+                            Task {
+                                await viewModel.loadProgress()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 
                 // Controls
-                playerControls
+                if !viewModel.isLoading && viewModel.currentStep != nil {
+                    playerControls
+                        .background(Color(.systemBackground))
+                }
             }
             
             // Success overlay
@@ -74,7 +93,9 @@ struct LessonPlayerView: View {
                 SuccessOverlay(
                     xpEarned: viewModel.xpEarned,
                     onContinue: {
-                        viewModel.showSuccess = false
+                        withAnimation {
+                            viewModel.showSuccess = false
+                        }
                         if viewModel.isComplete {
                             dismiss()
                         } else {
@@ -82,6 +103,7 @@ struct LessonPlayerView: View {
                         }
                     }
                 )
+                .zIndex(2)
             }
         }
         .navigationBarHidden(true)
@@ -96,8 +118,10 @@ struct LessonPlayerView: View {
         } message: {
             Text("Your progress will be saved")
         }
-        .task {
-            await viewModel.loadProgress()
+        .onAppear {
+            Task {
+                await viewModel.loadProgress()
+            }
         }
     }
     
@@ -131,20 +155,23 @@ struct LessonPlayerView: View {
                 .progressViewStyle(LinearProgressViewStyle(tint: lesson.category.categoryColor))
             
             HStack {
-                Text("Step \(viewModel.currentStepIndex + 1) of \(max(lesson.steps.count, 1))")
+                Text("Step \(viewModel.currentStepIndex + 1) of \(lesson.steps.count)")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
                 Spacer()
                 
-                Text("+\(viewModel.currentStep?.xpValue ?? 0) XP")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.blue)
+                if let xpValue = viewModel.currentStep?.xpValue {
+                    Text("+\(xpValue) XP")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.blue)
+                }
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
+        .background(Color(.systemBackground))
+        .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
     }
     
     // MARK: - Feedback
@@ -215,7 +242,7 @@ struct LessonPlayerView: View {
             }
             
             // Hints
-            if !(viewModel.currentStep?.hints.isEmpty ?? true) {
+            if let hints = viewModel.currentStep?.hints, !hints.isEmpty {
                 Button(action: viewModel.showHint) {
                     Label("Hint", systemImage: "lightbulb")
                         .font(.subheadline)
@@ -224,7 +251,6 @@ struct LessonPlayerView: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
     }
 }
 
@@ -254,8 +280,10 @@ struct StepContentView: View {
             // Hints
             if viewModel.showingHint && !step.hints.isEmpty {
                 HintView(hints: step.hints)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .animation(.spring(response: 0.5), value: viewModel.showingHint)
     }
     
     @ViewBuilder
@@ -295,7 +323,7 @@ struct IntroductionView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            // Main visual - use SF Symbols instead of missing images
+            // Main visual
             ZStack {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(
@@ -322,7 +350,7 @@ struct IntroductionView: View {
             // Bullet points
             if !content.bulletPoints.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(content.bulletPoints, id: \.self) { point in
+                    ForEach(Array(content.bulletPoints.enumerated()), id: \.offset) { _, point in
                         HStack(alignment: .top) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
@@ -359,6 +387,7 @@ struct DrawingExerciseView: View {
                 // Guidelines overlay
                 if showGuidelines && content.guidelines != nil {
                     GuidelinesOverlay(guidelines: content.guidelines ?? [])
+                        .allowsHitTesting(false)
                 }
                 
                 // Canvas
@@ -369,11 +398,12 @@ struct DrawingExerciseView: View {
                     currentWidth: .constant(3.0)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .onChange(of: canvasView.drawing) { _ in
-                    onDrawingChanged(canvasView.drawing)
+                .onChange(of: canvasView.drawing) { _, newValue in
+                    onDrawingChanged(newValue)
                 }
             }
-            .frame(width: content.canvasSize.width, height: content.canvasSize.height)
+            .frame(width: min(content.canvasSize.width, 350),
+                   height: min(content.canvasSize.height, 350))
             
             // Tools
             HStack(spacing: 20) {
@@ -398,12 +428,14 @@ struct DrawingExerciseView: View {
                         .clipShape(Circle())
                 }
                 
-                Button(action: { showGuidelines.toggle() }) {
-                    Image(systemName: showGuidelines ? "eye.fill" : "eye.slash")
-                        .foregroundColor(.blue)
-                        .frame(width: 44, height: 44)
-                        .background(Color(.systemGray5))
-                        .clipShape(Circle())
+                if content.guidelines != nil {
+                    Button(action: { showGuidelines.toggle() }) {
+                        Image(systemName: showGuidelines ? "eye.fill" : "eye.slash")
+                            .foregroundColor(.blue)
+                            .frame(width: 44, height: 44)
+                            .background(Color(.systemGray5))
+                            .clipShape(Circle())
+                    }
                 }
             }
             .padding()
@@ -419,19 +451,21 @@ struct TheoryExerciseView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            // Visual aid placeholder
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray6))
-                    .frame(height: 150)
-                
-                VStack {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.largeTitle)
-                        .foregroundColor(.orange)
-                    Text("Theory")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
+            // Visual aid
+            if content.visualAid == nil {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                        .frame(height: 150)
+                    
+                    VStack {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.largeTitle)
+                            .foregroundColor(.orange)
+                        Text("Theory")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             
@@ -491,8 +525,8 @@ struct ChallengeExerciseView: View {
                     currentWidth: .constant(3.0)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .onChange(of: canvasView.drawing) { _ in
-                    onDrawingChanged(canvasView.drawing)
+                .onChange(of: canvasView.drawing) { _, newValue in
+                    onDrawingChanged(newValue)
                 }
             }
             .frame(height: 300)
@@ -511,6 +545,7 @@ struct HeartsView: View {
                 Image(systemName: index < lives ? "heart.fill" : "heart")
                     .foregroundColor(index < lives ? .red : .gray)
                     .font(.title3)
+                    .animation(.spring(response: 0.3), value: lives)
             }
         }
     }
@@ -528,7 +563,7 @@ struct HintView: View {
                     .fontWeight(.medium)
             }
             
-            ForEach(hints, id: \.self) { hint in
+            ForEach(Array(hints.enumerated()), id: \.offset) { _, hint in
                 Text("• \(hint)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -545,11 +580,13 @@ struct SuccessOverlay: View {
     let xpEarned: Int
     let onContinue: () -> Void
     @State private var scale: CGFloat = 0
+    @State private var opacity: Double = 0
     
     var body: some View {
         ZStack {
             Color.black.opacity(0.8)
                 .ignoresSafeArea()
+                .opacity(opacity)
             
             VStack(spacing: 30) {
                 Image(systemName: "star.fill")
@@ -561,11 +598,13 @@ struct SuccessOverlay: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
+                    .scaleEffect(scale)
                 
                 Text("+\(xpEarned) XP")
                     .font(.title)
                     .fontWeight(.semibold)
                     .foregroundColor(.yellow)
+                    .scaleEffect(scale)
                 
                 Button(action: onContinue) {
                     Text("Continue")
@@ -576,15 +615,17 @@ struct SuccessOverlay: View {
                         .background(Color.green)
                         .cornerRadius(25)
                 }
+                .scaleEffect(scale)
             }
         }
         .onAppear {
-            withAnimation(.spring(response: 0.6)) {
+            withAnimation(.easeOut(duration: 0.3)) {
+                opacity = 1.0
+            }
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.1)) {
                 scale = 1.0
             }
-            Task {
-                await HapticManager.shared.notification(.success)
-            }
+            HapticManager.shared.notification(.success)
         }
     }
 }
@@ -601,7 +642,7 @@ struct GuidelinesOverlay: View {
     }
     
     private func drawGuideline(_ guideline: DrawingContent.Guideline, in context: GraphicsContext, size: CGSize) {
-        let color = Color.blue.opacity(0.5)
+        let color = Color(hex: guideline.color) ?? .blue
         var path = Path()
         
         switch guideline.type {
@@ -642,10 +683,10 @@ struct GuidelinesOverlay: View {
         
         context.stroke(
             path,
-            with: .color(color),
+            with: .color(color.opacity(0.5)),
             style: StrokeStyle(
-                lineWidth: 2,
-                dash: [8, 4]
+                lineWidth: guideline.width,
+                dash: guideline.dashed ? [8, 4] : []
             )
         )
     }
@@ -678,6 +719,7 @@ struct AnswerOptionView: View {
             .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemGray6))
             .cornerRadius(12)
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -699,6 +741,7 @@ struct LessonToolButton: View {
             .background(isSelected ? Color.blue : Color(.systemGray5))
             .cornerRadius(12)
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -719,13 +762,14 @@ final class LessonPlayerViewModel: ObservableObject {
     @Published var showSuccess = false
     @Published var isComplete = false
     @Published var xpEarned = 0
+    @Published var isLoading = true
     
     // Exercise state
     @Published var selectedAnswers: Set<String> = []
     @Published var currentDrawing: PKDrawing?
     
     var currentStep: LessonStep? {
-        guard currentStepIndex < lesson.steps.count else { return nil }
+        guard currentStepIndex >= 0 && currentStepIndex < lesson.steps.count else { return nil }
         return lesson.steps[currentStepIndex]
     }
     
@@ -746,16 +790,24 @@ final class LessonPlayerViewModel: ObservableObject {
     
     init(lesson: Lesson) {
         self.lesson = lesson
-        updateCanContinue()
-        updateProgress()
+        // Initialize immediately to prevent black screen
+        Task { @MainActor in
+            self.isLoading = false
+            self.updateCanContinue()
+            self.updateProgress()
+        }
     }
     
     // MARK: - Progress Management
     func loadProgress() async {
-        // For now, start from beginning
+        isLoading = true
+        // Simulate loading
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
         currentStepIndex = 0
         updateProgress()
         updateCanContinue()
+        isLoading = false
     }
     
     func saveProgress() async {
@@ -782,7 +834,9 @@ final class LessonPlayerViewModel: ObservableObject {
         isCorrect = result.isCorrect
         feedbackMessage = result.message
         
-        showFeedback = true
+        withAnimation(.spring(response: 0.5)) {
+            showFeedback = true
+        }
         
         if !isCorrect {
             lives -= 1
@@ -792,9 +846,7 @@ final class LessonPlayerViewModel: ObservableObject {
             }
         }
         
-        Task {
-            await HapticManager.shared.notification(isCorrect ? .success : .error)
-        }
+        HapticManager.shared.notification(isCorrect ? .success : .error)
     }
     
     func completeStep() {
@@ -808,31 +860,41 @@ final class LessonPlayerViewModel: ObservableObject {
         // Check if lesson complete
         if currentStepIndex == lesson.steps.count - 1 {
             isComplete = true
-            showSuccess = true
+            withAnimation {
+                showSuccess = true
+            }
         } else {
             nextStep()
         }
     }
     
     func nextStep() {
-        currentStepIndex = min(currentStepIndex + 1, lesson.steps.count - 1)
-        resetStepState()
-        updateProgress()
+        if currentStepIndex < lesson.steps.count - 1 {
+            currentStepIndex += 1
+            resetStepState()
+            updateProgress()
+        }
     }
     
     func previousStep() {
-        currentStepIndex = max(currentStepIndex - 1, 0)
-        resetStepState()
-        updateProgress()
+        if currentStepIndex > 0 {
+            currentStepIndex -= 1
+            resetStepState()
+            updateProgress()
+        }
     }
     
     func tryAgain() {
-        showFeedback = false
+        withAnimation {
+            showFeedback = false
+        }
         resetStepState()
     }
     
     func showHint() {
-        showingHint = true
+        withAnimation {
+            showingHint = true
+        }
     }
     
     func updateDrawing(_ drawing: PKDrawing) {
@@ -843,7 +905,9 @@ final class LessonPlayerViewModel: ObservableObject {
     // MARK: - Private
     private func updateProgress() {
         let totalSteps = max(lesson.steps.count, 1)
-        progress = Double(currentStepIndex + 1) / Double(totalSteps)
+        withAnimation {
+            progress = Double(currentStepIndex + 1) / Double(totalSteps)
+        }
     }
     
     private func updateCanContinue() {
@@ -904,5 +968,33 @@ extension LessonDrawingTool {
         case .marker: return .marker
         case .eraser: return .eraser
         }
+    }
+}
+
+// MARK: - Color Extension
+extension Color {
+    init?(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            return nil
+        }
+        
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }
