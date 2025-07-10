@@ -1,4 +1,4 @@
-// MARK: - Complete Unified Lesson Models (FIXED)
+// MARK: - Complete Unified Lesson Models (FIXED - Hearts Optional)
 // File: ArtOfTheFuture/Features/Lessons/Models/LessonModels.swift
 // SINGLE SOURCE OF TRUTH for all lesson-related models
 
@@ -17,9 +17,9 @@ struct Lesson: Identifiable, Codable {
     let estimatedMinutes: Int
     let xpReward: Int
     
-    // Content - FIXED to use proper exercise types
+    // Content
     let steps: [LessonStep]
-    let exercises: [LessonExercise] // Added missing exercises array
+    let exercises: [LessonExercise]
     let objectives: [String]
     let tips: [String]
     
@@ -27,8 +27,8 @@ struct Lesson: Identifiable, Codable {
     let prerequisites: [String]
     let unlocks: [String]
     
-    // System properties for gamification - FIXED: removed initial value
-    var hearts: Int
+    // System properties for gamification - FIXED: Made optional with default
+    var hearts: Int = 3
     
     // Computed properties
     var totalSteps: Int { steps.count }
@@ -117,7 +117,7 @@ enum DifficultyLevel: String, Codable, CaseIterable {
     }
 }
 
-// MARK: - Lesson Exercise Model (ADDED MISSING TYPE)
+// MARK: - Lesson Exercise Model
 struct LessonExercise: Identifiable, Codable {
     let id: String
     let instruction: String
@@ -127,7 +127,7 @@ struct LessonExercise: Identifiable, Codable {
     let xpValue: Int
 }
 
-// MARK: - Exercise Content Types (ADDED MISSING TYPES)
+// MARK: - Exercise Content Types
 enum ExerciseContent: Codable {
     case drawing(DrawingExercise)
     case theory(TheoryExercise)
@@ -172,7 +172,7 @@ enum ExerciseContent: Codable {
     }
 }
 
-// MARK: - Drawing Exercise (ADDED MISSING TYPE)
+// MARK: - Drawing Exercise
 struct DrawingExercise: Codable {
     let canvas: CanvasConfig
     let guidelines: [DrawingGuideline]?
@@ -189,7 +189,7 @@ struct DrawingExercise: Codable {
     }
 }
 
-// MARK: - Drawing Guideline (ADDED MISSING TYPE)
+// MARK: - Drawing Guideline
 struct DrawingGuideline: Codable {
     let type: GuidelineType
     let path: [CGPoint]
@@ -208,7 +208,7 @@ struct DrawingGuideline: Codable {
     }
 }
 
-// MARK: - Theory Exercise (ADDED MISSING TYPE)
+// MARK: - Theory Exercise
 struct TheoryExercise: Codable {
     let question: String
     let visualAid: String?
@@ -335,7 +335,7 @@ struct TheoryExercise: Codable {
     }
 }
 
-// MARK: - Challenge Exercise (ADDED MISSING TYPE)
+// MARK: - Challenge Exercise
 struct ChallengeExercise: Codable {
     let challengeType: ChallengeType
     let prompt: String
@@ -360,7 +360,7 @@ struct ChallengeExercise: Codable {
     }
 }
 
-// MARK: - Exercise Validation (ADDED MISSING TYPE)
+// MARK: - Exercise Validation
 struct ExerciseValidation: Codable {
     let minScore: Double
     let maxAttempts: Int
@@ -660,5 +660,3 @@ struct Badge: Codable, Identifiable {
         }
     }
 }
-
-// MARK: - REMOVED CGPoint & CGSize Extensions (already in CoreGraphics)

@@ -1,4 +1,4 @@
-// MARK: - Fixed Lessons Curriculum
+// MARK: - Fixed Lessons Curriculum (No Hearts Parameter)
 // File: ArtOfTheFuture/Features/Lessons/Data/LessonsCurriculum.swift
 
 import Foundation
@@ -127,8 +127,8 @@ extension Curriculum {
             "Practice is the key to improvement"
         ],
         prerequisites: [],
-        unlocks: ["lesson_002"],
-        hearts: 3
+        unlocks: ["lesson_002"]
+        // hearts parameter removed - uses default value of 3
     )
     
     // LESSON 2: Drawing Straight Lines
@@ -246,8 +246,8 @@ extension Curriculum {
             "Don't worry about perfection"
         ],
         prerequisites: ["lesson_001"],
-        unlocks: ["lesson_003"],
-        hearts: 3
+        unlocks: ["lesson_003"]
+        // hearts parameter removed - uses default value of 3
     )
     
     // LESSON 3: Drawing Circles
@@ -358,8 +358,8 @@ extension Curriculum {
             "Practice circles of different sizes"
         ],
         prerequisites: ["lesson_002"],
-        unlocks: ["lesson_004"],
-        hearts: 3
+        unlocks: ["lesson_004"]
+        // hearts parameter removed - uses default value of 3
     )
     
     // LESSON 4: Basic Shapes - Squares
@@ -420,8 +420,8 @@ extension Curriculum {
             "Clean lines matter more than perfect angles"
         ],
         prerequisites: ["lesson_003"],
-        unlocks: ["lesson_005"],
-        hearts: 3
+        unlocks: ["lesson_005"]
+        // hearts parameter removed - uses default value of 3
     )
     
     // LESSON 5: Creative Challenge
@@ -505,7 +505,7 @@ extension Curriculum {
             "Creativity is more important than perfection"
         ],
         prerequisites: ["lesson_004"],
-        unlocks: [],
-        hearts: 3
+        unlocks: []
+        // hearts parameter removed - uses default value of 3
     )
 }
