@@ -294,15 +294,15 @@ struct AnimatedWelcomeIcon: View {
     }
 }
 
-// MARK: - Celebration Confetti View
-struct CelebrationView: View {
+// MARK: - Celebration Confetti View (Renamed to avoid conflicts)
+struct OnboardingCelebrationView: View {
     @State private var confettiScale = 0.0
     @State private var confettiOpacity = 0.0
     
     var body: some View {
         ZStack {
             ForEach(0..<20, id: \.self) { index in
-                ConfettiPiece()
+                OnboardingConfettiPiece()
                     .scaleEffect(confettiScale)
                     .opacity(confettiOpacity)
                     .animation(
@@ -325,7 +325,7 @@ struct CelebrationView: View {
     }
 }
 
-struct ConfettiPiece: View {
+struct OnboardingConfettiPiece: View {
     @State private var position = CGPoint(x: 0, y: 0)
     @State private var rotation = 0.0
     

@@ -176,7 +176,7 @@ struct StreakCelebrationView: View {
             
             // Confetti
             if isAnimating {
-                CelebrationView()
+                SharedCelebrationView()
             }
         }
         .onAppear {
@@ -208,6 +208,65 @@ struct StreakCelebrationView: View {
         case 30: return "One month! Incredible dedication!"
         default: return "Legendary streak! Keep going!"
         }
+    }
+}
+
+// MARK: - Shared Celebration View (Renamed to avoid conflicts)
+struct SharedCelebrationView: View {
+    @State private var confettiScale = 0.0
+    @State private var confettiOpacity = 0.0
+    
+    var body: some View {
+        ZStack {
+            ForEach(0..<20, id: \.self) { index in
+                SharedConfettiPiece()
+                    .scaleEffect(confettiScale)
+                    .opacity(confettiOpacity)
+                    .animation(
+                        .spring(response: 0.5)
+                        .delay(Double(index) * 0.05),
+                        value: confettiScale
+                    )
+            }
+        }
+        .onAppear {
+            confettiScale = 1.0
+            confettiOpacity = 1.0
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation(.easeOut(duration: 1)) {
+                    confettiOpacity = 0
+                }
+            }
+        }
+    }
+}
+
+struct SharedConfettiPiece: View {
+    @State private var position = CGPoint(x: 0, y: 0)
+    @State private var rotation = 0.0
+    
+    let colors: [Color] = [.red, .orange, .yellow, .green, .blue, .purple, .pink]
+    let size = CGFloat.random(in: 10...20)
+    
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(colors.randomElement()!)
+            .frame(width: size, height: size * 0.6)
+            .rotationEffect(.degrees(rotation))
+            .position(position)
+            .onAppear {
+                let angle = Double.random(in: 0...(2 * .pi))
+                let distance = CGFloat.random(in: 100...200)
+                
+                withAnimation(.easeOut(duration: 2)) {
+                    position = CGPoint(
+                        x: cos(angle) * distance,
+                        y: sin(angle) * distance - 50
+                    )
+                    rotation = Double.random(in: -360...360)
+                }
+            }
     }
 }
 
@@ -342,29 +401,29 @@ final class HomeDashboardViewModel: ObservableObject {
     }
 }
 
-// MARK: - Lesson Category Extensions
-extension Lesson.LessonCategory {
+// MARK: - Lesson Category Extensions (Fixed)
+extension LessonCategory {
     var color: Color {
         switch self {
         case .basics: return .blue
-        case .sketching: return .green
-        case .coloring: return .orange
-        case .shading: return .purple
+        case .drawing: return .green
+        case .theory: return .purple
+        case .shading: return .orange
         case .perspective: return .red
-        case .portrait: return .pink
-        case .landscape: return .teal
+        case .color: return .pink
+        case .advanced: return .indigo
         }
     }
     
     var icon: String {
         switch self {
         case .basics: return "pencil"
-        case .sketching: return "scribble"
-        case .coloring: return "paintpalette"
+        case .drawing: return "scribble"
+        case .theory: return "book"
         case .shading: return "circle.lefthalf.filled"
         case .perspective: return "cube"
-        case .portrait: return "person.crop.circle"
-        case .landscape: return "photo"
+        case .color: return "paintpalette"
+        case .advanced: return "star.fill"
         }
     }
 }

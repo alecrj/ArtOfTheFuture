@@ -1,4 +1,4 @@
-// MARK: - Onboarding Models (Fixed)
+// MARK: - Onboarding Models (Fixed - No UserProfile)
 // File: ArtOfTheFuture/Features/Onboarding/Models/OnboardingModels.swift
 
 import Foundation
@@ -139,7 +139,6 @@ enum ArtInterest: String, CaseIterable, Codable {
     }
     
     var sampleImage: String {
-        // These would be actual image assets in the app
         return "sample_\(self.rawValue.lowercased())"
     }
 }
@@ -183,13 +182,13 @@ enum OnboardingStep: Int, CaseIterable {
     }
 }
 
-// MARK: - Home Dashboard Models (Fixed)
+// MARK: - Home Dashboard Models
 struct DashboardData: Codable {
     let user: User
     let currentStreak: Int
     let todayProgress: DailyProgress
-    let recentArtworks: [String] // Store IDs instead of full objects for simplicity
-    let weeklyStats: WeeklyStats // Fixed naming
+    let recentArtworks: [String]
+    let weeklyStats: WeeklyStats
 }
 
 struct DailyProgress: Codable {
@@ -215,29 +214,10 @@ struct Achievement: Codable, Identifiable {
     let description: String
     let icon: String
     let unlockedDate: Date?
-    let progress: Double // 0.0 to 1.0
+    let progress: Double
     let xpReward: Int
     
     var isUnlocked: Bool {
         unlockedDate != nil
-    }
-}
-
-// MARK: - User Profile Model (Minimal for compilation)
-struct UserProfile: Codable {
-    let id: String
-    var displayName: String
-    var email: String?
-    var level: Int = 1
-    var totalXP: Int = 0
-    var currentStreak: Int = 0
-    var completedLessons: Set<String> = []
-    var unlockedLessons: Set<String> = ["lesson_001"]
-    
-    // Computed properties
-    var levelProgress: Double {
-        let xpInCurrentLevel = totalXP % ((level + 1) * 100)
-        let xpNeededForLevel = (level + 1) * 100
-        return Double(xpInCurrentLevel) / Double(xpNeededForLevel)
     }
 }

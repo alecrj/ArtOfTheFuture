@@ -82,33 +82,7 @@ final class ProgressService: ProgressServiceProtocol {
     }
 }
 
-// MARK: - Supporting Models
-struct LessonProgress: Codable {
-    let lessonId: String
-    var isCompleted: Bool = false
-    var isUnlocked: Bool = false
-    var bestScore: Double = 0.0
-    var totalAttempts: Int = 0
-    var stepProgress: [String: StepProgress] = [:]
-    var lastAttemptDate: Date?
-    var totalTimeSpent: TimeInterval = 0
-    
-    var completionPercentage: Double {
-        guard !stepProgress.isEmpty else { return 0 }
-        let completed = stepProgress.values.filter { $0.isCompleted }.count
-        return Double(completed) / Double(stepProgress.count)
-    }
-}
-
-struct StepProgress: Codable {
-    let stepId: String
-    var isCompleted: Bool = false
-    var attempts: Int = 0
-    var bestScore: Double = 0.0
-    var timeSpent: TimeInterval = 0
-    var lastAttemptDate: Date?
-}
-
+// MARK: - Overall Progress (Non-conflicting)
 struct OverallProgress: Codable {
     let totalLessonsStarted: Int
     let totalLessonsCompleted: Int
@@ -116,24 +90,4 @@ struct OverallProgress: Codable {
     let totalTimeSpent: TimeInterval
     let averageScore: Double
     let currentStreak: Int
-}
-
-// MARK: - Weekly Stats (Fixed naming)
-struct WeeklyStats: Codable {
-    let days: [DayStats]
-    let totalMinutes: Int
-    let totalXP: Int
-    let averageMinutesPerDay: Double
-    
-    struct DayStats: Codable, Identifiable {
-        let id = UUID()
-        let date: Date
-        let minutes: Int
-        let xp: Int
-        let completed: Bool
-        
-        enum CodingKeys: String, CodingKey {
-            case date, minutes, xp, completed
-        }
-    }
 }

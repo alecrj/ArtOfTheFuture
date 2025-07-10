@@ -75,7 +75,7 @@ protocol UserServiceProtocol {
     func saveOnboardingData(_ data: OnboardingData) async throws
     func getOnboardingData() async throws -> OnboardingData?
     func updateDailyProgress(_ progress: DailyProgress) async throws
-    func getWeeklyStats() async throws -> WeeklyStats // Fixed: Use WeeklyStats instead of OnboardingOnboardingWeeklyStats
+    func getWeeklyStats() async throws -> WeeklyStats
 }
 
 // MARK: - User Service Implementation
@@ -180,42 +180,6 @@ enum UserServiceError: LocalizedError {
     }
 }
 
-// MARK: - Recommendation Engine
-struct RecommendationEngine {
-    static func generateRecommendations(
-        for user: User,
-        interests: Set<ArtInterest>,
-        skillLevel: SkillLevel,
-        recentLessons: [Lesson]
-    ) -> [Lesson] {
-        // This would be a sophisticated algorithm in production
-        // For now, return mock recommendations
-        return MockDataService.shared.getMockLessons()
-            .filter { !$0.isLocked }
-            .prefix(3)
-            .map { $0 }
-    }
-    
-    static func calculateDailyGoal(
-        practiceTime: PracticeTime,
-        skillLevel: SkillLevel
-    ) -> Int {
-        switch practiceTime {
-        case .five: return 5
-        case .fifteen: return 15
-        case .thirty: return 30
-        case .sixty: return 60
-        case .flexible:
-            // Adaptive based on skill level
-            switch skillLevel {
-            case .beginner: return 10
-            case .intermediate: return 20
-            case .advanced: return 30
-            }
-        }
-    }
-}
-
 // MARK: - Extended User Model
 extension User {
     // Add properties for onboarding
@@ -235,9 +199,28 @@ extension User {
             return 15 // Default
         }
         
-        return RecommendationEngine.calculateDailyGoal(
+        return calculateDailyGoal(
             practiceTime: onboarding.preferredPracticeTime,
             skillLevel: onboarding.skillLevel
         )
+    }
+    
+    private func calculateDailyGoal(
+        practiceTime: PracticeTime,
+        skillLevel: SkillLevel
+    ) -> Int {
+        switch practiceTime {
+        case .five: return 5
+        case .fifteen: return 15
+        case .thirty: return 30
+        case .sixty: return 60
+        case .flexible:
+            // Adaptive based on skill level
+            switch skillLevel {
+            case .beginner: return 10
+            case .intermediate: return 20
+            case .advanced: return 30
+            }
+        }
     }
 }
