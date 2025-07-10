@@ -1,9 +1,10 @@
-// MARK: - Unified Lesson Models
-// File: ArtOfTheFuture/Core/Models/LessonModels.swift
-// This is the SINGLE SOURCE OF TRUTH for all lesson-related models
+// MARK: - Complete Unified Lesson Models
+// File: ArtOfTheFuture/Features/Lessons/Models/LessonModels.swift
+// SINGLE SOURCE OF TRUTH for all lesson-related models
 
 import Foundation
 import SwiftUI
+import PencilKit
 
 // MARK: - Core Lesson Model
 struct Lesson: Identifiable, Codable {
@@ -29,6 +30,8 @@ struct Lesson: Identifiable, Codable {
     var totalSteps: Int { steps.count }
     var icon: String { category.icon }
     var color: Color { category.color }
+    var isLocked: Bool { false } // Will be computed based on user progress
+    var isCompleted: Bool { false } // Will be computed based on user progress
 }
 
 // MARK: - Lesson Types
@@ -186,8 +189,7 @@ struct DrawingContent: Codable {
     let backgroundColor: String
     let guidelines: [Guideline]?
     let referenceImage: String?
-    let toolsAllowed: [LessonLessonDrawingTool]
-    let timeLimit: TimeInterval?
+    let toolsAllowed: [LessonDrawingTool]
     
     struct Guideline: Codable {
         let type: GuidelineType
@@ -229,7 +231,7 @@ struct ChallengeContent: Codable {
     let challengeType: ChallengeType
     let prompt: String
     let resources: [String]
-    let constraints: [String: Any]?
+    let constraints: [String: String]? // Simplified constraints
     
     enum ChallengeType: String, Codable {
         case speedDraw
@@ -237,37 +239,31 @@ struct ChallengeContent: Codable {
         case freestyle
         case precision
     }
-    
-    enum CodingKeys: String, CodingKey {
-        case challengeType, prompt, resources, constraints
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        challengeType = try container.decode(ChallengeType.self, forKey: .challengeType)
-        prompt = try container.decode(String.self, forKey: .prompt)
-        resources = try container.decode([String].self, forKey: .resources)
-        constraints = nil // Simplified for now
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(challengeType, forKey: .challengeType)
-        try container.encode(prompt, forKey: .prompt)
-        try container.encode(resources, forKey: .resources)
-        // Skip constraints for now
-    }
 }
 
 // MARK: - Validation
 struct ValidationCriteria: Codable {
     let minScore: Double
     let maxAttempts: Int
+    let rules: [ValidationRule]
+    let feedback: FeedbackConfig
     let requiresAllCorrect: Bool
+    
+    struct ValidationRule: Codable {
+        let id: String
+        let type: String
+        let threshold: Double
+    }
+    
+    struct FeedbackConfig: Codable {
+        let showRealtime: Bool
+        let showHints: Bool
+        let encouragementThreshold: Double
+    }
 }
 
 // MARK: - Drawing Tools
-enum LessonLessonDrawingTool: String, Codable, CaseIterable {
+enum LessonDrawingTool: String, Codable, CaseIterable {
     case pen = "Pen"
     case pencil = "Pencil"
     case marker = "Marker"
@@ -281,21 +277,18 @@ enum LessonLessonDrawingTool: String, Codable, CaseIterable {
         case .eraser: return "eraser"
         }
     }
-}
-
-// MARK: - Skill System
-struct Skill: Codable, Identifiable {
-    let id: String
-    let name: String
-    let category: SkillCategory
-    let description: String
-    let icon: String
     
-    enum SkillCategory: String, Codable, CaseIterable {
-        case fundamental = "Fundamental"
-        case technique = "Technique"
-        case creative = "Creative"
-        case advanced = "Advanced"
+    func pkTool(color: UIColor, width: CGFloat) -> PKTool {
+        switch self {
+        case .pen:
+            return PKInkingTool(.pen, color: color, width: width)
+        case .pencil:
+            return PKInkingTool(.pencil, color: color, width: width)
+        case .marker:
+            return PKInkingTool(.marker, color: color, width: width)
+        case .eraser:
+            return PKEraserTool(.bitmap)
+        }
     }
 }
 
@@ -364,5 +357,91 @@ struct Badge: Codable, Identifiable {
                 throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "Unknown type")
             }
         }
+    }
+}
+
+// MARK: - Progress Models
+struct LessonProgress: Codable {
+    let lessonId: String
+    var isCompleted: Bool = false
+    var isUnlocked: Bool = false
+    var bestScore: Double = 0.0
+    var totalAttempts: Int = 0
+    var stepProgress: [String: StepProgress] = [:]
+    var lastAttemptDate: Date?
+    var totalTimeSpent: TimeInterval = 0
+    
+    var completionPercentage: Double {
+        guard !stepProgress.isEmpty else { return 0 }
+        let completed = stepProgress.values.filter { $0.isCompleted }.count
+        return Double(completed) / Double(stepProgress.count)
+    }
+}
+
+struct StepProgress: Codable {
+    let stepId: String
+    var isCompleted: Bool = false
+    var attempts: Int = 0
+    var bestScore: Double = 0.0
+    var timeSpent: TimeInterval = 0
+    var lastAttemptDate: Date?
+}
+
+// MARK: - Weekly Stats
+struct WeeklyStats: Codable {
+    let days: [DayStats]
+    let totalMinutes: Int
+    let totalXP: Int
+    let averageMinutesPerDay: Double
+    
+    struct DayStats: Codable, Identifiable {
+        let id = UUID()
+        let date: Date
+        let minutes: Int
+        let xp: Int
+        let completed: Bool
+        
+        enum CodingKeys: String, CodingKey {
+            case date, minutes, xp, completed
+        }
+    }
+}
+
+// MARK: - CGPoint & CGSize Extensions
+extension CGPoint: Codable {
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(x, forKey: .x)
+        try container.encode(y, forKey: .y)
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let x = try container.decode(CGFloat.self, forKey: .x)
+        let y = try container.decode(CGFloat.self, forKey: .y)
+        self.init(x: x, y: y)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case x, y
+    }
+}
+
+extension CGSize: Codable {
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(width, forKey: .width)
+        try container.encode(height, forKey: .height)
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let width = try container.decode(CGFloat.self, forKey: .width)
+        let height = try container.decode(CGFloat.self, forKey: .height)
+        self.init(width: width, height: height)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case width, height
     }
 }

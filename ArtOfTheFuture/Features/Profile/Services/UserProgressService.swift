@@ -1,6 +1,5 @@
-// MARK: - User Progress Service
-// File: ArtOfTheFuture/Services/UserProgressService.swift
-// Handles all user progress tracking and persistence
+// MARK: - User Progress Service (Fixed)
+// File: ArtOfTheFuture/Features/Profile/Services/UserProgressService.swift
 
 import Foundation
 
@@ -77,7 +76,8 @@ final class UserProgressService: UserProgressServiceProtocol {
         lessonProgress.lastAttemptDate = Date()
         
         // Update lesson completion
-        if let lesson = try? await LessonService.shared.getLesson(id: lessonId) {
+        let lessonService = LessonService.shared
+        if let lesson = try? await lessonService.getLesson(id: lessonId) {
             let completedSteps = lessonProgress.stepProgress.values.filter { $0.isCompleted }.count
             if completedSteps == lesson.steps.count {
                 lessonProgress.isCompleted = true
@@ -103,7 +103,8 @@ final class UserProgressService: UserProgressServiceProtocol {
     func completeLesson(_ lessonId: String) async throws {
         var profile = try await getCurrentUser()
         
-        guard let lesson = try? await LessonService.shared.getLesson(id: lessonId) else { return }
+        let lessonService = LessonService.shared
+        guard let lesson = try? await lessonService.getLesson(id: lessonId) else { return }
         
         // Mark as completed
         profile.completedLessons.insert(lessonId)
@@ -138,7 +139,7 @@ final class UserProgressService: UserProgressServiceProtocol {
         var profile = try await getCurrentUser()
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let lastActive = calendar.startOfDay(for: profile.lastActiveDate)
+        let lastActive = calendar.startOfDay(for: profile.lastActiveDate ?? Date())
         
         let daysSinceLastActive = calendar.dateComponents([.day], from: lastActive, to: today).day ?? 0
         
@@ -148,7 +149,7 @@ final class UserProgressService: UserProgressServiceProtocol {
         } else if daysSinceLastActive == 1 {
             // Consecutive day
             profile.currentStreak += 1
-            profile.longestStreak = max(profile.longestStreak, profile.currentStreak)
+            profile.longestStreak = max(profile.longestStreak ?? 0, profile.currentStreak)
         } else {
             // Streak broken
             profile.currentStreak = 1
@@ -180,11 +181,11 @@ final class UserProgressService: UserProgressServiceProtocol {
     // MARK: - Check and Award Badges
     func checkAndAwardBadges() async throws {
         var profile = try await getCurrentUser()
-        let allBadges = Curriculum.allBadges
+        let allBadges = SimplifiedCurriculum.basicBadges // Use simplified curriculum
         
         for badge in allBadges {
             // Skip if already earned
-            if profile.earnedBadges.contains(badge.id) {
+            if profile.earnedBadges?.contains(badge.id) == true {
                 continue
             }
             
@@ -204,24 +205,17 @@ final class UserProgressService: UserProgressServiceProtocol {
                 isEarned = profile.totalXP >= amount
                 
             case .masterSkill(let skillId):
-                isEarned = profile.skillProgress[skillId]?.level ?? 0 >= 10
+                isEarned = profile.skillProgress?[skillId]?.level ?? 0 >= 10
             }
             
             if isEarned {
-                profile.earnedBadges.insert(badge.id)
+                if profile.earnedBadges == nil {
+                    profile.earnedBadges = Set<String>()
+                }
+                profile.earnedBadges?.insert(badge.id)
                 
                 // Award badge XP
                 try await awardXP(badge.xpReward)
-                
-                // Update badge progress
-                var badgeProgress = profile.badgeProgress[badge.id] ?? BadgeProgress(
-                    badgeId: badge.id,
-                    currentValue: 0,
-                    targetValue: 1
-                )
-                badgeProgress.isUnlocked = true
-                badgeProgress.unlockedDate = Date()
-                profile.badgeProgress[badge.id] = badgeProgress
             }
         }
         
@@ -280,21 +274,71 @@ final class UserProgressService: UserProgressServiceProtocol {
         
         let totalMinutes = activities.reduce(0) { $0 + $1.minutesPracticed }
         let totalXP = activities.reduce(0) { $0 + $1.xpEarned }
-        let totalLessons = activities.reduce(0) { $0 + $1.lessonsCompleted }
         
         return WeeklyStats(
+            days: activities.map { activity in
+                WeeklyStats.DayStats(
+                    date: activity.date,
+                    minutes: activity.minutesPracticed,
+                    xp: activity.xpEarned,
+                    completed: activity.minutesPracticed >= 15 // 15 min goal
+                )
+            },
             totalMinutes: totalMinutes,
             totalXP: totalXP,
-            totalLessons: totalLessons,
             averageMinutesPerDay: activities.isEmpty ? 0 : Double(totalMinutes) / Double(activities.count)
         )
     }
 }
 
-// MARK: - Weekly Stats Model
-struct WeeklyStats {
-    let totalMinutes: Int
-    let totalXP: Int
-    let totalLessons: Int
-    let averageMinutesPerDay: Double
+// MARK: - Supporting Models
+struct DailyActivity: Codable {
+    let date: Date
+    var minutesPracticed: Int = 0
+    var xpEarned: Int = 0
+    var lessonsCompleted: Int = 0
+    var stepsCompleted: Int = 0
+}
+
+// MARK: - Extended UserProfile
+extension UserProfile {
+    var lessonProgress: [String: LessonProgress] {
+        get { _lessonProgress ?? [:] }
+        set { _lessonProgress = newValue }
+    }
+    
+    var skillProgress: [String: SkillProgress]? {
+        get { _skillProgress }
+        set { _skillProgress = newValue }
+    }
+    
+    var earnedBadges: Set<String>? {
+        get { _earnedBadges }
+        set { _earnedBadges = newValue }
+    }
+    
+    var lastActiveDate: Date? {
+        get { _lastActiveDate }
+        set { _lastActiveDate = newValue }
+    }
+    
+    var longestStreak: Int? {
+        get { _longestStreak }
+        set { _longestStreak = newValue }
+    }
+    
+    // Private stored properties
+    private var _lessonProgress: [String: LessonProgress]?
+    private var _skillProgress: [String: SkillProgress]?
+    private var _earnedBadges: Set<String>?
+    private var _lastActiveDate: Date?
+    private var _longestStreak: Int?
+}
+
+// MARK: - Skill Progress
+struct SkillProgress: Codable {
+    let skillId: String
+    var level: Int = 0
+    var xp: Int = 0
+    var lastPracticed: Date?
 }

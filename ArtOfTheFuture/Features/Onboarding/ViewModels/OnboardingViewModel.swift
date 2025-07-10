@@ -1,3 +1,6 @@
+// MARK: - Fixed OnboardingViewModel
+// File: ArtOfTheFuture/Features/Onboarding/ViewModels/OnboardingViewModel.swift
+
 import Foundation
 import SwiftUI
 import Combine
@@ -23,7 +26,7 @@ final class OnboardingViewModel: ObservableObject {
             let user = User(
                 id: UUID().uuidString,
                 displayName: onboardingData.userName,
-                email: nil, // Would come from auth
+                email: nil,
                 totalXP: 0,
                 currentLevel: 1,
                 currentStreak: 0
@@ -56,7 +59,6 @@ final class OnboardingViewModel: ObservableObject {
         // - Interests
         // - Available practice time
         
-        // For now, just log the data
         print("Generating learning path for:")
         print("- Skill Level: \(onboardingData.skillLevel)")
         print("- Goals: \(onboardingData.learningGoals)")
@@ -73,7 +75,7 @@ protocol UserServiceProtocol {
     func saveOnboardingData(_ data: OnboardingData) async throws
     func getOnboardingData() async throws -> OnboardingData?
     func updateDailyProgress(_ progress: DailyProgress) async throws
-    func getOnboardingOnboardingWeeklyStats() async throws -> OnboardingOnboardingWeeklyStats
+    func getWeeklyStats() async throws -> WeeklyStats // Fixed: Use WeeklyStats instead of OnboardingOnboardingWeeklyStats
 }
 
 // MARK: - User Service Implementation
@@ -116,8 +118,8 @@ final class UserService: UserServiceProtocol {
         userDefaults.set(encoded, forKey: key)
     }
     
-    func getOnboardingOnboardingWeeklyStats() async throws -> OnboardingOnboardingWeeklyStats {
-        var dayStats: [OnboardingOnboardingWeeklyStats.DayStats] = []
+    func getWeeklyStats() async throws -> WeeklyStats {
+        var dayStats: [WeeklyStats.DayStats] = []
         let calendar = Calendar.current
         let today = Date()
         
@@ -129,7 +131,7 @@ final class UserService: UserServiceProtocol {
             
             if let data = userDefaults.data(forKey: key),
                let progress = try? decoder.decode(DailyProgress.self, from: data) {
-                dayStats.append(OnboardingOnboardingWeeklyStats.DayStats(
+                dayStats.append(WeeklyStats.DayStats(
                     date: date,
                     minutes: progress.completedMinutes,
                     xp: progress.xpEarned,
@@ -137,7 +139,7 @@ final class UserService: UserServiceProtocol {
                 ))
             } else {
                 // No data for this day
-                dayStats.append(OnboardingOnboardingWeeklyStats.DayStats(
+                dayStats.append(WeeklyStats.DayStats(
                     date: date,
                     minutes: 0,
                     xp: 0,
@@ -151,7 +153,7 @@ final class UserService: UserServiceProtocol {
         let daysWithData = dayStats.filter { $0.minutes > 0 }.count
         let averageMinutes = daysWithData > 0 ? Double(totalMinutes) / Double(daysWithData) : 0
         
-        return OnboardingOnboardingWeeklyStats(
+        return WeeklyStats(
             days: dayStats.reversed(), // Oldest to newest
             totalMinutes: totalMinutes,
             totalXP: totalXP,
@@ -189,7 +191,7 @@ struct RecommendationEngine {
         // This would be a sophisticated algorithm in production
         // For now, return mock recommendations
         return MockDataService.shared.getMockLessons()
-            .filter { !$0.isCompleted }
+            .filter { !$0.isLocked }
             .prefix(3)
             .map { $0 }
     }
@@ -213,7 +215,6 @@ struct RecommendationEngine {
         }
     }
 }
-
 
 // MARK: - Extended User Model
 extension User {

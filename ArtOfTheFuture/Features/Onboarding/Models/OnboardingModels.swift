@@ -1,3 +1,6 @@
+// MARK: - Onboarding Models (Fixed)
+// File: ArtOfTheFuture/Features/Onboarding/Models/OnboardingModels.swift
+
 import Foundation
 import SwiftUI
 
@@ -180,13 +183,13 @@ enum OnboardingStep: Int, CaseIterable {
     }
 }
 
-// MARK: - Home Dashboard Models
+// MARK: - Home Dashboard Models (Fixed)
 struct DashboardData: Codable {
     let user: User
     let currentStreak: Int
     let todayProgress: DailyProgress
-    let recentArtworks: [Artwork]
-    let weeklyStats: OnboardingOnboardingWeeklyStats
+    let recentArtworks: [String] // Store IDs instead of full objects for simplicity
+    let weeklyStats: WeeklyStats // Fixed naming
 }
 
 struct DailyProgress: Codable {
@@ -205,25 +208,7 @@ struct DailyProgress: Codable {
     }
 }
 
-struct OnboardingOnboardingOnboardingWeeklyStats: Codable {
-    let days: [DayStats]
-    let totalMinutes: Int
-    let totalXP: Int
-    let averageMinutesPerDay: Double
-    
-    struct DayStats: Codable, Identifiable {
-        let id = UUID()
-        let date: Date
-        let minutes: Int
-        let xp: Int
-        let completed: Bool
-        
-        enum CodingKeys: String, CodingKey {
-            case date, minutes, xp, completed
-        }
-    }
-}
-
+// MARK: - Achievement Model
 struct Achievement: Codable, Identifiable {
     let id: String
     let title: String
@@ -238,3 +223,21 @@ struct Achievement: Codable, Identifiable {
     }
 }
 
+// MARK: - User Profile Model (Minimal for compilation)
+struct UserProfile: Codable {
+    let id: String
+    var displayName: String
+    var email: String?
+    var level: Int = 1
+    var totalXP: Int = 0
+    var currentStreak: Int = 0
+    var completedLessons: Set<String> = []
+    var unlockedLessons: Set<String> = ["lesson_001"]
+    
+    // Computed properties
+    var levelProgress: Double {
+        let xpInCurrentLevel = totalXP % ((level + 1) * 100)
+        let xpNeededForLevel = (level + 1) * 100
+        return Double(xpInCurrentLevel) / Double(xpNeededForLevel)
+    }
+}
