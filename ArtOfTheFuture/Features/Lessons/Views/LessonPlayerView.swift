@@ -1,5 +1,5 @@
-// MARK: - Lesson Player View
-// File: ArtOfTheFuture/Features/Lessons/LessonPlayerView.swift
+// MARK: - Lesson Player View (FIXED)
+// File: ArtOfTheFuture/Features/Lessons/Views/LessonPlayerView.swift
 // Uses the unified lesson model and tracks real progress
 
 import SwiftUI
@@ -198,7 +198,7 @@ struct LessonPlayerView: View {
             }
             
             // Hints
-            if !viewModel.currentStep?.hints.isEmpty ?? true {
+            if !(viewModel.currentStep?.hints.isEmpty ?? true) { // FIXED: Unwrapped optional
                 Button(action: viewModel.showHint) {
                     Label("Hint", systemImage: "lightbulb")
                         .font(.subheadline)
@@ -304,7 +304,7 @@ struct DrawingExerciseView: View {
     let content: DrawingContent
     let onDrawingChanged: (PKDrawing) -> Void
     @State private var canvasView = PKCanvasView()
-    @State private var currentTool: LessonDrawingTool = .pen
+    @State private var currentTool: DrawingTool = .pen // FIXED: Use DrawingTool instead of LessonDrawingTool
     @State private var showGuidelines = true
     
     var body: some View {
@@ -323,7 +323,7 @@ struct DrawingExerciseView: View {
                 // Canvas
                 CanvasView(
                     canvasView: $canvasView,
-                    currentTool: .constant(currentTool),
+                    currentTool: $currentTool,
                     currentColor: .constant(.black),
                     currentWidth: .constant(3.0)
                 )
@@ -337,10 +337,10 @@ struct DrawingExerciseView: View {
             // Tools
             HStack(spacing: 20) {
                 ForEach(content.toolsAllowed, id: \.self) { tool in
-                    ToolButton(
+                    LessonToolButton( // FIXED: Use conversion function
                         tool: tool,
-                        isSelected: currentTool == tool,
-                        action: { currentTool = tool }
+                        isSelected: currentTool == tool.toDrawingTool(),
+                        action: { currentTool = tool.toDrawingTool() }
                     )
                 }
                 
@@ -538,7 +538,9 @@ struct SuccessOverlay: View {
             withAnimation(.spring(response: 0.6)) {
                 scale = 1.0
             }
-            HapticManager.shared.notification(.success)
+            Task {
+                await HapticManager.shared.notification(.success)
+            }
         }
     }
 }
@@ -642,7 +644,8 @@ struct AnswerOptionView: View {
     }
 }
 
-struct ToolButton: View {
+// FIXED: New tool button component for lesson tools
+struct LessonToolButton: View {
     let tool: LessonDrawingTool
     let isSelected: Bool
     let action: () -> Void
@@ -876,6 +879,18 @@ final class LessonPlayerViewModel: ObservableObject {
             // Challenges always pass if attempted
             let hasDrawing = currentDrawing?.strokes.isEmpty == false
             return (hasDrawing, hasDrawing ? "Creative work!" : "Give it a try!")
+        }
+    }
+}
+
+// MARK: - Tool Conversion Extension (FIXED)
+extension LessonDrawingTool {
+    func toDrawingTool() -> DrawingTool {
+        switch self {
+        case .pen: return .pen
+        case .pencil: return .pencil
+        case .marker: return .marker
+        case .eraser: return .eraser
         }
     }
 }

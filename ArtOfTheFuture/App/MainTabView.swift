@@ -5,7 +5,7 @@ struct MainTabView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView()
+            HomeDashboardView() // FIXED: Changed from HomeView() to HomeDashboardView()
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }

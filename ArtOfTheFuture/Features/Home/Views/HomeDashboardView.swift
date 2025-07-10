@@ -89,7 +89,9 @@ struct HomeDashboardView: View {
                 onTap: {
                     if viewModel.currentStreak > 0 {
                         showingStreakCelebration = true
-                        HapticManager.shared.notification(.success)
+                        Task {
+                            await HapticManager.shared.notification(.success)
+                        }
                     }
                 }
             )
@@ -455,12 +457,12 @@ struct RecommendedLessonCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 // Thumbnail
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(lesson.category.color.opacity(0.3))
+                    .fill(lesson.category.categoryColor.opacity(0.3)) // FIXED: categoryColor instead of color
                     .frame(width: 200, height: 120)
                     .overlay(
-                        Image(systemName: lesson.category.icon)
+                        Image(systemName: lesson.category.iconName) // FIXED: iconName instead of icon
                             .font(.largeTitle)
-                            .foregroundColor(lesson.category.color)
+                            .foregroundColor(lesson.category.categoryColor) // FIXED: categoryColor instead of color
                     )
                 
                 VStack(alignment: .leading, spacing: 4) {
