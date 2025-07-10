@@ -1,6 +1,5 @@
 // MARK: - Updated Lessons View (FIXED)
-// File: ArtOfTheFuture/Features/LessonsView.swift
-// Replace existing LessonsView.swift with this
+// File: ArtOfTheFuture/Features/Lessons/Views/LessonsView.swift
 
 import SwiftUI
 
@@ -46,7 +45,7 @@ struct LessonsView: View {
             }
             .navigationTitle("Learn")
             .searchable(text: $searchText, prompt: "Search lessons")
-            .onChange(of: searchText) { newValue in
+            .onChange(of: searchText) { oldValue, newValue in
                 viewModel.searchLessons(query: newValue)
             }
             .background(Color(.systemGroupedBackground))

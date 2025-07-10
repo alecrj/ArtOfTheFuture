@@ -27,8 +27,8 @@ struct Lesson: Identifiable, Codable {
     let prerequisites: [String]
     let unlocks: [String]
     
-    // System properties for gamification
-    let hearts: Int = 3
+    // System properties for gamification - FIXED: removed initial value
+    var hearts: Int
     
     // Computed properties
     var totalSteps: Int { steps.count }
@@ -661,41 +661,4 @@ struct Badge: Codable, Identifiable {
     }
 }
 
-// MARK: - CGPoint & CGSize Extensions
-extension CGPoint: Codable {
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(x, forKey: .x)
-        try container.encode(y, forKey: .y)
-    }
-    
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let x = try container.decode(CGFloat.self, forKey: .x)
-        let y = try container.decode(CGFloat.self, forKey: .y)
-        self.init(x: x, y: y)
-    }
-    
-    private enum CodingKeys: String, CodingKey {
-        case x, y
-    }
-}
-
-extension CGSize: Codable {
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(width, forKey: .width)
-        try container.encode(height, forKey: .height)
-    }
-    
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let width = try container.decode(CGFloat.self, forKey: .width)
-        let height = try container.decode(CGFloat.self, forKey: .height)
-        self.init(width: width, height: height)
-    }
-    
-    private enum CodingKeys: String, CodingKey {
-        case width, height
-    }
-}
+// MARK: - REMOVED CGPoint & CGSize Extensions (already in CoreGraphics)

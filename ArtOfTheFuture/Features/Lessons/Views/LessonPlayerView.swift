@@ -17,8 +17,8 @@ struct LessonPlayerView: View {
     
     var body: some View {
         ZStack {
-            // Background - Fix: Use proper color
-            Color(.systemBackground)
+            // Background - FIXED: Use white background
+            Color.white
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -27,22 +27,12 @@ struct LessonPlayerView: View {
                     .zIndex(1) // Ensure header is on top
                 
                 // Content
-                if viewModel.isLoading {
-                    // Loading state
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        Text("Loading lesson...")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if viewModel.currentStep != nil {
+                if let currentStep = viewModel.currentStep {
                     // Lesson content
                     ScrollView {
                         VStack(spacing: 20) {
                             StepContentView(
-                                step: viewModel.currentStep!,
+                                step: currentStep,
                                 viewModel: viewModel
                             )
                             .padding()
@@ -56,35 +46,23 @@ struct LessonPlayerView: View {
                         }
                     }
                 } else {
-                    // Error state
+                    // Empty state
                     VStack(spacing: 20) {
-                        Image(systemName: "exclamationmark.triangle.fill")
+                        Image(systemName: "book.fill")
                             .font(.system(size: 60))
-                            .foregroundColor(.orange)
+                            .foregroundColor(.gray)
                         
-                        Text("Unable to load lesson")
+                        Text("Loading lesson content...")
                             .font(.headline)
-                        
-                        Text(lesson.description)
-                            .font(.subheadline)
                             .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                        
-                        Button("Try Again") {
-                            Task {
-                                await viewModel.loadProgress()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 
                 // Controls
-                if !viewModel.isLoading && viewModel.currentStep != nil {
+                if viewModel.currentStep != nil {
                     playerControls
-                        .background(Color(.systemBackground))
+                        .background(Color.white)
                 }
             }
             
@@ -117,11 +95,6 @@ struct LessonPlayerView: View {
             Button("Continue", role: .cancel) { }
         } message: {
             Text("Your progress will be saved")
-        }
-        .onAppear {
-            Task {
-                await viewModel.loadProgress()
-            }
         }
     }
     
@@ -170,7 +143,7 @@ struct LessonPlayerView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color.white)
         .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
     }
     
@@ -398,7 +371,7 @@ struct DrawingExerciseView: View {
                     currentWidth: .constant(3.0)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .onChange(of: canvasView.drawing) { _, newValue in
+                .onChange(of: canvasView.drawing) { oldValue, newValue in
                     onDrawingChanged(newValue)
                 }
             }
@@ -525,7 +498,7 @@ struct ChallengeExerciseView: View {
                     currentWidth: .constant(3.0)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .onChange(of: canvasView.drawing) { _, newValue in
+                .onChange(of: canvasView.drawing) { oldValue, newValue in
                     onDrawingChanged(newValue)
                 }
             }
@@ -625,7 +598,9 @@ struct SuccessOverlay: View {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.1)) {
                 scale = 1.0
             }
-            HapticManager.shared.notification(.success)
+            Task {
+                await HapticManager.shared.notification(.success)
+            }
         }
     }
 }
@@ -745,7 +720,7 @@ struct LessonToolButton: View {
     }
 }
 
-// MARK: - View Model
+// MARK: - View Model (FIXED)
 @MainActor
 final class LessonPlayerViewModel: ObservableObject {
     let lesson: Lesson
@@ -762,7 +737,6 @@ final class LessonPlayerViewModel: ObservableObject {
     @Published var showSuccess = false
     @Published var isComplete = false
     @Published var xpEarned = 0
-    @Published var isLoading = true
     
     // Exercise state
     @Published var selectedAnswers: Set<String> = []
@@ -790,28 +764,8 @@ final class LessonPlayerViewModel: ObservableObject {
     
     init(lesson: Lesson) {
         self.lesson = lesson
-        // Initialize immediately to prevent black screen
-        Task { @MainActor in
-            self.isLoading = false
-            self.updateCanContinue()
-            self.updateProgress()
-        }
-    }
-    
-    // MARK: - Progress Management
-    func loadProgress() async {
-        isLoading = true
-        // Simulate loading
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-        
-        currentStepIndex = 0
-        updateProgress()
-        updateCanContinue()
-        isLoading = false
-    }
-    
-    func saveProgress() async {
-        // Progress saving implementation
+        self.updateCanContinue()
+        self.updateProgress()
     }
     
     // MARK: - Actions
@@ -846,7 +800,9 @@ final class LessonPlayerViewModel: ObservableObject {
             }
         }
         
-        HapticManager.shared.notification(isCorrect ? .success : .error)
+        Task {
+            await HapticManager.shared.notification(isCorrect ? .success : .error)
+        }
     }
     
     func completeStep() {
@@ -900,6 +856,10 @@ final class LessonPlayerViewModel: ObservableObject {
     func updateDrawing(_ drawing: PKDrawing) {
         currentDrawing = drawing
         updateCanContinue()
+    }
+    
+    func saveProgress() async {
+        // Progress saving implementation
     }
     
     // MARK: - Private
