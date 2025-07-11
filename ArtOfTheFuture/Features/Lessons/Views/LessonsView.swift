@@ -1,4 +1,4 @@
-// MARK: - Modern Lessons View
+// MARK: - Modern Lessons View (Updated with SharedComponents)
 // **REPLACE:** ArtOfTheFuture/Features/Lessons/Views/LessonsView.swift
 
 import SwiftUI
@@ -165,7 +165,7 @@ struct LessonsView: View {
     
     // MARK: - Progress Overview
     private var progressOverview: some View {
-        PremiumCard {
+        ModernCard {
             VStack(spacing: Dimensions.paddingMedium) {
                 // Header
                 HStack {
@@ -229,6 +229,7 @@ struct LessonsView: View {
                     )
                 }
             }
+            .padding()
         }
     }
     
@@ -368,7 +369,7 @@ struct ModernLessonCard: View {
             HapticManager.shared.impact(.medium)
             action()
         }) {
-            PremiumCard(backgroundColor: cardBackgroundColor) {
+            ModernCard(backgroundColor: cardBackgroundColor) {
                 HStack(spacing: Dimensions.paddingMedium) {
                     // Visual Element
                     lessonVisual
@@ -437,6 +438,7 @@ struct ModernLessonCard: View {
                         }
                     }
                 }
+                .padding()
             }
             .opacity(isLocked ? 0.6 : 1)
             .overlay(
@@ -744,17 +746,7 @@ struct FiltersSheet: View {
     }
 }
 
-// MARK: - Sort Options
-enum LessonSortOption: String, CaseIterable {
-    case recommended = "Recommended"
-    case newest = "Newest First"
-    case easiest = "Easiest First"
-    case hardest = "Hardest First"
-    case shortestFirst = "Shortest First"
-    case mostXP = "Most XP"
-}
-
-// MARK: - Enhanced View Model
+// MARK: - Enhanced View Model Extensions
 extension LessonsViewModel {
     var overallProgress: Double {
         guard lessons.count > 0 else { return 0 }
@@ -790,18 +782,8 @@ extension LessonsViewModel {
     var activeFilterCount: Int {
         selectedDifficulties.count + (selectedCategory != nil ? 1 : 0) + (!showCompleted ? 1 : 0) + (!showLocked ? 1 : 0)
     }
-    
-    func isLessonLocked(_ lessonId: String) -> Bool {
-        !unlockedLessons.contains(lessonId)
-    }
-    
-    func getLessonProgress(for lessonId: String) -> Double? {
-        // Mock progress for now
-        if completedLessons.contains(lessonId) {
-            return 1.0
-        } else if unlockedLessons.contains(lessonId) {
-            return Double.random(in: 0.1...0.8)
-        }
-        return nil
-    }
+}
+
+#Preview {
+    LessonsView()
 }

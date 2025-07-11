@@ -1,4 +1,4 @@
-// MARK: - Modern Home Dashboard
+// MARK: - Modern Home Dashboard (Updated with SharedComponents)
 // **REPLACE:** ArtOfTheFuture/Features/Home/Views/HomeDashboardView.swift
 
 import SwiftUI
@@ -179,7 +179,7 @@ struct HomeDashboardView: View {
     
     // MARK: - Hero Stats Section
     private var heroStatsSection: some View {
-        PremiumCard {
+        ModernCard {
             VStack(spacing: Dimensions.paddingMedium) {
                 // Level and XP
                 HStack(spacing: Dimensions.paddingMedium) {
@@ -250,6 +250,7 @@ struct HomeDashboardView: View {
                     }
                 }
             }
+            .padding()
         }
     }
     
@@ -390,7 +391,7 @@ struct HomeDashboardView: View {
     
     // MARK: - Weekly Activity Section
     private var weeklyActivitySection: some View {
-        PremiumCard {
+        ModernCard {
             VStack(alignment: .leading, spacing: Dimensions.paddingMedium) {
                 HStack {
                     Text("This Week")
@@ -420,7 +421,7 @@ struct HomeDashboardView: View {
                     )
                     
                     WeeklyStatItem(
-                        value: "\(viewModel.weeklyStats.averageMinutesPerDay)",
+                        value: "\(Int(viewModel.weeklyStats.averageMinutesPerDay))",
                         label: "Avg Min/Day",
                         color: .blue
                     )
@@ -432,6 +433,7 @@ struct HomeDashboardView: View {
                     )
                 }
             }
+            .padding()
         }
     }
     
@@ -675,9 +677,8 @@ struct ModernStreakCelebration: View {
                         .foregroundColor(.white.opacity(0.8))
                 }
                 
-                PremiumButton(
+                ModernButton(
                     title: "Continue",
-                    icon: nil,
                     style: .primary,
                     isFullWidth: false,
                     action: onDismiss
@@ -751,4 +752,8 @@ struct ModernXPAnimation: View {
             }
         }
     }
+}
+
+#Preview {
+    HomeDashboardView()
 }

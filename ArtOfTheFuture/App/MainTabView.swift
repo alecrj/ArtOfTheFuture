@@ -1,3 +1,6 @@
+// MARK: - Main Tab View (Updated with SharedComponents)
+// **REPLACE:** ArtOfTheFuture/App/MainTabView.swift
+
 import SwiftUI
 
 struct MainTabView: View {
@@ -197,10 +200,13 @@ struct GlobalXPCelebrationView: View {
                 }
                 
                 // Continue button
-                PremiumButton("Continue", style: .success) {
+                ModernButton(
+                    title: "Continue",
+                    style: .success,
+                    isFullWidth: false
+                ) {
                     onDismiss()
                 }
-                .frame(maxWidth: 200)
                 .opacity(isAnimating ? 1.0 : 0.0)
                 .animation(.easeOut(duration: 0.5).delay(1.5), value: isAnimating)
             }
@@ -234,7 +240,7 @@ struct AchievementNotificationView: View {
         VStack {
             Spacer()
             
-            PremiumCard {
+            ModernCard {
                 HStack(spacing: 16) {
                     Image(systemName: achievement.icon)
                         .font(.title)
@@ -346,7 +352,7 @@ final class MainTabViewModel: ObservableObject {
         previousXP = totalXP
         previousLevel = (totalXP / 100) + 1
         
-        // Check for new lessons, artworks, etc.
+        // Check for new content
         checkForNewContent()
     }
     
