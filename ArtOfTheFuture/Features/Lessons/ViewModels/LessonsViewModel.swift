@@ -1,4 +1,4 @@
-// MARK: - Complete Lessons ViewModel (FIXED)
+// MARK: - Complete Lessons ViewModel (BUILD ERROR FIXED)
 // **REPLACE:** ArtOfTheFuture/Features/Lessons/ViewModels/LessonsViewModel.swift
 
 import SwiftUI
@@ -62,7 +62,7 @@ final class LessonsViewModel: ObservableObject {
             currentLevel = (currentTotalXP / 100) + 1
             
             // Apply filters
-            applyFilters()
+            applyFiltersInternal()
             
         } catch {
             errorMessage = error.localizedDescription
@@ -72,8 +72,8 @@ final class LessonsViewModel: ObservableObject {
         isLoading = false
     }
     
-    // MARK: - Filtering Logic
-    private func applyFilters() {
+    // MARK: - Filtering Logic (FIXED - Single source of truth)
+    private func applyFiltersInternal() {
         var filtered = lessons
         
         // Category filter
@@ -140,7 +140,7 @@ final class LessonsViewModel: ObservableObject {
         } else {
             selectedDifficulties.insert(difficulty)
         }
-        applyFilters()
+        applyFiltersInternal()
     }
     
     func clearFilters() {
@@ -150,11 +150,12 @@ final class LessonsViewModel: ObservableObject {
         showLocked = true
         showInProgress = true
         sortOption = .recommended
-        applyFilters()
+        applyFiltersInternal()
     }
     
+    // FIXED: Single public method for applying filters
     func applyFilters() {
-        applyFilters()
+        applyFiltersInternal()
     }
     
     // MARK: - Lesson Progress

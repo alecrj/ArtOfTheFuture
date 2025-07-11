@@ -1,4 +1,4 @@
-// MARK: - Modern Lessons View (Updated with SharedComponents)
+// MARK: - Modern Lessons View (BUILD ERROR FIXED)
 // **REPLACE:** ArtOfTheFuture/Features/Lessons/Views/LessonsView.swift
 
 import SwiftUI
@@ -354,7 +354,7 @@ struct LessonsView: View {
     }
 }
 
-// MARK: - Modern Lesson Card
+// MARK: - Modern Lesson Card (FIXED TYPE MISMATCH)
 struct ModernLessonCard: View {
     let lesson: Lesson
     let progress: Double?
@@ -463,6 +463,7 @@ struct ModernLessonCard: View {
         }
     }
     
+    // FIXED: Ensures consistent return type (AnyView)
     @ViewBuilder
     private var lessonVisual: some View {
         ZStack {
@@ -475,21 +476,28 @@ struct ModernLessonCard: View {
                 )
             } else {
                 Circle()
-                    .fill(
-                        isLocked ? Color(.systemGray5) :
-                        isCompleted ? ColorPalette.successGradient :
-                        LinearGradient(
-                            colors: [lesson.category.categoryColor.opacity(0.3), lesson.category.categoryColor.opacity(0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(visualBackgroundFill)
                     .frame(width: DeviceType.current.isIPad ? 80 : 70, height: DeviceType.current.isIPad ? 80 : 70)
             }
             
             Image(systemName: lessonIcon)
                 .font(.system(size: DeviceType.current.isIPad ? 32 : 28))
                 .foregroundColor(iconColor)
+        }
+    }
+    
+    // FIXED: Returns consistent LinearGradient type
+    private var visualBackgroundFill: LinearGradient {
+        if isLocked {
+            return LinearGradient(colors: [Color(.systemGray5)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        } else if isCompleted {
+            return ColorPalette.successGradient
+        } else {
+            return LinearGradient(
+                colors: [lesson.category.categoryColor.opacity(0.3), lesson.category.categoryColor.opacity(0.1)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         }
     }
     
