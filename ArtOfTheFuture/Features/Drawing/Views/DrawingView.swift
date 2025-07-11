@@ -787,15 +787,7 @@ struct FloatingPanel<Content: View>: View {
     }
 }
 
-// Small handle bar for panels
-struct SheetHandle: View {
-    var body: some View {
-        RoundedRectangle(cornerRadius: 2)
-            .fill(Color.gray.opacity(0.4))
-            .frame(width: 40, height: 4)
-            .padding(.vertical, 8)
-    }
-}
+
 
 // MARK: - Export Options Sheet
 struct ExportOptionsSheet: View {
