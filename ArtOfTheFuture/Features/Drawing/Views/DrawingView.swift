@@ -1,725 +1,1115 @@
+// MARK: - Professional Drawing View
+// **REPLACE:** ArtOfTheFuture/Features/Drawing/Views/DrawingView.swift
+
 import SwiftUI
 import PencilKit
 
 struct DrawingView: View {
-    @StateObject private var canvasController = CanvasController()
-    @State private var showExportModal = false
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                // Premium background
-                LinearGradient(
-                    colors: [
-                        Color(.systemGray6),
-                        Color(.systemGray5)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // Top bar
-                    DrawingTopBar(
-                        controller: canvasController,
-                        showExportModal: $showExportModal
-                    )
-                    .padding(.top, 10)
-                    
-                    // Canvas area (main focus)
-                    DrawingCanvasArea(controller: canvasController)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                    
-                    // Tool bar
-                    DrawingToolBar(controller: canvasController)
-                        .padding(.bottom, 20)
-                }
-            }
-            .navigationBarHidden(true)
-        }
-        .sheet(isPresented: $showExportModal) {
-            ExportModalView(controller: canvasController)
-        }
-    }
-}
-
-// MARK: - Canvas Controller (FULLY FIXED COLORS)
-@MainActor
-final class CanvasController: ObservableObject {
-    @Published var pkCanvasView = PKCanvasView()
-    @Published var activeTool: DrawingTool = .pen
-    @Published var selectedColor: Color = .black
-    @Published var strokeWidth: Double = 5.0
-    @Published var undoAvailable = false
-    @Published var redoAvailable = false
-    @Published var colorPickerVisible = false
-    
-    init() {
-        configureCanvas()
-        setActiveTool()
-    }
-    
-    private func configureCanvas() {
-        pkCanvasView.drawingPolicy = .anyInput
-        
-        // PERFECT: Pure white background that never changes
-        pkCanvasView.backgroundColor = UIColor.white
-        pkCanvasView.isOpaque = true
-        pkCanvasView.overrideUserInterfaceStyle = .light // Force light mode
-        
-        pkCanvasView.layer.cornerRadius = 16
-        pkCanvasView.clipsToBounds = true
-        
-        // Additional stability
-        pkCanvasView.layer.backgroundColor = UIColor.white.cgColor
-    }
-    
-    func chooseTool(_ tool: DrawingTool) {
-        activeTool = tool
-        setActiveTool()
-        
-        Task {
-            await HapticManager.shared.impact(.light)
-        }
-    }
-    
-    func updateColor(_ color: Color) {
-        selectedColor = color
-        setActiveTool()
-    }
-    
-    func updateStrokeWidth(_ width: Double) {
-        strokeWidth = width
-        setActiveTool()
-    }
-    
-    private func setActiveTool() {
-        // PERFECT: Color conversion that works 100% of the time
-        let uiColor = perfectColorConversion(selectedColor)
-        
-        switch activeTool {
-        case .pen:
-            pkCanvasView.tool = PKInkingTool(.pen, color: uiColor, width: strokeWidth)
-        case .pencil:
-            pkCanvasView.tool = PKInkingTool(.pencil, color: uiColor, width: strokeWidth)
-        case .marker:
-            pkCanvasView.tool = PKInkingTool(.marker, color: uiColor, width: strokeWidth * 1.5)
-        case .eraser:
-            pkCanvasView.tool = PKEraserTool(.bitmap)
-        }
-    }
-    
-    // PERFECT: Guaranteed color conversion (no inversion possible)
-    private func perfectColorConversion(_ color: Color) -> UIColor {
-        switch color {
-        case .black:
-            return UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0) // Pure black
-        case .white:
-            return UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0) // Pure white
-        case .red:
-            return UIColor(red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0)
-        case .blue:
-            return UIColor(red: 0.0, green: 0.0, blue: 1.0, alpha: 1.0)
-        case .green:
-            return UIColor(red: 0.0, green: 0.8, blue: 0.0, alpha: 1.0)
-        case .orange:
-            return UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1.0)
-        case .yellow:
-            return UIColor(red: 1.0, green: 1.0, blue: 0.0, alpha: 1.0)
-        case .purple:
-            return UIColor(red: 0.6, green: 0.0, blue: 1.0, alpha: 1.0)
-        case .pink:
-            return UIColor(red: 1.0, green: 0.4, blue: 0.8, alpha: 1.0)
-        case .gray:
-            return UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)
-        case .brown:
-            return UIColor(red: 0.6, green: 0.4, blue: 0.2, alpha: 1.0)
-        case .cyan:
-            return UIColor(red: 0.0, green: 1.0, blue: 1.0, alpha: 1.0)
-        default:
-            // For any other colors, use explicit component extraction
-            let uiColor = UIColor(color)
-            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 1
-            uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-            return UIColor(red: red, green: green, blue: blue, alpha: alpha)
-        }
-    }
-    
-    func undoAction() {
-        pkCanvasView.undoManager?.undo()
-        updateUndoRedoState()
-    }
-    
-    func redoAction() {
-        pkCanvasView.undoManager?.redo()
-        updateUndoRedoState()
-    }
-    
-    func clearAction() {
-        pkCanvasView.drawing = PKDrawing()
-        updateUndoRedoState()
-    }
-    
-    func updateUndoRedoState() {
-        undoAvailable = pkCanvasView.undoManager?.canUndo ?? false
-        redoAvailable = pkCanvasView.undoManager?.canRedo ?? false
-    }
-    
-    func createExportImage() -> UIImage? {
-        let bounds = pkCanvasView.drawing.bounds
-        let imageRect = bounds.isEmpty ? CGRect(x: 0, y: 0, width: 800, height: 600) : bounds
-        return pkCanvasView.drawing.image(from: imageRect, scale: 2.0)
-    }
-    
-    var hasContent: Bool {
-        !pkCanvasView.drawing.bounds.isEmpty
-    }
-}
-
-// MARK: - Drawing Canvas Area (PERFECT WHITE)
-struct DrawingCanvasArea: View {
-    @ObservedObject var controller: CanvasController
+    @StateObject private var viewModel = DrawingViewModel()
+    @State private var showTools = true
+    @State private var showLayers = false
+    @State private var showColorPicker = false
+    @State private var showBrushSettings = false
+    @State private var showExportOptions = false
+    @State private var currentGesture: DragGesture.Value?
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     
     var body: some View {
         ZStack {
-            // Perfect white background
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white)
-                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+            // Canvas background
+            Color.white
+                .ignoresSafeArea()
             
-            PerfectCanvasWrapper(controller: controller)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+            // Main drawing canvas
+            DrawingCanvas(viewModel: viewModel)
+                .ignoresSafeArea()
+            
+            // UI Overlay
+            drawingInterface
+        }
+        .preferredColorScheme(.light) // Keep canvas always light
+        .statusBar(hidden: !showTools)
+        .sheet(isPresented: $showExportOptions) {
+            ExportOptionsSheet(viewModel: viewModel)
         }
     }
-}
-
-// MARK: - Perfect Canvas Wrapper (NEVER CHANGES COLOR)
-struct PerfectCanvasWrapper: UIViewRepresentable {
-    @ObservedObject var controller: CanvasController
     
-    func makeUIView(context: Context) -> PKCanvasView {
-        let canvas = controller.pkCanvasView
-        canvas.delegate = context.coordinator
-        
-        // PERFECT: Lock in white background
-        canvas.backgroundColor = UIColor.white
-        canvas.isOpaque = true
-        canvas.overrideUserInterfaceStyle = .light
-        canvas.layer.backgroundColor = UIColor.white.cgColor
-        
-        return canvas
-    }
-    
-    func updateUIView(_ uiView: PKCanvasView, context: Context) {
-        // PERFECT: Force white background on every update
-        uiView.backgroundColor = UIColor.white
-        uiView.isOpaque = true
-        uiView.layer.backgroundColor = UIColor.white.cgColor
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(controller)
-    }
-    
-    class Coordinator: NSObject, PKCanvasViewDelegate {
-        let controller: CanvasController
-        
-        init(_ controller: CanvasController) {
-            self.controller = controller
-        }
-        
-        func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
-            // PERFECT: Maintain white background during all touch events
-            canvasView.backgroundColor = UIColor.white
-            canvasView.layer.backgroundColor = UIColor.white.cgColor
+    // MARK: - Drawing Interface
+    @ViewBuilder
+    private var drawingInterface: some View {
+        // Top toolbar
+        VStack {
+            if showTools {
+                topToolbar
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
             
-            Task { @MainActor in
-                controller.updateUndoRedoState()
+            Spacer()
+            
+            // Bottom tools
+            HStack(alignment: .bottom) {
+                if showTools {
+                    // Left side tools (iPad)
+                    if DeviceType.current.isIPad {
+                        leftSideTools
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                    }
+                    
+                    Spacer()
+                    
+                    // Right side tools (iPad)
+                    if DeviceType.current.isIPad {
+                        rightSideTools
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
+                }
+            }
+            
+            // Bottom toolbar (iPhone)
+            if showTools && !DeviceType.current.isIPad {
+                bottomToolbar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .animation(AnimationPresets.smooth, value: showTools)
         
-        func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
-            // PERFECT: Maintain white background after touch
-            canvasView.backgroundColor = UIColor.white
-            canvasView.layer.backgroundColor = UIColor.white.cgColor
-            
-            Task { @MainActor in
-                controller.updateUndoRedoState()
-            }
-        }
+        // Floating panels
+        floatingPanels
         
-        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-            // PERFECT: Maintain white background on any drawing change
-            canvasView.backgroundColor = UIColor.white
-            canvasView.layer.backgroundColor = UIColor.white.cgColor
-            
-            Task { @MainActor in
-                controller.updateUndoRedoState()
-            }
+        // Touch indicator for tool preview
+        if let gesture = currentGesture {
+            touchIndicator(at: gesture.location)
         }
     }
-}
-
-// MARK: - Drawing Top Bar
-struct DrawingTopBar: View {
-    @ObservedObject var controller: CanvasController
-    @Binding var showExportModal: Bool
     
-    var body: some View {
-        HStack {
-            // Undo/Redo controls
-            HStack(spacing: 12) {
-                ActionButton(
-                    icon: "arrow.uturn.backward",
-                    isEnabled: controller.undoAvailable,
-                    action: controller.undoAction
-                )
+    // MARK: - Top Toolbar
+    private var topToolbar: some View {
+        HStack(spacing: Dimensions.paddingMedium) {
+            // File menu
+            Menu {
+                Button(action: viewModel.newCanvas) {
+                    Label("New Canvas", systemImage: "doc.badge.plus")
+                }
                 
-                ActionButton(
-                    icon: "arrow.uturn.forward",
-                    isEnabled: controller.redoAvailable,
-                    action: controller.redoAction
-                )
+                Button(action: { showExportOptions = true }) {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+                
+                Divider()
+                
+                Button(action: viewModel.clearCanvas) {
+                    Label("Clear Canvas", systemImage: "trash")
+                }
+                .foregroundColor(.red)
+            } label: {
+                Image(systemName: "doc.text")
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial, in: Capsule())
             
             Spacer()
             
-            // Title
-            Text("Draw")
-                .font(.headline)
-                .fontWeight(.semibold)
+            // Canvas title
+            Text(viewModel.canvasTitle)
+                .font(Typography.headline)
+                .foregroundColor(ColorPalette.textPrimary)
             
             Spacer()
             
-            // Export button
-            ActionButton(
-                icon: "square.and.arrow.up",
-                isEnabled: controller.hasContent,
-                action: { showExportModal = true }
+            // Undo/Redo
+            HStack(spacing: 8) {
+                IconButton(
+                    icon: "arrow.uturn.backward",
+                    size: .medium,
+                    style: .ghost,
+                    action: viewModel.undo
+                )
+                .disabled(!viewModel.canUndo)
+                
+                IconButton(
+                    icon: "arrow.uturn.forward",
+                    size: .medium,
+                    style: .ghost,
+                    action: viewModel.redo
+                )
+                .disabled(!viewModel.canRedo)
+            }
+            
+            // Toggle UI
+            IconButton(
+                icon: showTools ? "eye.slash" : "eye",
+                size: .medium,
+                style: .ghost,
+                action: { showTools.toggle() }
             )
-            .padding(.horizontal, 16)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+    }
+    
+    // MARK: - Left Side Tools (iPad)
+    private var leftSideTools: some View {
+        VStack(spacing: Dimensions.paddingSmall) {
+            // Tool selector
+            ToolPalette(
+                selectedTool: $viewModel.selectedTool,
+                onToolSelected: { tool in
+                    HapticManager.shared.selection()
+                    showBrushSettings = true
+                }
+            )
+            
+            Divider()
+                .frame(width: 60)
+            
+            // Quick colors
+            VStack(spacing: 8) {
+                ForEach(viewModel.recentColors, id: \.self) { color in
+                    ColorSwatch(
+                        color: color,
+                        isSelected: viewModel.currentColor == color,
+                        action: {
+                            viewModel.currentColor = color
+                            HapticManager.shared.selection()
+                        }
+                    )
+                }
+                
+                // Color picker button
+                Button(action: { showColorPicker = true }) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                AngularGradient(
+                                    colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red],
+                                    center: .center
+                                )
+                            )
+                            .frame(width: 44, height: 44)
+                        
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 20, height: 20)
+                        
+                        Circle()
+                            .fill(viewModel.currentColor)
+                            .frame(width: 16, height: 16)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .cornerRadius(Dimensions.cornerRadiusMedium)
+        .shadow(color: ShadowStyle.medium.color, radius: ShadowStyle.medium.radius)
+        .padding()
+    }
+    
+    // MARK: - Right Side Tools (iPad)
+    private var rightSideTools: some View {
+        VStack(spacing: Dimensions.paddingMedium) {
+            // Layers
+            IconButton(
+                icon: "square.3.stack.3d",
+                size: .large,
+                style: .secondary,
+                action: { showLayers.toggle() }
+            )
+            
+            // Brush settings
+            IconButton(
+                icon: "slider.horizontal.3",
+                size: .large,
+                style: .secondary,
+                action: { showBrushSettings.toggle() }
+            )
+            
+            // Transform
+            IconButton(
+                icon: "arrow.up.left.and.arrow.down.right",
+                size: .large,
+                style: .secondary,
+                action: viewModel.toggleTransformMode
+            )
+            
+            // Reference
+            IconButton(
+                icon: "photo",
+                size: .large,
+                style: .secondary,
+                action: viewModel.toggleReference
+            )
+        }
+        .padding()
+        .background(.ultraThinMaterial)
+        .cornerRadius(Dimensions.cornerRadiusMedium)
+        .shadow(color: ShadowStyle.medium.color, radius: ShadowStyle.medium.radius)
+        .padding()
+    }
+    
+    // MARK: - Bottom Toolbar (iPhone)
+    private var bottomToolbar: some View {
+        VStack(spacing: 0) {
+            // Brush size slider
+            HStack(spacing: Dimensions.paddingMedium) {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 8))
+                    .foregroundColor(viewModel.currentColor)
+                
+                Slider(
+                    value: $viewModel.brushSize,
+                    in: 1...100,
+                    step: 1
+                )
+                .accentColor(viewModel.currentColor)
+                
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(viewModel.currentColor)
+                
+                Text("\(Int(viewModel.brushSize))px")
+                    .font(Typography.caption)
+                    .foregroundColor(ColorPalette.textSecondary)
+                    .frame(width: 40)
+            }
+            .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial, in: Capsule())
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
-// MARK: - Action Button
-struct ActionButton: View {
-    let icon: String
-    let isEnabled: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundColor(isEnabled ? .primary : .secondary)
-        }
-        .disabled(!isEnabled)
-        .scaleEffect(isEnabled ? 1.0 : 0.9)
-        .animation(.spring(response: 0.3), value: isEnabled)
-    }
-}
-
-// MARK: - Drawing Tool Bar
-struct DrawingToolBar: View {
-    @ObservedObject var controller: CanvasController
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            // Tool selection
-            HStack(spacing: 24) {
+            
+            Divider()
+            
+            // Tools
+            HStack(spacing: 0) {
                 ForEach(DrawingTool.allCases, id: \.self) { tool in
-                    PremiumToolButton(
+                    ToolButton(
                         tool: tool,
-                        isActive: controller.activeTool == tool,
-                        action: { controller.chooseTool(tool) }
+                        isSelected: viewModel.selectedTool == tool,
+                        action: {
+                            viewModel.selectedTool = tool
+                            HapticManager.shared.selection()
+                        }
                     )
                 }
                 
                 Spacer()
                 
-                // Clear button
-                Button(action: controller.clearAction) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "trash.fill")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .frame(width: 50, height: 50)
-                            .background(
-                                LinearGradient(
-                                    colors: [.red, .orange],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .clipShape(Circle())
-                        
-                        Text("Clear")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                // Color button
+                Button(action: { showColorPicker = true }) {
+                    Circle()
+                        .fill(viewModel.currentColor)
+                        .frame(width: 32, height: 32)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                        )
+                        .shadow(radius: 2)
                 }
-                .scaleEffect(controller.hasContent ? 1.0 : 0.8)
-                .animation(.spring(response: 0.3), value: controller.hasContent)
+                .padding(.horizontal)
             }
-            
-            // Tool options (when not eraser)
-            if controller.activeTool != .eraser {
-                PremiumToolOptions(controller: controller)
+            .padding(.vertical, 8)
+        }
+        .background(.ultraThinMaterial)
+    }
+    
+    // MARK: - Floating Panels
+    @ViewBuilder
+    private var floatingPanels: some View {
+        // Color Picker
+        if showColorPicker {
+            FloatingPanel(
+                title: "Color",
+                isPresented: $showColorPicker,
+                position: .center
+            ) {
+                ModernColorPicker(
+                    selectedColor: $viewModel.currentColor,
+                    recentColors: $viewModel.recentColors
+                )
             }
         }
-        .padding(.horizontal, 20)
+        
+        // Brush Settings
+        if showBrushSettings {
+            FloatingPanel(
+                title: "Brush Settings",
+                isPresented: $showBrushSettings,
+                position: DeviceType.current.isIPad ? .topTrailing : .bottom
+            ) {
+                BrushSettingsPanel(viewModel: viewModel)
+            }
+        }
+        
+        // Layers
+        if showLayers {
+            FloatingPanel(
+                title: "Layers",
+                isPresented: $showLayers,
+                position: .trailing
+            ) {
+                LayersPanel(viewModel: viewModel)
+            }
+        }
+    }
+    
+    // MARK: - Touch Indicator
+    private func touchIndicator(at location: CGPoint) -> some View {
+        Circle()
+            .stroke(viewModel.currentColor, lineWidth: 2)
+            .frame(width: viewModel.brushSize * 2, height: viewModel.brushSize * 2)
+            .position(location)
+            .allowsHitTesting(false)
+            .animation(.none)
     }
 }
 
-// MARK: - Premium Tool Button
-struct PremiumToolButton: View {
+// MARK: - Drawing Canvas
+struct DrawingCanvas: UIViewRepresentable {
+    @ObservedObject var viewModel: DrawingViewModel
+    
+    func makeUIView(context: Context) -> PKCanvasView {
+        let canvasView = viewModel.canvasView
+        canvasView.delegate = context.coordinator
+        canvasView.drawingPolicy = .anyInput
+        canvasView.backgroundColor = .white
+        canvasView.isOpaque = false
+        
+        // Setup for pressure sensitivity
+        canvasView.drawingGestureRecognizer.maximumPossibleForce = 4.0
+        
+        return canvasView
+    }
+    
+    func updateUIView(_ uiView: PKCanvasView, context: Context) {
+        // Update tool
+        uiView.tool = viewModel.currentPKTool
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(viewModel: viewModel)
+    }
+    
+    class Coordinator: NSObject, PKCanvasViewDelegate {
+        let viewModel: DrawingViewModel
+        
+        init(viewModel: DrawingViewModel) {
+            self.viewModel = viewModel
+        }
+        
+        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+            viewModel.updateUndoRedoState()
+        }
+    }
+}
+
+// MARK: - Tool Palette
+struct ToolPalette: View {
+    @Binding var selectedTool: DrawingTool
+    let onToolSelected: (DrawingTool) -> Void
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(DrawingTool.allCases, id: \.self) { tool in
+                ToolPaletteButton(
+                    tool: tool,
+                    isSelected: selectedTool == tool,
+                    action: {
+                        selectedTool = tool
+                        onToolSelected(tool)
+                    }
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Tool Palette Button
+struct ToolPaletteButton: View {
     let tool: DrawingTool
-    let isActive: Bool
+    let isSelected: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? ColorPalette.primaryGradient : LinearGradient(colors: [Color.clear], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: 60, height: 60)
+                
+                VStack(spacing: 4) {
+                    Image(systemName: tool.icon)
+                        .font(.title2)
+                        .foregroundColor(isSelected ? .white : ColorPalette.textPrimary)
+                    
+                    Text(tool.rawValue)
+                        .font(.caption2)
+                        .foregroundColor(isSelected ? .white : ColorPalette.textSecondary)
+                }
+            }
+        }
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .animation(AnimationPresets.quick, value: isSelected)
+    }
+}
+
+// MARK: - Tool Button (iPhone)
+struct ToolButton: View {
+    let tool: DrawingTool
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
                 Image(systemName: tool.icon)
-                    .font(.title2)
-                    .foregroundColor(isActive ? .white : .primary)
-                    .frame(width: 50, height: 50)
-                    .background(
-                        Group {
-                            if isActive {
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            } else {
-                                LinearGradient(
-                                    colors: [Color(.systemGray5)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            }
-                        }
-                    )
-                    .clipShape(Circle())
-                    .shadow(color: isActive ? .blue.opacity(0.3) : .clear, radius: 8, y: 4)
+                    .font(.title3)
+                    .foregroundColor(isSelected ? ColorPalette.primaryBlue : ColorPalette.textSecondary)
                 
                 Text(tool.rawValue)
-                    .font(.caption)
-                    .fontWeight(isActive ? .semibold : .regular)
-                    .foregroundColor(isActive ? .primary : .secondary)
+                    .font(.caption2)
+                    .foregroundColor(isSelected ? ColorPalette.primaryBlue : ColorPalette.textSecondary)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                isSelected ?
+                ColorPalette.primaryBlue.opacity(0.1) : Color.clear
+            )
         }
-        .scaleEffect(isActive ? 1.1 : 1.0)
-        .animation(.spring(response: 0.3), value: isActive)
     }
 }
 
-// MARK: - Premium Tool Options
-struct PremiumToolOptions: View {
-    @ObservedObject var controller: CanvasController
+// MARK: - Color Swatch
+struct ColorSwatch: View {
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
     
     var body: some View {
-        HStack(spacing: 24) {
-            // Color section
-            VStack(spacing: 8) {
-                Text("Color")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+        Button(action: action) {
+            Circle()
+                .fill(color)
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Circle()
+                        .stroke(Color.white, lineWidth: isSelected ? 3 : 1)
+                )
+                .overlay(
+                    Circle()
+                        .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                        .padding(1)
+                )
+                .shadow(color: color.opacity(0.4), radius: isSelected ? 8 : 2)
+                .scaleEffect(isSelected ? 1.1 : 1.0)
+        }
+        .animation(AnimationPresets.quick, value: isSelected)
+    }
+}
+
+// MARK: - Modern Color Picker
+struct ModernColorPicker: View {
+    @Binding var selectedColor: Color
+    @Binding var recentColors: [Color]
+    @State private var hue: Double = 0
+    @State private var saturation: Double = 1
+    @State private var brightness: Double = 1
+    
+    var body: some View {
+        VStack(spacing: Dimensions.paddingMedium) {
+            // Color wheel
+            ColorWheel(
+                hue: $hue,
+                saturation: $saturation,
+                brightness: $brightness,
+                color: $selectedColor
+            )
+            .frame(width: 250, height: 250)
+            
+            // Recent colors
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Recent")
+                    .font(Typography.caption)
+                    .foregroundColor(ColorPalette.textSecondary)
                 
-                Button(action: { controller.colorPickerVisible.toggle() }) {
-                    ZStack {
-                        Circle()
-                            .fill(controller.selectedColor)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Circle()
-                                    .stroke(.primary, lineWidth: 2)
-                            )
-                            .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
-                        
-                        // Visual color indicator
-                        Text(colorLabel(controller.selectedColor))
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(textColorFor(controller.selectedColor))
+                HStack(spacing: 8) {
+                    ForEach(recentColors, id: \.self) { color in
+                        ColorSwatch(
+                            color: color,
+                            isSelected: false,
+                            action: {
+                                selectedColor = color
+                            }
+                        )
+                        .scaleEffect(0.8)
                     }
                 }
-                .popover(isPresented: $controller.colorPickerVisible) {
-                    PremiumColorPicker(
-                        selectedColor: $controller.selectedColor,
-                        onColorSelected: controller.updateColor
-                    )
-                }
             }
             
-            // Width section
-            VStack(spacing: 8) {
-                Text("Width: \(Int(controller.strokeWidth))")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
-                Slider(
-                    value: Binding(
-                        get: { controller.strokeWidth },
-                        set: controller.updateStrokeWidth
-                    ),
-                    in: 1...50,
-                    step: 1
-                ) {
-                    Text("Width")
-                } minimumValueLabel: {
-                    Text("1")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                } maximumValueLabel: {
-                    Text("50")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                .frame(width: 120)
-                .accentColor(.blue)
+            // RGB Sliders
+            VStack(spacing: 12) {
+                ColorSlider(value: $hue, gradient: hueGradient, label: "H")
+                ColorSlider(value: $saturation, gradient: saturationGradient, label: "S")
+                ColorSlider(value: $brightness, gradient: brightnessGradient, label: "B")
             }
-            
-            Spacer()
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-    }
-    
-    private func colorLabel(_ color: Color) -> String {
-        switch color {
-        case .black: return "●"
-        case .white: return "○"
-        case .red: return "R"
-        case .blue: return "B"
-        case .green: return "G"
-        case .orange: return "O"
-        case .yellow: return "Y"
-        case .purple: return "P"
-        case .pink: return "PK"
-        case .gray: return "GY"
-        case .brown: return "BR"
-        case .cyan: return "C"
-        default: return "?"
+        .onChange(of: selectedColor) { _, newColor in
+            if !recentColors.contains(newColor) {
+                recentColors.insert(newColor, at: 0)
+                if recentColors.count > 8 {
+                    recentColors.removeLast()
+                }
+            }
         }
     }
     
-    private func textColorFor(_ color: Color) -> Color {
-        switch color {
-        case .black, .blue, .purple, .brown: return .white
-        default: return .black
+    private var hueGradient: LinearGradient {
+        LinearGradient(
+            colors: (0...10).map { Color(hue: Double($0) / 10, saturation: 1, brightness: 1) },
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+    
+    private var saturationGradient: LinearGradient {
+        LinearGradient(
+            colors: [Color(hue: hue, saturation: 0, brightness: brightness),
+                    Color(hue: hue, saturation: 1, brightness: brightness)],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+    
+    private var brightnessGradient: LinearGradient {
+        LinearGradient(
+            colors: [Color(hue: hue, saturation: saturation, brightness: 0),
+                    Color(hue: hue, saturation: saturation, brightness: 1)],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+}
+
+// MARK: - Color Wheel
+struct ColorWheel: View {
+    @Binding var hue: Double
+    @Binding var saturation: Double
+    @Binding var brightness: Double
+    @Binding var color: Color
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Hue wheel
+                AngularGradient(
+                    colors: (0...360).map { Color(hue: Double($0) / 360, saturation: 1, brightness: 1) },
+                    center: .center
+                )
+                .clipShape(Circle())
+                
+                // Saturation/Brightness overlay
+                RadialGradient(
+                    colors: [Color.white.opacity(1 - saturation), Color.clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: geometry.size.width / 2
+                )
+                
+                // Brightness overlay
+                Circle()
+                    .fill(Color.black.opacity(1 - brightness))
+                
+                // Selection indicator
+                Circle()
+                    .stroke(Color.white, lineWidth: 3)
+                    .frame(width: 30, height: 30)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.black.opacity(0.3), lineWidth: 1)
+                            .padding(1)
+                    )
+                    .position(selectionPosition(in: geometry.size))
+            }
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        updateSelection(at: value.location, in: geometry.size)
+                    }
+            )
+        }
+    }
+    
+    private func selectionPosition(in size: CGSize) -> CGPoint {
+        let angle = hue * 2 * .pi
+        let radius = (size.width / 2) * saturation
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        
+        return CGPoint(
+            x: center.x + radius * cos(angle),
+            y: center.y + radius * sin(angle)
+        )
+    }
+    
+    private func updateSelection(at location: CGPoint, in size: CGSize) {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let vector = CGPoint(x: location.x - center.x, y: location.y - center.y)
+        
+        let angle = atan2(vector.y, vector.x)
+        hue = (angle < 0 ? angle + 2 * .pi : angle) / (2 * .pi)
+        
+        let distance = sqrt(vector.x * vector.x + vector.y * vector.y)
+        saturation = min(distance / (size.width / 2), 1)
+        
+        color = Color(hue: hue, saturation: saturation, brightness: brightness)
+        HapticManager.shared.selection()
+    }
+}
+
+// MARK: - Color Slider
+struct ColorSlider: View {
+    @Binding var value: Double
+    let gradient: LinearGradient
+    let label: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(Typography.caption)
+                .foregroundColor(ColorPalette.textSecondary)
+                .frame(width: 20)
+            
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(gradient)
+                        .frame(height: 24)
+                    
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                        )
+                        .shadow(radius: 2)
+                        .offset(x: geometry.size.width * value - 14)
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            value = max(0, min(1, gesture.location.x / geometry.size.width))
+                            HapticManager.shared.selection()
+                        }
+                )
+            }
+            .frame(height: 28)
+            
+            Text("\(Int(value * 100))")
+                .font(Typography.caption)
+                .foregroundColor(ColorPalette.textSecondary)
+                .frame(width: 30)
         }
     }
 }
 
-// MARK: - Premium Color Picker
-struct PremiumColorPicker: View {
-    @Binding var selectedColor: Color
-    let onColorSelected: (Color) -> Void
-    
-    private let colorPalette: [(Color, String)] = [
-        (.black, "Black"),
-        (.white, "White"),
-        (.gray, "Gray"),
-        (.red, "Red"),
-        (.orange, "Orange"),
-        (.yellow, "Yellow"),
-        (.green, "Green"),
-        (.blue, "Blue"),
-        (.purple, "Purple"),
-        (.pink, "Pink"),
-        (.brown, "Brown"),
-        (.cyan, "Cyan")
-    ]
+// MARK: - Brush Settings Panel
+struct BrushSettingsPanel: View {
+    @ObservedObject var viewModel: DrawingViewModel
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Choose Color")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .padding(.top)
-            
-            // Color grid
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(55), spacing: 12), count: 3), spacing: 12) {
-                ForEach(colorPalette, id: \.1) { color, name in
-                    Button(action: {
-                        selectedColor = color
-                        onColorSelected(color)
-                    }) {
-                        VStack(spacing: 6) {
-                            ZStack {
-                                Circle()
-                                    .fill(color)
-                                    .frame(width: 40, height: 40)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(.primary, lineWidth: selectedColor == color ? 3 : 1)
-                                    )
-                                    .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
-                                
-                                // Visual indicators for black/white
-                                if color == .black {
-                                    Text("●")
-                                        .font(.title3)
-                                        .foregroundColor(.white)
-                                } else if color == .white {
-                                    Text("○")
-                                        .font(.title3)
-                                        .foregroundColor(.black)
-                                }
-                            }
-                            
-                            Text(name)
-                                .font(.caption2)
-                                .foregroundColor(.primary)
-                        }
-                    }
-                    .scaleEffect(selectedColor == color ? 1.1 : 1.0)
-                    .animation(.spring(response: 0.3), value: selectedColor == color)
+        VStack(spacing: Dimensions.paddingMedium) {
+            // Size
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Size")
+                        .font(Typography.subheadline)
+                    Spacer()
+                    Text("\(Int(viewModel.brushSize))px")
+                        .font(Typography.caption)
+                        .foregroundColor(ColorPalette.textSecondary)
                 }
+                
+                Slider(value: $viewModel.brushSize, in: 1...100)
+                    .accentColor(viewModel.currentColor)
             }
-            .padding(.horizontal)
+            
+            // Opacity
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Opacity")
+                        .font(Typography.subheadline)
+                    Spacer()
+                    Text("\(Int(viewModel.brushOpacity * 100))%")
+                        .font(Typography.caption)
+                        .foregroundColor(ColorPalette.textSecondary)
+                }
+                
+                Slider(value: $viewModel.brushOpacity)
+                    .accentColor(viewModel.currentColor)
+            }
+            
+            // Smoothing
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Smoothing")
+                        .font(Typography.subheadline)
+                    Spacer()
+                    Text("\(Int(viewModel.brushSmoothing * 100))%")
+                        .font(Typography.caption)
+                        .foregroundColor(ColorPalette.textSecondary)
+                }
+                
+                Slider(value: $viewModel.brushSmoothing)
+                    .accentColor(viewModel.currentColor)
+            }
             
             Divider()
             
-            // Custom color picker
-            ColorPicker("Custom Color", selection: Binding(
-                get: { selectedColor },
-                set: { color in
-                    selectedColor = color
-                    onColorSelected(color)
-                }
-            ))
-            .padding(.horizontal)
-            .padding(.bottom)
+            // Pressure settings
+            Toggle("Pressure Sensitivity", isOn: $viewModel.pressureSensitive)
+                .font(Typography.subheadline)
+            
+            Toggle("Tilt Support", isOn: $viewModel.tiltSupport)
+                .font(Typography.subheadline)
         }
-        .frame(width: 220, height: 400)
+        .padding()
+        .frame(width: DeviceType.current.isIPad ? 300 : nil)
     }
 }
 
-// MARK: - Export Modal
-struct ExportModalView: View {
-    @ObservedObject var controller: CanvasController
-    @Environment(\.dismiss) private var dismiss
+// MARK: - Layers Panel
+struct LayersPanel: View {
+    @ObservedObject var viewModel: DrawingViewModel
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 24) {
-                if let image = controller.createExportImage() {
-                    // Preview
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: 300)
-                        .background(Color.white)
-                        .cornerRadius(16)
-                        .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
-                    
-                    // Export options
-                    VStack(spacing: 16) {
-                        ExportButton(
-                            title: "Save to Photos",
-                            icon: "photo",
-                            color: .blue,
-                            action: {
-                                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                                dismiss()
-                            }
-                        )
-                        
-                        ExportButton(
-                            title: "Share",
-                            icon: "square.and.arrow.up",
-                            color: .green,
-                            action: { shareImage(image) }
-                        )
+        VStack(spacing: 0) {
+            // Layer controls
+            HStack {
+                Button(action: viewModel.addLayer) {
+                    Image(systemName: "plus")
+                }
+                
+                Button(action: viewModel.duplicateLayer) {
+                    Image(systemName: "doc.on.doc")
+                }
+                .disabled(viewModel.layers.isEmpty)
+                
+                Button(action: viewModel.deleteLayer) {
+                    Image(systemName: "trash")
+                }
+                .disabled(viewModel.layers.count <= 1)
+                
+                Spacer()
+                
+                Menu {
+                    ForEach(BlendMode.allCases, id: \.self) { mode in
+                        Button(mode.rawValue) {
+                            viewModel.currentBlendMode = mode
+                        }
                     }
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "photo.badge.plus")
-                            .font(.system(size: 60))
-                            .foregroundColor(.secondary)
-                        
-                        Text("No artwork to export")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        Text("Start drawing to create something amazing!")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
+                } label: {
+                    Text(viewModel.currentBlendMode.rawValue)
+                        .font(Typography.caption)
                 }
             }
             .padding()
-            .navigationTitle("Export Artwork")
+            
+            Divider()
+            
+            // Layers list
+            ScrollView {
+                VStack(spacing: 8) {
+                    ForEach(viewModel.layers.reversed()) { layer in
+                        LayerRow(
+                            layer: layer,
+                            isSelected: viewModel.currentLayer?.id == layer.id,
+                            onTap: {
+                                viewModel.selectLayer(layer)
+                            },
+                            onVisibilityToggle: {
+                                viewModel.toggleLayerVisibility(layer)
+                            }
+                        )
+                    }
+                }
+                .padding()
+            }
+        }
+        .frame(width: DeviceType.current.isIPad ? 280 : nil)
+    }
+}
+
+// MARK: - Layer Row
+struct LayerRow: View {
+    let layer: DrawingLayer
+    let isSelected: Bool
+    let onTap: () -> Void
+    let onVisibilityToggle: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Thumbnail
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color(.systemGray5))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: "photo")
+                        .foregroundColor(.gray)
+                )
+            
+            // Layer info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(layer.name)
+                    .font(Typography.subheadline)
+                    .foregroundColor(ColorPalette.textPrimary)
+                
+                Text("\(Int(layer.opacity * 100))% • \(layer.blendMode.rawValue)")
+                    .font(Typography.caption)
+                    .foregroundColor(ColorPalette.textSecondary)
+            }
+            
+            Spacer()
+            
+            // Visibility toggle
+            Button(action: onVisibilityToggle) {
+                Image(systemName: layer.isVisible ? "eye" : "eye.slash")
+                    .foregroundColor(ColorPalette.textSecondary)
+            }
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isSelected ? ColorPalette.primaryBlue.opacity(0.1) : Color.clear)
+        )
+        .onTapGesture(perform: onTap)
+    }
+}
+
+// MARK: - Floating Panel
+struct FloatingPanel<Content: View>: View {
+    let title: String
+    @Binding var isPresented: Bool
+    let position: PanelPosition
+    let content: () -> Content
+    
+    enum PanelPosition {
+        case center, topTrailing, trailing, bottom
+    }
+    
+    @State private var dragOffset = CGSize.zero
+    
+    var body: some View {
+        ZStack {
+            // Dimmed background for center position
+            if position == .center {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        isPresented = false
+                    }
+            }
+            
+            VStack(spacing: 0) {
+                // Handle
+                SheetHandle()
+                
+                // Title bar
+                HStack {
+                    Text(title)
+                        .font(Typography.headline)
+                    
+                    Spacer()
+                    
+                    Button(action: { isPresented = false }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(ColorPalette.textSecondary)
+                    }
+                }
+                .padding()
+                
+                Divider()
+                
+                // Content
+                content()
+            }
+            .background(ColorPalette.surface)
+            .cornerRadius(Dimensions.cornerRadiusLarge)
+            .shadow(
+                color: ShadowStyle.elevated.color,
+                radius: ShadowStyle.elevated.radius
+            )
+            .offset(dragOffset)
+            .frame(maxWidth: panelMaxWidth, maxHeight: panelMaxHeight)
+            .padding(panelPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: panelAlignment)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        dragOffset = value.translation
+                    }
+                    .onEnded { _ in
+                        withAnimation(AnimationPresets.smooth) {
+                            dragOffset = .zero
+                        }
+                    }
+            )
+        }
+        .transition(panelTransition)
+        .animation(AnimationPresets.smooth, value: isPresented)
+    }
+    
+    private var panelMaxWidth: CGFloat? {
+        switch position {
+        case .center: return 400
+        case .topTrailing, .trailing: return 320
+        case .bottom: return .infinity
+        }
+    }
+    
+    private var panelMaxHeight: CGFloat? {
+        switch position {
+        case .center, .topTrailing, .trailing: return 600
+        case .bottom: return 400
+        }
+    }
+    
+    private var panelPadding: EdgeInsets {
+        switch position {
+        case .center: return EdgeInsets()
+        case .topTrailing: return EdgeInsets(top: 100, leading: 0, bottom: 0, trailing: 20)
+        case .trailing: return EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 20)
+        case .bottom: return EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20)
+        }
+    }
+    
+    private var panelAlignment: Alignment {
+        switch position {
+        case .center: return .center
+        case .topTrailing: return .topTrailing
+        case .trailing: return .trailing
+        case .bottom: return .bottom
+        }
+    }
+    
+    private var panelTransition: AnyTransition {
+        switch position {
+        case .center: return .scale.combined(with: .opacity)
+        case .topTrailing, .trailing: return .move(edge: .trailing).combined(with: .opacity)
+        case .bottom: return .move(edge: .bottom).combined(with: .opacity)
+        }
+    }
+}
+
+// MARK: - Export Options Sheet
+struct ExportOptionsSheet: View {
+    @ObservedObject var viewModel: DrawingViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var exportFormat: ExportFormat = .png
+    @State private var includeBackground = true
+    @State private var exportQuality: Double = 1.0
+    
+    enum ExportFormat: String, CaseIterable {
+        case png = "PNG"
+        case jpeg = "JPEG"
+        case pdf = "PDF"
+        case psd = "PSD"
+        
+        var icon: String {
+            switch self {
+            case .png: return "doc.richtext"
+            case .jpeg: return "photo"
+            case .pdf: return "doc.text"
+            case .psd: return "square.stack.3d.up"
+            }
+        }
+    }
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Format") {
+                    Picker("Export Format", selection: $exportFormat) {
+                        ForEach(ExportFormat.allCases, id: \.self) { format in
+                            Label(format.rawValue, systemImage: format.icon)
+                                .tag(format)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                }
+                
+                Section("Options") {
+                    Toggle("Include Background", isOn: $includeBackground)
+                    
+                    if exportFormat == .jpeg {
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Quality")
+                                Spacer()
+                                Text("\(Int(exportQuality * 100))%")
+                                    .foregroundColor(ColorPalette.textSecondary)
+                            }
+                            
+                            Slider(value: $exportQuality, in: 0.1...1.0)
+                        }
+                    }
+                }
+                
+                Section("Actions") {
+                    Button(action: { exportTo(.photos) }) {
+                        Label("Save to Photos", systemImage: "photo.on.rectangle")
+                    }
+                    
+                    Button(action: { exportTo(.files) }) {
+                        Label("Save to Files", systemImage: "folder")
+                    }
+                    
+                    Button(action: { exportTo(.share) }) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+            .navigationTitle("Export")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        dismiss()
+                    }
                 }
             }
         }
     }
     
-    private func shareImage(_ image: UIImage) {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else { return }
-        
-        let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
-        
-        if let popover = activityVC.popoverPresentationController {
-            popover.sourceView = window
-            popover.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
-            popover.permittedArrowDirections = []
-        }
-        
-        window.rootViewController?.present(activityVC, animated: true)
+    private func exportTo(_ destination: ExportDestination) {
+        viewModel.export(
+            format: exportFormat,
+            includeBackground: includeBackground,
+            quality: exportQuality,
+            to: destination
+        )
+        dismiss()
     }
 }
 
-// MARK: - Export Button
-struct ExportButton: View {
-    let title: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(
-                            LinearGradient(
-                                colors: [color, color.opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
-                .shadow(color: color.opacity(0.3), radius: 8, y: 4)
-        }
-    }
+enum ExportDestination {
+    case photos, files, share
 }
 
-#Preview {
-    DrawingView()
+// MARK: - Drawing Models
+enum BlendMode: String, CaseIterable {
+    case normal = "Normal"
+    case multiply = "Multiply"
+    case screen = "Screen"
+    case overlay = "Overlay"
+}
+
+struct DrawingLayer: Identifiable {
+    let id = UUID()
+    var name: String
+    var opacity: Double = 1.0
+    var isVisible = true
+    var isLocked = false
+    var blendMode: BlendMode = .normal
+    var drawing: PKDrawing = PKDrawing()
 }

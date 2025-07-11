@@ -1,5 +1,5 @@
-// MARK: - Enhanced Lessons View with Visible XP System
-// File: ArtOfTheFuture/Features/Lessons/Views/LessonsView.swift
+// MARK: - Modern Lessons View
+// **REPLACE:** ArtOfTheFuture/Features/Lessons/Views/LessonsView.swift
 
 import SwiftUI
 
@@ -7,367 +7,491 @@ struct LessonsView: View {
     @StateObject private var viewModel = LessonsViewModel()
     @State private var selectedLesson: Lesson?
     @State private var searchText = ""
-    @State private var showingXPAnimation = false
+    @State private var showFilters = false
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    
+    private let adaptiveColumns = [
+        GridItem(.adaptive(minimum: DeviceType.current.isIPad ? 350 : 300), spacing: Dimensions.paddingMedium)
+    ]
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // XP and Level Header
-                    xpHeaderSection
-                    
-                    // Progress Overview
-                    if viewModel.lessons.count > 0 {
-                        ProgressOverviewCard(
-                            completedCount: viewModel.completedLessonsCount,
-                            totalCount: viewModel.lessons.count,
-                            totalXP: viewModel.totalXPEarned,
-                            currentXP: viewModel.currentTotalXP
-                        )
-                        .padding(.horizontal)
-                    }
-                    
-                    // Filter Buttons
-                    FilterButtonsView(
-                        selectedFilter: $viewModel.selectedFilter,
-                        onFilterChanged: viewModel.filterLessons
-                    )
-                    .padding(.horizontal)
-                    
-                    // Lessons Grid
-                    LazyVStack(spacing: 12) {
-                        ForEach(viewModel.filteredLessons) { lesson in
-                            EnhancedLessonCard(
-                                lesson: lesson,
-                                isCompleted: viewModel.completedLessons.contains(lesson.id),
-                                isLocked: !viewModel.unlockedLessons.contains(lesson.id) && lesson.id != "lesson_001"
-                            ) {
-                                print("📚 Opening lesson: \(lesson.title)")
-                                selectedLesson = lesson
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
-                }
-                .padding(.vertical)
+        ZStack {
+            // Background
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
+            
+            // Content
+            if DeviceType.current.isIPad && horizontalSizeClass == .regular {
+                iPadLayout
+            } else {
+                iPhoneLayout
             }
-            .navigationTitle("Learn")
-            .searchable(text: $searchText, prompt: "Search lessons")
-            .onChange(of: searchText) { oldValue, newValue in
-                viewModel.searchLessons(query: newValue)
-            }
-            .background(Color(.systemGroupedBackground))
-            .refreshable {
-                await viewModel.loadLessons()
-            }
+            
+            // Floating filter button
+            floatingFilterButton
         }
-        .sheet(item: $selectedLesson) { lesson in
-            LessonPlayerView(lesson: lesson)
-                .onDisappear {
-                    // Refresh when returning from lesson
-                    Task {
-                        let previousXP = viewModel.currentTotalXP
-                        await viewModel.loadLessons()
-                        
-                        // Show XP gain animation if XP increased
-                        if viewModel.currentTotalXP > previousXP {
-                            showingXPAnimation = true
-                        }
-                    }
-                }
-        }
-        .overlay(
-            Group {
-                if showingXPAnimation {
-                    XPGainOverlay(
-                        xpGained: viewModel.currentTotalXP - viewModel.previousXP,
-                        newLevel: viewModel.currentLevel,
-                        onDismiss: {
-                            showingXPAnimation = false
-                        }
-                    )
-                }
-            }
-        )
         .task {
             await viewModel.loadLessons()
         }
-    }
-    
-    // MARK: - XP Header Section
-    private var xpHeaderSection: some View {
-        HStack(spacing: 16) {
-            // Level Badge
-            VStack(spacing: 4) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.yellow, .orange],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 60, height: 60)
-                    
-                    Text("\(viewModel.currentLevel)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                }
-                
-                Text("Level")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            // XP Progress
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("\(viewModel.currentTotalXP) XP")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                    
-                    Spacer()
-                    
-                    Text("\(viewModel.xpToNextLevel) to next level")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                // XP Progress Bar
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(.systemGray5))
-                            .frame(height: 12)
-                        
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: geometry.size.width * viewModel.levelProgress, height: 12)
-                            .animation(.spring(response: 0.6), value: viewModel.levelProgress)
-                    }
-                }
-                .frame(height: 12)
+        .sheet(item: $selectedLesson) { lesson in
+            NavigationView {
+                LessonPlayerView(lesson: lesson)
             }
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
-        .padding(.horizontal)
-    }
-}
-
-// MARK: - Enhanced Progress Overview Card
-struct ProgressOverviewCard: View {
-    let completedCount: Int
-    let totalCount: Int
-    let totalXP: Int
-    let currentXP: Int
-    
-    private var progress: Double {
-        guard totalCount > 0 else { return 0 }
-        return Double(completedCount) / Double(totalCount)
+        .sheet(isPresented: $showFilters) {
+            FiltersSheet(viewModel: viewModel)
+        }
     }
     
-    var body: some View {
-        VStack(spacing: 16) {
+    // MARK: - iPhone Layout
+    private var iPhoneLayout: some View {
+        VStack(spacing: 0) {
+            // Custom Navigation Bar
+            customNavigationBar
+            
+            ScrollView {
+                VStack(spacing: Dimensions.paddingLarge) {
+                    // Progress Overview
+                    progressOverview
+                        .padding(.horizontal)
+                    
+                    // Category Pills
+                    categoryPills
+                    
+                    // Lessons List
+                    lessonsList
+                        .padding(.horizontal)
+                }
+                .padding(.vertical)
+            }
+        }
+    }
+    
+    // MARK: - iPad Layout
+    private var iPadLayout: some View {
+        NavigationView {
+            // Sidebar
+            sidebarContent
+                .navigationTitle("Learn")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: { showFilters = true }) {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                                .symbolVariant(viewModel.hasActiveFilters ? .fill : .none)
+                        }
+                    }
+                }
+            
+            // Detail view
+            ZStack {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
+                
+                VStack {
+                    progressOverview
+                        .padding()
+                    
+                    Text("Select a lesson to begin")
+                        .font(Typography.headline)
+                        .foregroundColor(ColorPalette.textSecondary)
+                }
+            }
+        }
+        .navigationViewStyle(DoubleColumnNavigationViewStyle())
+    }
+    
+    // MARK: - Custom Navigation Bar
+    private var customNavigationBar: some View {
+        VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Your Progress")
-                        .font(.headline)
-                    Text("\(completedCount) of \(totalCount) lessons completed")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text("Learn")
+                        .font(Typography.largeTitle)
+                        .foregroundColor(ColorPalette.textPrimary)
+                    
+                    if viewModel.currentStreak > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "flame.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            
+                            Text("\(viewModel.currentStreak) day streak")
+                                .font(Typography.caption)
+                                .foregroundColor(ColorPalette.textSecondary)
+                        }
+                    }
                 }
                 
                 Spacer()
                 
-                VStack(alignment: .trailing, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
-                            .font(.caption)
+                // Level Badge
+                ZStack {
+                    Circle()
+                        .fill(ColorPalette.warningGradient)
+                        .frame(width: 48, height: 48)
+                    
+                    Text("\(viewModel.currentLevel)")
+                        .font(Typography.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, Dimensions.paddingSmall)
+            
+            // Search Bar
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(ColorPalette.textSecondary)
+                
+                TextField("Search lessons", text: $searchText)
+                    .font(Typography.body)
+                
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(ColorPalette.textSecondary)
+                    }
+                }
+            }
+            .padding(12)
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+            .padding(.horizontal)
+            .padding(.bottom, Dimensions.paddingSmall)
+        }
+        .background(.ultraThinMaterial)
+    }
+    
+    // MARK: - Progress Overview
+    private var progressOverview: some View {
+        PremiumCard {
+            VStack(spacing: Dimensions.paddingMedium) {
+                // Header
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Your Progress")
+                            .font(Typography.headline)
                         
-                        Text("\(currentXP)")
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(.blue)
-                    }
-                    
-                    Text("Total XP")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            // Progress Bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(.systemGray5))
-                        .frame(height: 8)
-                    
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geometry.size.width * progress, height: 8)
-                        .animation(.spring(response: 0.6), value: progress)
-                }
-            }
-            .frame(height: 8)
-            
-            // XP Breakdown
-            if currentXP > 0 {
-                HStack(spacing: 20) {
-                    VStack(spacing: 2) {
-                        Text("\(totalXP)")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.green)
-                        Text("From Lessons")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    VStack(spacing: 2) {
-                        Text("\(currentXP - totalXP)")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.orange)
-                        Text("From Other")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        Text("\(viewModel.completedLessonsCount) of \(viewModel.lessons.count) completed")
+                            .font(Typography.subheadline)
+                            .foregroundColor(ColorPalette.textSecondary)
                     }
                     
                     Spacer()
                     
-                    VStack(spacing: 2) {
-                        Text("\(Int(progress * 100))%")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.blue)
-                        Text("Complete")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                    // Total XP
+                    VStack(alignment: .trailing, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                                .foregroundColor(.yellow)
+                                .font(.title3)
+                            
+                            Text("\(viewModel.currentTotalXP)")
+                                .font(Typography.title2)
+                                .fontWeight(.bold)
+                                .foregroundStyle(ColorPalette.warningGradient)
+                        }
+                        
+                        Text("Total XP")
+                            .font(Typography.caption)
+                            .foregroundColor(ColorPalette.textSecondary)
                     }
                 }
-                .padding(.top, 8)
+                
+                // Progress Bar
+                CircularProgressBar(
+                    progress: viewModel.overallProgress,
+                    gradient: ColorPalette.primaryGradient
+                )
+                
+                // Stats Grid
+                HStack(spacing: Dimensions.paddingMedium) {
+                    ProgressStatItem(
+                        value: "\(viewModel.totalHoursLearned)",
+                        label: "Hours",
+                        icon: "clock.fill",
+                        color: .blue
+                    )
+                    
+                    ProgressStatItem(
+                        value: "\(viewModel.averageAccuracy)%",
+                        label: "Accuracy",
+                        icon: "target",
+                        color: .green
+                    )
+                    
+                    ProgressStatItem(
+                        value: "\(viewModel.skillsUnlocked)",
+                        label: "Skills",
+                        icon: "sparkles",
+                        color: .purple
+                    )
+                }
             }
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
+    }
+    
+    // MARK: - Category Pills
+    private var categoryPills: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                CategoryPill(
+                    title: "All",
+                    icon: "square.grid.2x2",
+                    isSelected: viewModel.selectedCategory == nil,
+                    action: { viewModel.selectedCategory = nil }
+                )
+                
+                ForEach(LessonCategory.allCases, id: \.self) { category in
+                    CategoryPill(
+                        title: category.rawValue,
+                        icon: category.iconName,
+                        isSelected: viewModel.selectedCategory == category,
+                        action: { viewModel.selectedCategory = category }
+                    )
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    // MARK: - Lessons List
+    private var lessonsList: some View {
+        LazyVStack(spacing: Dimensions.paddingSmall) {
+            ForEach(viewModel.filteredLessons) { lesson in
+                ModernLessonCard(
+                    lesson: lesson,
+                    progress: viewModel.getLessonProgress(for: lesson.id),
+                    isLocked: viewModel.isLessonLocked(lesson.id),
+                    isCompleted: viewModel.completedLessons.contains(lesson.id),
+                    action: {
+                        if !viewModel.isLessonLocked(lesson.id) {
+                            selectedLesson = lesson
+                        }
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .scale.combined(with: .opacity),
+                    removal: .scale.combined(with: .opacity)
+                ))
+            }
+        }
+    }
+    
+    // MARK: - Sidebar Content (iPad)
+    private var sidebarContent: some View {
+        List {
+            // Progress section
+            Section {
+                progressOverview
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            }
+            
+            // Categories
+            Section("Categories") {
+                ForEach(LessonCategory.allCases, id: \.self) { category in
+                    Label(category.rawValue, systemImage: category.iconName)
+                        .foregroundColor(viewModel.selectedCategory == category ? ColorPalette.primaryBlue : ColorPalette.textPrimary)
+                        .onTapGesture {
+                            viewModel.selectedCategory = category
+                        }
+                }
+            }
+            
+            // Lessons
+            Section("Lessons") {
+                ForEach(viewModel.filteredLessons) { lesson in
+                    LessonListRow(
+                        lesson: lesson,
+                        isCompleted: viewModel.completedLessons.contains(lesson.id),
+                        isLocked: viewModel.isLessonLocked(lesson.id),
+                        onTap: {
+                            selectedLesson = lesson
+                        }
+                    )
+                }
+            }
+        }
+        .listStyle(SidebarListStyle())
+        .searchable(text: $searchText)
+    }
+    
+    // MARK: - Floating Filter Button
+    private var floatingFilterButton: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                
+                if viewModel.hasActiveFilters {
+                    Text("\(viewModel.activeFilterCount)")
+                        .font(Typography.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(width: 20, height: 20)
+                        .background(Circle().fill(ColorPalette.error))
+                        .offset(x: -12, y: 12)
+                }
+                
+                IconButton(
+                    icon: "line.3.horizontal.decrease.circle.fill",
+                    size: .large,
+                    style: .primary,
+                    action: { showFilters = true }
+                )
+                .shadow(
+                    color: ColorPalette.primaryBlue.opacity(0.3),
+                    radius: 12,
+                    y: 6
+                )
+            }
+            .padding(.trailing, Dimensions.paddingMedium)
+            .padding(.bottom, DeviceType.current.isIPad ? 100 : 80)
+        }
     }
 }
 
-// MARK: - Enhanced Lesson Card with XP Display
-struct EnhancedLessonCard: View {
+// MARK: - Modern Lesson Card
+struct ModernLessonCard: View {
     let lesson: Lesson
-    let isCompleted: Bool
+    let progress: Double?
     let isLocked: Bool
+    let isCompleted: Bool
     let action: () -> Void
     
+    @State private var isPressed = false
+    
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                // Status Icon
-                ZStack {
-                    Circle()
-                        .fill(statusColor)
-                        .frame(width: 60, height: 60)
+        Button(action: {
+            HapticManager.shared.impact(.medium)
+            action()
+        }) {
+            PremiumCard(backgroundColor: cardBackgroundColor) {
+                HStack(spacing: Dimensions.paddingMedium) {
+                    // Visual Element
+                    lessonVisual
                     
-                    Image(systemName: statusIcon)
-                        .foregroundColor(.white)
-                        .font(.title2)
-                }
-                
-                // Content
-                VStack(alignment: .leading, spacing: 6) {
-                    // Title and XP Badge
-                    HStack {
-                        Text(lesson.title)
-                            .font(.headline)
-                            .foregroundColor(isLocked ? .secondary : .primary)
-                            .lineLimit(1)
+                    // Content
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Title and category
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(lesson.title)
+                                .font(Typography.headline)
+                                .foregroundColor(ColorPalette.textPrimary)
+                                .lineLimit(1)
+                            
+                            HStack(spacing: 8) {
+                                Label(lesson.category.rawValue, systemImage: lesson.category.iconName)
+                                    .font(Typography.caption)
+                                    .foregroundColor(lesson.category.categoryColor)
+                                
+                                Text("•")
+                                    .foregroundColor(ColorPalette.textTertiary)
+                                
+                                Text(lesson.difficulty.rawValue)
+                                    .font(Typography.caption)
+                                    .foregroundColor(lesson.difficulty.difficultyColor)
+                            }
+                        }
                         
-                        Spacer()
+                        // Description
+                        Text(lesson.description)
+                            .font(Typography.subheadline)
+                            .foregroundColor(ColorPalette.textSecondary)
+                            .lineLimit(2)
                         
-                        if !isLocked {
-                            XPBadge(xp: lesson.xpReward, isCompleted: isCompleted)
+                        // Bottom row
+                        HStack(spacing: Dimensions.paddingMedium) {
+                            // Duration
+                            HStack(spacing: 4) {
+                                Image(systemName: "clock")
+                                    .font(.caption)
+                                Text("\(lesson.estimatedMinutes)m")
+                                    .font(Typography.caption)
+                            }
+                            .foregroundColor(ColorPalette.textTertiary)
+                            
+                            // XP
+                            if !isLocked {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "star.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.yellow)
+                                    Text("\(lesson.xpReward) XP")
+                                        .font(Typography.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.yellow)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.yellow.opacity(0.2))
+                                .cornerRadius(8)
+                            }
+                            
+                            Spacer()
+                            
+                            // Status indicator
+                            statusIndicator
                         }
                     }
-                    
-                    Text(lesson.description)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                    
-                    // Stats
-                    HStack(spacing: 16) {
-                        Label("\(lesson.estimatedMinutes)m", systemImage: "clock")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Label("\(lesson.steps.count) steps", systemImage: "list.number")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        Text(lesson.difficulty.rawValue)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(lesson.difficulty.difficultyColor)
-                    }
                 }
-                
-                // Chevron or lock
-                Image(systemName: isLocked ? "lock.fill" : "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.05), radius: 3, y: 1)
+            .opacity(isLocked ? 0.6 : 1)
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        isCompleted ? Color.green.opacity(0.3) : Color.clear,
-                        lineWidth: 2
-                    )
+                isCompleted ?
+                RoundedRectangle(cornerRadius: Dimensions.cornerRadiusMedium)
+                    .stroke(ColorPalette.primaryGreen, lineWidth: 2)
+                : nil
             )
-            .opacity(isLocked ? 0.6 : 1.0)
+            .scaleEffect(isPressed ? 0.98 : 1)
         }
+        .buttonStyle(PressedButtonStyle())
         .disabled(isLocked)
-        .buttonStyle(.plain)
     }
     
-    private var statusColor: Color {
-        if isLocked {
-            return .gray
-        } else if isCompleted {
-            return .green
+    private var cardBackgroundColor: Color {
+        if isCompleted {
+            return ColorPalette.primaryGreen.opacity(0.05)
+        } else if isLocked {
+            return Color(.systemGray6)
         } else {
-            return lesson.category.categoryColor
+            return ColorPalette.surface
         }
     }
     
-    private var statusIcon: String {
+    @ViewBuilder
+    private var lessonVisual: some View {
+        ZStack {
+            if let progress = progress, !isCompleted {
+                CircularProgressView(
+                    progress: progress,
+                    lineWidth: 6,
+                    size: DeviceType.current.isIPad ? 80 : 70,
+                    gradient: ColorPalette.primaryGradient
+                )
+            } else {
+                Circle()
+                    .fill(
+                        isLocked ? Color(.systemGray5) :
+                        isCompleted ? ColorPalette.successGradient :
+                        LinearGradient(
+                            colors: [lesson.category.categoryColor.opacity(0.3), lesson.category.categoryColor.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: DeviceType.current.isIPad ? 80 : 70, height: DeviceType.current.isIPad ? 80 : 70)
+            }
+            
+            Image(systemName: lessonIcon)
+                .font(.system(size: DeviceType.current.isIPad ? 32 : 28))
+                .foregroundColor(iconColor)
+        }
+    }
+    
+    private var lessonIcon: String {
         if isLocked {
             return "lock.fill"
         } else if isCompleted {
@@ -376,314 +500,308 @@ struct EnhancedLessonCard: View {
             return lesson.category.iconName
         }
     }
-}
-
-// MARK: - XP Badge
-struct XPBadge: View {
-    let xp: Int
-    let isCompleted: Bool
     
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "star.fill")
-                .font(.caption2)
-                .foregroundColor(isCompleted ? .yellow : .orange)
-            
-            Text("\(xp)")
+    private var iconColor: Color {
+        if isLocked {
+            return .gray
+        } else if isCompleted {
+            return .white
+        } else {
+            return lesson.category.categoryColor
+        }
+    }
+    
+    @ViewBuilder
+    private var statusIndicator: some View {
+        if isCompleted {
+            Image(systemName: "checkmark.seal.fill")
+                .foregroundColor(.green)
+                .font(.title3)
+        } else if !isLocked {
+            Image(systemName: "chevron.right")
+                .foregroundColor(ColorPalette.textTertiary)
                 .font(.caption)
-                .fontWeight(.bold)
-                .foregroundColor(isCompleted ? .yellow : .orange)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isCompleted ? Color.yellow.opacity(0.2) : Color.orange.opacity(0.2))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isCompleted ? Color.yellow : Color.orange, lineWidth: 1)
-        )
-    }
-}
-
-// MARK: - XP Gain Overlay
-struct XPGainOverlay: View {
-    let xpGained: Int
-    let newLevel: Int
-    let onDismiss: () -> Void
-    
-    @State private var isAnimating = false
-    
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.3)
-                .ignoresSafeArea()
-                .onTapGesture(perform: onDismiss)
-            
-            VStack(spacing: 24) {
-                // XP Stars Animation
-                ZStack {
-                    ForEach(0..<5, id: \.self) { index in
-                        Image(systemName: "star.fill")
-                            .font(.title)
-                            .foregroundColor(.yellow)
-                            .offset(
-                                x: isAnimating ? CGFloat.random(in: -50...50) : 0,
-                                y: isAnimating ? CGFloat.random(in: -50...50) : 0
-                            )
-                            .opacity(isAnimating ? 0.3 : 1.0)
-                            .animation(
-                                .easeOut(duration: 1.0).delay(Double(index) * 0.1),
-                                value: isAnimating
-                            )
-                    }
-                    
-                    Text("+\(xpGained)")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .scaleEffect(isAnimating ? 1.2 : 0.8)
-                        .animation(.spring(response: 0.6), value: isAnimating)
-                }
-                
-                VStack(spacing: 8) {
-                    Text("XP Earned!")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                    
-                    Text("Keep up the great work!")
-                        .font(.body)
-                        .foregroundColor(.white.opacity(0.8))
-                }
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
-            )
-            .padding()
-        }
-        .onAppear {
-            withAnimation {
-                isAnimating = true
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                onDismiss()
-            }
         }
     }
 }
 
-// MARK: - Enhanced Lessons View Model with XP Tracking
-@MainActor
-final class LessonsViewModel: ObservableObject {
-    @Published var lessons: [Lesson] = []
-    @Published var filteredLessons: [Lesson] = []
-    @Published var selectedFilter: LessonFilter = .all
-    @Published var isLoading = false
-    @Published var searchQuery = ""
-    @Published var completedLessons: Set<String> = []
-    @Published var unlockedLessons: Set<String> = ["lesson_001"]
-    
-    // XP Tracking
-    @Published var currentTotalXP = 0
-    @Published var currentLevel = 1
-    @Published var levelProgress: Double = 0
-    @Published var xpToNextLevel = 100
-    @Published var previousXP = 0
-    
-    private let lessonService: LessonServiceProtocol
-    private let progressService: ProgressServiceProtocol
-    
-    var completedLessonsCount: Int {
-        completedLessons.count
-    }
-    
-    var totalXPEarned: Int {
-        lessons.filter { completedLessons.contains($0.id) }
-               .reduce(0) { $0 + $1.xpReward }
-    }
-    
-    init() {
-        self.lessonService = LessonService.shared
-        self.progressService = Container.shared.progressService
-    }
-    
-    func loadLessons() async {
-        isLoading = true
-        print("🔄 Loading lessons with completion status...")
-        
-        // Store previous XP for animation detection
-        previousXP = currentTotalXP
-        
-        do {
-            // Load lessons
-            lessons = try await lessonService.getAllLessons()
-            print("✅ Loaded \(lessons.count) lessons")
-            
-            // Load completion status
-            await loadCompletionStatus()
-            
-            // Load XP data
-            await loadXPData()
-            
-            // Apply filters
-            applyFilters()
-            
-        } catch {
-            print("❌ Error loading lessons: \(error)")
-        }
-        
-        isLoading = false
-    }
-    
-    private func loadXPData() async {
-        let progressService = self.progressService as! ProgressService
-        currentTotalXP = progressService.getTotalXP()
-        
-        // Calculate level and progress
-        currentLevel = (currentTotalXP / 100) + 1
-        let currentLevelXP = currentTotalXP % 100
-        levelProgress = Double(currentLevelXP) / 100.0
-        xpToNextLevel = 100 - currentLevelXP
-        
-        print("📊 XP Data: Total=\(currentTotalXP), Level=\(currentLevel), Progress=\(levelProgress)")
-    }
-    
-    private func loadCompletionStatus() async {
-        let defaults = UserDefaults.standard
-        
-        if let completedArray = defaults.array(forKey: "completedLessons") as? [String] {
-            completedLessons = Set(completedArray)
-            print("📚 Found \(completedLessons.count) completed lessons: \(completedLessons)")
-        }
-        
-        var newUnlockedLessons: Set<String> = ["lesson_001"]
-        
-        for lesson in lessons {
-            if lesson.prerequisites.allSatisfy({ completedLessons.contains($0) }) {
-                newUnlockedLessons.insert(lesson.id)
-            }
-            
-            if completedLessons.contains(lesson.id) {
-                for unlockedId in lesson.unlocks {
-                    newUnlockedLessons.insert(unlockedId)
-                }
-            }
-        }
-        
-        unlockedLessons = newUnlockedLessons
-        print("🔓 Unlocked lessons: \(unlockedLessons)")
-    }
-    
-    func filterLessons(by filter: LessonFilter) {
-        selectedFilter = filter
-        applyFilters()
-    }
-    
-    func searchLessons(query: String) {
-        searchQuery = query
-        applyFilters()
-    }
-    
-    private func applyFilters() {
-        var filtered = lessons
-        
-        switch selectedFilter {
-        case .all:
-            break
-        case .drawing:
-            filtered = filtered.filter { $0.type == .drawingPractice }
-        case .theory:
-            filtered = filtered.filter { $0.type == .theoryFundamentals }
-        case .challenges:
-            filtered = filtered.filter { $0.type == .creativeChallenge }
-        case .completed:
-            filtered = filtered.filter { completedLessons.contains($0.id) }
-        case .available:
-            filtered = filtered.filter { unlockedLessons.contains($0.id) }
-        }
-        
-        if !searchQuery.isEmpty {
-            filtered = filtered.filter { lesson in
-                lesson.title.localizedCaseInsensitiveContains(searchQuery) ||
-                lesson.description.localizedCaseInsensitiveContains(searchQuery)
-            }
-        }
-        
-        filteredLessons = filtered
-    }
-}
-
-// MARK: - Supporting Views (FilterButtonsView, etc. remain the same)
-struct FilterButtonsView: View {
-    @Binding var selectedFilter: LessonFilter
-    let onFilterChanged: (LessonFilter) -> Void
-    
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(LessonFilter.allCases, id: \.self) { filter in
-                    FilterButton(
-                        title: filter.displayName,
-                        isSelected: selectedFilter == filter,
-                        action: {
-                            selectedFilter = filter
-                            onFilterChanged(filter)
-                        }
-                    )
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-}
-
-struct FilterButton: View {
+// MARK: - Category Pill
+struct CategoryPill: View {
     let title: String
+    let icon: String
     let isSelected: Bool
     let action: () -> Void
     
     var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(isSelected ? .white : .primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    Capsule()
-                        .fill(isSelected ? Color.blue : Color(.systemGray5))
-                )
+        Button(action: {
+            HapticManager.shared.selection()
+            action()
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.subheadline)
+                
+                Text(title)
+                    .font(Typography.subheadline)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(isSelected ? .white : ColorPalette.textPrimary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(isSelected ? ColorPalette.primaryGradient : LinearGradient(colors: [Color(.systemGray5)], startPoint: .leading, endPoint: .trailing))
+            )
+            .overlay(
+                !isSelected ?
+                Capsule()
+                    .stroke(Color(.systemGray4), lineWidth: 1)
+                : nil
+            )
         }
         .buttonStyle(.plain)
     }
 }
 
-enum LessonFilter: String, CaseIterable {
-    case all = "all"
-    case drawing = "drawing"
-    case theory = "theory"
-    case challenges = "challenges"
-    case completed = "completed"
-    case available = "available"
+// MARK: - Progress Stat Item
+struct ProgressStatItem: View {
+    let value: String
+    let label: String
+    let icon: String
+    let color: Color
     
-    var displayName: String {
-        switch self {
-        case .all: return "All"
-        case .drawing: return "Drawing"
-        case .theory: return "Theory"
-        case .challenges: return "Challenges"
-        case .completed: return "Completed"
-        case .available: return "Available"
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(Typography.headline)
+                .fontWeight(.bold)
+            
+            Text(label)
+                .font(Typography.caption)
+                .foregroundColor(ColorPalette.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Circular Progress Bar
+struct CircularProgressBar: View {
+    let progress: Double
+    let gradient: LinearGradient
+    
+    @State private var animatedProgress: Double = 0
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.systemGray5))
+                    .frame(height: 16)
+                
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(gradient)
+                    .frame(width: geometry.size.width * animatedProgress, height: 16)
+            }
+        }
+        .frame(height: 16)
+        .onAppear {
+            withAnimation(AnimationPresets.smooth.delay(0.2)) {
+                animatedProgress = progress
+            }
         }
     }
 }
 
-#Preview {
-    LessonsView()
+// MARK: - Lesson List Row (iPad)
+struct LessonListRow: View {
+    let lesson: Lesson
+    let isCompleted: Bool
+    let isLocked: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        HStack {
+            Image(systemName: isLocked ? "lock.fill" : lesson.category.iconName)
+                .foregroundColor(isLocked ? .gray : lesson.category.categoryColor)
+                .frame(width: 30)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(lesson.title)
+                    .font(Typography.subheadline)
+                    .foregroundColor(ColorPalette.textPrimary)
+                
+                HStack(spacing: 8) {
+                    Text("\(lesson.estimatedMinutes)m")
+                        .font(Typography.caption)
+                        .foregroundColor(ColorPalette.textSecondary)
+                    
+                    if !isLocked {
+                        Text("• \(lesson.xpReward) XP")
+                            .font(Typography.caption)
+                            .foregroundColor(.yellow)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            if isCompleted {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+        .opacity(isLocked ? 0.6 : 1)
+    }
+}
+
+// MARK: - Filters Sheet
+struct FiltersSheet: View {
+    @ObservedObject var viewModel: LessonsViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Difficulty") {
+                    ForEach(DifficultyLevel.allCases, id: \.self) { difficulty in
+                        HStack {
+                            Label(difficulty.rawValue, systemImage: "circle.fill")
+                                .foregroundColor(difficulty.difficultyColor)
+                            
+                            Spacer()
+                            
+                            if viewModel.selectedDifficulties.contains(difficulty) {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(ColorPalette.primaryBlue)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            viewModel.toggleDifficulty(difficulty)
+                        }
+                    }
+                }
+                
+                Section("Status") {
+                    Toggle("Show Completed", isOn: $viewModel.showCompleted)
+                    Toggle("Show Locked", isOn: $viewModel.showLocked)
+                    Toggle("Show In Progress", isOn: $viewModel.showInProgress)
+                }
+                
+                Section("Sort By") {
+                    ForEach(LessonSortOption.allCases, id: \.self) { option in
+                        HStack {
+                            Text(option.rawValue)
+                            
+                            Spacer()
+                            
+                            if viewModel.sortOption == option {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(ColorPalette.primaryBlue)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            viewModel.sortOption = option
+                        }
+                    }
+                }
+                
+                if viewModel.hasActiveFilters {
+                    Section {
+                        Button("Clear All Filters") {
+                            viewModel.clearFilters()
+                        }
+                        .foregroundColor(ColorPalette.error)
+                    }
+                }
+            }
+            .navigationTitle("Filters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Apply") {
+                        viewModel.applyFilters()
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Sort Options
+enum LessonSortOption: String, CaseIterable {
+    case recommended = "Recommended"
+    case newest = "Newest First"
+    case easiest = "Easiest First"
+    case hardest = "Hardest First"
+    case shortestFirst = "Shortest First"
+    case mostXP = "Most XP"
+}
+
+// MARK: - Enhanced View Model
+extension LessonsViewModel {
+    var overallProgress: Double {
+        guard lessons.count > 0 else { return 0 }
+        return Double(completedLessonsCount) / Double(lessons.count)
+    }
+    
+    var totalHoursLearned: Int {
+        // Calculate from completed lessons
+        completedLessons.compactMap { lessonId in
+            lessons.first { $0.id == lessonId }?.estimatedMinutes
+        }.reduce(0, +) / 60
+    }
+    
+    var averageAccuracy: Int {
+        // Mock for now
+        85
+    }
+    
+    var skillsUnlocked: Int {
+        // Count unique categories completed
+        Set(lessons.filter { completedLessons.contains($0.id) }.map { $0.category }).count
+    }
+    
+    var currentStreak: Int {
+        // Mock for now
+        7
+    }
+    
+    var hasActiveFilters: Bool {
+        !selectedDifficulties.isEmpty || selectedCategory != nil || !showCompleted || !showLocked
+    }
+    
+    var activeFilterCount: Int {
+        selectedDifficulties.count + (selectedCategory != nil ? 1 : 0) + (!showCompleted ? 1 : 0) + (!showLocked ? 1 : 0)
+    }
+    
+    func isLessonLocked(_ lessonId: String) -> Bool {
+        !unlockedLessons.contains(lessonId)
+    }
+    
+    func getLessonProgress(for lessonId: String) -> Double? {
+        // Mock progress for now
+        if completedLessons.contains(lessonId) {
+            return 1.0
+        } else if unlockedLessons.contains(lessonId) {
+            return Double.random(in: 0.1...0.8)
+        }
+        return nil
+    }
 }
