@@ -1,30 +1,11 @@
-// MARK: - Dependency Injection Container
-// File: ArtOfTheFuture/Core/Container.swift
-
 import Foundation
 
-@MainActor
-final class Container {
+class Container {
     static let shared = Container()
     
-    // MARK: - Services
-    lazy var galleryService: GalleryServiceProtocol = {
-        GalleryService()
-    }()
+    private init() {}
     
-    lazy var userService: UserServiceProtocol = {
-        UserService()
-    }()
-    
-    lazy var lessonService: LessonServiceProtocol = {
-        LessonService.shared
-    }()
-
-    lazy var progressService: ProgressServiceProtocol = {
-        ProgressService.shared
-    }()
-    
-    private init() {
-        print("Container initialized")
-    }
+    lazy var lessonService: LessonService = LessonService.shared
+    lazy var userProgressService: UserProgressService = UserProgressService.shared
+    lazy var gamificationService: GamificationService = GamificationService.shared
 }

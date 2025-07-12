@@ -43,24 +43,20 @@ final class HomeDashboardViewModel: ObservableObject {
     @Published var newXPGained = 0
     
     // MARK: - Services
-    private let userService: UserServiceProtocol
-    private let galleryService: GalleryServiceProtocol
-    private let progressService: ProgressServiceProtocol
-    private let lessonService: LessonServiceProtocol
+    private let userService: UserService
+    private let galleryService: GalleryService
+    private let progressService: UserProgressService
+    private let lessonService: LessonService
+
     
     // MARK: - Initialization
-    init(
-        userService: UserServiceProtocol? = nil,
-        galleryService: GalleryServiceProtocol? = nil,
-        progressService: ProgressServiceProtocol? = nil,
-        lessonService: LessonServiceProtocol? = nil
-    ) {
-        self.userService = userService ?? UserService()
-        self.galleryService = galleryService ?? Container.shared.galleryService
-        self.progressService = progressService ?? Container.shared.progressService
-        self.lessonService = lessonService ?? LessonService.shared
+    init() {
+        self.userService = UserService()
+        self.galleryService = GalleryService()
+        self.progressService = UserProgressService.shared
+        self.lessonService = LessonService.shared
     }
-    
+
     // MARK: - Data Loading
     func loadDashboard() async {
         isLoading = true
@@ -115,7 +111,7 @@ final class HomeDashboardViewModel: ObservableObject {
     }
     
     private func loadXPData() async {
-        let progressService = self.progressService as! ProgressService
+        let progressService = ProgressService.shared
         totalXP = progressService.getTotalXP()
         
         // Calculate level and progress
@@ -143,8 +139,9 @@ final class HomeDashboardViewModel: ObservableObject {
             let allLessons = try await lessonService.getAllLessons()
             
             // Get completed lessons
-            let completedLessons = try await progressService.getCompletedLessons()
-            
+            let user = try await progressService.getCurrentUser()
+            let completedLessons = user.completedLessons
+
             // Filter and recommend
             recommendedLessons = allLessons
                 .filter { !completedLessons.contains($0.id) }

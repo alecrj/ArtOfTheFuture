@@ -3,6 +3,7 @@
 
 import Foundation
 
+
 protocol ProgressServiceProtocol {
     func updateLessonProgress(lessonId: String, stepId: String, score: Double, timeSpent: TimeInterval) async throws
     func completeLesson(_ lessonId: String) async throws

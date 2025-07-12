@@ -1,7 +1,9 @@
-// MARK: - User Progress Service (Fixed)
+// MARK: - Fixed User Progress Service (REPLACE existing UserProgressService.swift)
 // File: ArtOfTheFuture/Features/Profile/Services/UserProgressService.swift
 
 import Foundation
+import Combine
+
 
 protocol UserProgressServiceProtocol {
     func getCurrentUser() async throws -> UserProfile
@@ -13,7 +15,8 @@ protocol UserProgressServiceProtocol {
     func checkAndAwardBadges() async throws
 }
 
-final class UserProgressService: UserProgressServiceProtocol {
+// MARK: - User Progress Service Implementation (NOW OBSERVABLEOBJECT)
+final class UserProgressService: UserProgressServiceProtocol, ObservableObject {
     static let shared = UserProgressService()
     
     private let userDefaults = UserDefaults.standard
@@ -23,9 +26,25 @@ final class UserProgressService: UserProgressServiceProtocol {
     private let currentUserKey = "currentUserProfile"
     private let dailyActivityKey = "dailyActivity"
     
+    // Published properties for UI updates
+    @Published var currentUser: UserProfile?
+    @Published var isLoading = false
+    
     private init() {
         encoder.dateEncodingStrategy = .iso8601
         decoder.dateDecodingStrategy = .iso8601
+        
+        // Load current user on initialization
+        Task {
+            try? await loadCurrentUser()
+        }
+    }
+    
+    private func loadCurrentUser() async throws {
+        let user = try await getCurrentUser()
+        await MainActor.run {
+            self.currentUser = user
+        }
     }
     
     func getCurrentUser() async throws -> UserProfile {
@@ -48,6 +67,10 @@ final class UserProgressService: UserProgressServiceProtocol {
     func saveUserProfile(_ profile: UserProfile) async throws {
         let data = try encoder.encode(profile)
         userDefaults.set(data, forKey: currentUserKey)
+        
+        await MainActor.run {
+            self.currentUser = profile
+        }
     }
     
     func updateLessonProgress(lessonId: String, stepId: String, score: Double, timeSpent: TimeInterval) async throws {
@@ -69,67 +92,82 @@ final class UserProgressService: UserProgressServiceProtocol {
         lessonProgress.totalTimeSpent += timeSpent
         lessonProgress.lastAttemptDate = Date()
         
-        if let lesson = try? await LessonService.shared.getLesson(id: lessonId) {
-            let completedSteps = lessonProgress.stepProgress.values.filter { $0.isCompleted }.count
-            if completedSteps == lesson.steps.count {
+        // Check if lesson is now complete
+        if let lesson = try await LessonService.shared.getLesson(id: lessonId) {
+            let allStepsCompleted = lesson.steps.allSatisfy { step in
+                lessonProgress.stepProgress[step.id]?.isCompleted ?? false
+            }
+            
+            if allStepsCompleted && !lessonProgress.isCompleted {
                 lessonProgress.isCompleted = true
+                lessonProgress.completionDate = Date()
                 profile.completedLessons.insert(lessonId)
                 
-                for unlockedId in lesson.unlocks {
-                    profile.unlockedLessons.insert(unlockedId)
-                }
+                // Award lesson XP
+                try await awardXP(lesson.xpReward)
             }
         }
         
         profile.lessonProgress[lessonId] = lessonProgress
-        
-        try await updateDailyActivity(minutesPracticed: Int(timeSpent / 60))
         try await saveUserProfile(profile)
+        
+        print("📊 Updated lesson progress for \(lessonId), step \(stepId)")
     }
     
     func completeLesson(_ lessonId: String) async throws {
         var profile = try await getCurrentUser()
         
-        guard let lesson = try? await LessonService.shared.getLesson(id: lessonId) else { return }
-        
-        profile.completedLessons.insert(lessonId)
-        
-        try await awardXP(lesson.xpReward)
-        
-        for unlockedId in lesson.unlocks {
-            profile.unlockedLessons.insert(unlockedId)
-        }
-        
-        if var lessonProgress = profile.lessonProgress[lessonId] {
+        if !profile.completedLessons.contains(lessonId) {
+            profile.completedLessons.insert(lessonId)
+            
+            // Award XP for lesson completion
+            if let lesson = try await LessonService.shared.getLesson(id: lessonId) {
+                try await awardXP(lesson.xpReward)
+            }
+            
+            // Update lesson progress
+            var lessonProgress = profile.lessonProgress[lessonId] ?? LessonProgress(lessonId: lessonId)
             lessonProgress.isCompleted = true
-            lessonProgress.totalAttempts += 1
+            lessonProgress.completionDate = Date()
             profile.lessonProgress[lessonId] = lessonProgress
+            
+            try await saveUserProfile(profile)
+            try await updateStreak()
+            try await checkAndAwardBadges()
+            
+            print("🎉 Lesson completed: \(lessonId)")
         }
-        
-        try await updateDailyActivity(lessonsCompleted: 1)
-        try await saveUserProfile(profile)
-        try await checkAndAwardBadges()
     }
     
     func updateStreak() async throws {
         var profile = try await getCurrentUser()
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let lastActive = calendar.startOfDay(for: profile.lastActiveDate)
+        let today = Calendar.current.startOfDay(for: Date())
         
-        let daysSinceLastActive = calendar.dateComponents([.day], from: lastActive, to: today).day ?? 0
-        
-        if daysSinceLastActive == 0 {
-            return
-        } else if daysSinceLastActive == 1 {
-            profile.currentStreak += 1
-            profile.longestStreak = max(profile.longestStreak, profile.currentStreak)
+        if let lastActive = profile.lastActiveDate {
+            let lastActiveDay = Calendar.current.startOfDay(for: lastActive)
+            let daysBetween = Calendar.current.dateComponents([.day], from: lastActiveDay, to: today).day ?? 0
+            
+            switch daysBetween {
+            case 0:
+                // Same day, no change to streak
+                return
+            case 1:
+                // Consecutive day, increment streak
+                profile.currentStreak += 1
+                profile.longestStreak = max(profile.longestStreak, profile.currentStreak)
+            default:
+                // Missed days, reset streak
+                profile.currentStreak = 1
+            }
         } else {
+            // First activity
             profile.currentStreak = 1
         }
         
         profile.lastActiveDate = Date()
         try await saveUserProfile(profile)
+        
+        print("🔥 Streak updated: \(profile.currentStreak)")
     }
     
     func awardXP(_ amount: Int) async throws {
@@ -140,10 +178,13 @@ final class UserProgressService: UserProgressServiceProtocol {
         let newLevel = (profile.totalXP / 100) + 1
         if newLevel > profile.level {
             profile.level = newLevel
+            print("🎉 LEVEL UP! New level: \(newLevel)")
         }
         
         try await updateDailyActivity(xpEarned: amount)
         try await saveUserProfile(profile)
+        
+        print("⭐ XP awarded: \(amount). Total: \(profile.totalXP)")
     }
     
     func checkAndAwardBadges() async throws {
@@ -172,6 +213,7 @@ final class UserProgressService: UserProgressServiceProtocol {
             if isEarned {
                 profile.earnedBadges.insert(badge.id)
                 try await awardXP(badge.xpReward)
+                print("🏆 Badge earned: \(badge.name)")
             }
         }
         
@@ -203,43 +245,5 @@ final class UserProgressService: UserProgressServiceProtocol {
         
         let data = try encoder.encode(activity)
         userDefaults.set(data, forKey: key)
-        
-        if activity.minutesPracticed == minutesPracticed && minutesPracticed > 0 {
-            try await updateStreak()
-        }
-    }
-    
-    func getWeeklyStats() async throws -> WeeklyStats {
-        let calendar = Calendar.current
-        let today = Date()
-        var activities: [DailyActivity] = []
-        
-        for dayOffset in 0..<7 {
-            guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
-            let startOfDay = calendar.startOfDay(for: date)
-            let key = "\(dailyActivityKey)_\(startOfDay.timeIntervalSince1970)"
-            
-            if let data = userDefaults.data(forKey: key),
-               let activity = try? decoder.decode(DailyActivity.self, from: data) {
-                activities.append(activity)
-            }
-        }
-        
-        let totalMinutes = activities.reduce(0) { $0 + $1.minutesPracticed }
-        let totalXP = activities.reduce(0) { $0 + $1.xpEarned }
-        
-        return WeeklyStats(
-            days: activities.map { activity in
-                WeeklyStats.DayStats(
-                    date: activity.date,
-                    minutes: activity.minutesPracticed,
-                    xp: activity.xpEarned,
-                    completed: activity.minutesPracticed >= 15
-                )
-            },
-            totalMinutes: totalMinutes,
-            totalXP: totalXP,
-            averageMinutesPerDay: activities.isEmpty ? 0 : Double(totalMinutes) / Double(activities.count)
-        )
     }
 }

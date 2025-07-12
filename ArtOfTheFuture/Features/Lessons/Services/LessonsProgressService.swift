@@ -18,8 +18,8 @@ final class LessonsProgressService: ObservableObject {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     private let progressService: ProgressServiceProtocol
-    private let lessonService: LessonServiceProtocol
-    
+    private let lessonService: LessonService
+
     // Storage Keys
     private let userProgressKey = "userLearningProgress"
     private let dailyGoalKey = "dailyGoalProgress"

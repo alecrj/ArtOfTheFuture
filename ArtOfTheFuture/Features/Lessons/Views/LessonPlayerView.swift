@@ -1,6 +1,7 @@
 import SwiftUI
 import PencilKit
 
+
 struct LessonPlayerView: View {
     let lesson: Lesson
     @StateObject private var viewModel: LessonPlayerViewModel
