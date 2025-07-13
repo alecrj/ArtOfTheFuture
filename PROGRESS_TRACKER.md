@@ -132,3 +132,44 @@ ArtOfTheFuture Learning System
 
 *Last Updated: Chat 1 - Foundation Planning Complete*
 *Next Update: Chat 2 - Core Learning Engine Implementation*
+🚨 NEW CHAT REQUIREMENTS
+EVERY CHAT MUST START WITH:
+
+Conflict Detection Search - Check for existing types
+Service Interface Validation - Verify available methods
+Dependency Mapping - Understand existing relationships
+Incremental Plan - One change at a time
+
+EVERY CHAT MUST END WITH:
+
+Compilation Success - Zero errors required
+Functionality Validation - Existing features work
+Progress Tracker Update - Document exact status
+Next Steps Definition - Specific incremental objectives
+
+🎯 BULLETPROOF SAFEGUARDS
+FORBIDDEN ACTIONS:
+
+❌ Creating types with existing names
+❌ Assuming service methods exist
+❌ Batch file creation
+❌ Competing hierarchies
+❌ Breaking existing interfaces
+
+REQUIRED ACTIONS:
+
+✅ Search before creating
+✅ Enhance instead of replace
+✅ Test each change
+✅ Preserve compatibility
+✅ Document all changes
+
+🔄 CONTINUITY NOTES - UPDATED
+CRITICAL LESSONS LEARNED:
+
+Always search existing codebase first
+Enhance existing models, don't create competing ones
+Verify service interfaces before calling methods
+One file change at a time, always
+Compilation success is mandatory before proceeding
+
