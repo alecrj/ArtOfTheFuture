@@ -1,5 +1,4 @@
-// MARK: - Debug System Integration Files
-// File 1: ArtOfTheFuture/Core/Extensions/DebugExtensions.swift
+// File: ArtOfTheFuture/Core/Extensions/DebugExtensions.swift
 
 import SwiftUI
 
@@ -37,7 +36,22 @@ extension View {
 
 // MARK: - Error Extensions
 extension Error {
-    func logError(message: String = "Error occurred", category: LogCategory = .general, file: String = #file, function: String = #function, line: Int = #line) {
-        DebugService.shared.error(message, error: self, category: category, file: file, function: function, line: line)
+    func logError(
+        message: String = "Error occurred",
+        category: LogCategory = .general,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line
+    ) {
+        Task { @MainActor in
+            DebugService.shared.error(
+                message,
+                error: self,
+                category: category,
+                file: file,
+                function: function,
+                line: line
+            )
+        }
     }
 }
