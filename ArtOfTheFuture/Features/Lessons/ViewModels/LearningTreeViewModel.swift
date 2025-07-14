@@ -134,10 +134,10 @@ final class LearningTreeViewModel: ObservableObject {
     }
     
     func completeLesson(_ lessonId: String) async {
-        do {
-            // Mark lesson as completed
-            try await progressService.markLessonCompleted(lessonId: lessonId)
-            
+          do {
+              // Mark lesson as completed
+               try await progressService.completeLesson(lessonId)
+        
             // Reload the tree to update progress
             await loadTree()
             

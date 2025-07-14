@@ -124,23 +124,23 @@ struct ChallengesView: View {
                 
                 // Daily progress
                 HStack(spacing: Dimensions.paddingLarge) {
-                    ProgressStatItem(
+                    LessonStatCard(
+                        title: "Today",
                         value: "\(viewModel.todayChallengesCompleted)",
-                        label: "Today",
                         icon: "checkmark.circle.fill",
                         color: .green
                     )
-                    
-                    ProgressStatItem(
+
+                    LessonStatCard(
+                        title: "This Week",
                         value: "\(viewModel.weekChallengesCompleted)",
-                        label: "This Week",
                         icon: "calendar.circle.fill",
                         color: .blue
                     )
-                    
-                    ProgressStatItem(
+
+                    LessonStatCard(
+                        title: "Total",
                         value: "\(viewModel.totalChallengesCompleted)",
-                        label: "Total",
                         icon: "trophy.fill",
                         color: .yellow
                     )

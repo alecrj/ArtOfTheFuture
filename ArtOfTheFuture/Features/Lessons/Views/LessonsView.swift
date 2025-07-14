@@ -5,7 +5,7 @@ import SwiftUI
 
 struct LessonsView: View {
     @State private var selectedTab = 0
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             // Learning Tree Tab
@@ -14,7 +14,7 @@ struct LessonsView: View {
                     Label("Path", systemImage: "map")
                 }
                 .tag(0)
-            
+
             // Practice Tab (existing lessons list for quick access)
             PracticeLessonsView()
                 .tabItem {
@@ -24,35 +24,29 @@ struct LessonsView: View {
         }
     }
 }
-
 // MARK: - Practice Lessons View (Quick Access)
 struct PracticeLessonsView: View {
     @StateObject private var viewModel = LessonsViewModel()
     @State private var selectedLesson: Lesson?
     @State private var showFilters = false
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background
                 Color(.systemGroupedBackground)
                     .ignoresSafeArea()
-                
-                // Content
+
                 if viewModel.isLoading {
                     ProgressView("Loading lessons...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
                         VStack(spacing: 16) {
-                            // Quick Stats
                             quickStatsView
                                 .padding(.horizontal)
-                            
-                            // Filter Pills
+
                             filterPillsView
-                            
-                            // Lessons List
+
                             LazyVStack(spacing: 12) {
                                 ForEach(viewModel.filteredLessons) { lesson in
                                     QuickAccessLessonCard(
@@ -78,7 +72,7 @@ struct PracticeLessonsView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showFilters = true }) {
+                    Button { showFilters = true } label: {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                             .symbolRenderingMode(.hierarchical)
                     }
@@ -95,25 +89,23 @@ struct PracticeLessonsView: View {
             await viewModel.loadLessons()
         }
     }
-    
+
     // MARK: - Quick Stats
     private var quickStatsView: some View {
         HStack(spacing: 12) {
-            StatCard(
+            LessonStatCard(
                 title: "Streak",
                 value: "\(viewModel.currentStreak)",
                 icon: "flame.fill",
                 color: .orange
             )
-            
-            StatCard(
+            LessonStatCard(
                 title: "Level",
                 value: "\(viewModel.currentLevel)",
                 icon: "star.fill",
                 color: .yellow
             )
-            
-            StatCard(
+            LessonStatCard(
                 title: "Total XP",
                 value: "\(viewModel.currentTotalXP)",
                 icon: "sparkles",
@@ -121,7 +113,7 @@ struct PracticeLessonsView: View {
             )
         }
     }
-    
+
     // MARK: - Filter Pills
     private var filterPillsView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -131,7 +123,6 @@ struct PracticeLessonsView: View {
                     isSelected: viewModel.selectedCategory == nil,
                     action: { viewModel.selectedCategory = nil }
                 )
-                
                 ForEach(LessonCategory.allCases, id: \.self) { category in
                     FilterPill(
                         title: category.rawValue,
@@ -152,41 +143,37 @@ struct QuickAccessLessonCard: View {
     let isLocked: Bool
     let isCompleted: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
-                // Icon
                 ZStack {
                     Circle()
                         .fill(lesson.color.gradient.opacity(isLocked ? 0.3 : 1.0))
                         .frame(width: 60, height: 60)
-                    
+
                     Image(systemName: lesson.icon)
                         .font(.title2)
                         .foregroundColor(.white)
-                    
+
                     if isLocked {
                         Circle()
-                            .fill(.black.opacity(0.5))
+                            .fill(Color.black.opacity(0.5))
                             .frame(width: 60, height: 60)
-                        
                         Image(systemName: "lock.fill")
                             .font(.title3)
                             .foregroundColor(.white)
                     }
                 }
-                
-                // Content
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text(lesson.title)
                         .font(.headline)
                         .foregroundColor(isLocked ? .secondary : .primary)
-                    
+
                     HStack(spacing: 12) {
                         Label("\(lesson.estimatedMinutes) min", systemImage: "clock")
                         Label("\(lesson.xpReward) XP", systemImage: "star.fill")
-                        
                         if isCompleted {
                             Label("Done", systemImage: "checkmark.circle.fill")
                                 .foregroundColor(.green)
@@ -194,16 +181,16 @@ struct QuickAccessLessonCard: View {
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    
-                    if let progress = progress, progress > 0 && !isCompleted {
-                        ProgressView(value: progress)
+
+                    if let p = progress, p > 0 && !isCompleted {
+                        ProgressView(value: p)
                             .progressViewStyle(.linear)
                             .tint(lesson.color)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -219,22 +206,22 @@ struct QuickAccessLessonCard: View {
 }
 
 // MARK: - Stat Card
-struct StatCard: View {
+struct LessonStatCard: View {
     let title: String
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundColor(color)
-            
+
             Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
-            
+
             Text(title)
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -252,7 +239,7 @@ struct FilterPill: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             Text(title)
@@ -266,7 +253,7 @@ struct FilterPill: View {
                         .fill(isSelected ? Color.blue : Color(.systemGray5))
                 )
         }
-        .buttonStyle(ScaleButtonStyle(scale: 0.95))
+        .buttonStyle(.plain)
     }
 }
 
@@ -274,25 +261,27 @@ struct FilterPill: View {
 struct FiltersView: View {
     @ObservedObject var viewModel: LessonsViewModel
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Difficulty") {
                     ForEach(DifficultyLevel.allCases, id: \.self) { difficulty in
-                        Toggle(difficulty.rawValue, isOn: Binding(
-                            get: { viewModel.selectedDifficulties.contains(difficulty) },
-                            set: { _ in viewModel.toggleDifficulty(difficulty) }
-                        ))
+                        Toggle(difficulty.rawValue,
+                               isOn: Binding(
+                                   get: { viewModel.selectedDifficulties.contains(difficulty) },
+                                   set: { _ in viewModel.toggleDifficulty(difficulty) }
+                               )
+                        )
                     }
                 }
-                
+
                 Section("Status") {
                     Toggle("Show Completed", isOn: $viewModel.showCompleted)
                     Toggle("Show Locked", isOn: $viewModel.showLocked)
                     Toggle("Show In Progress", isOn: $viewModel.showInProgress)
                 }
-                
+
                 Section("Sort By") {
                     Picker("Sort", selection: $viewModel.sortOption) {
                         ForEach(LessonSortOption.allCases, id: \.self) { option in
@@ -301,7 +290,7 @@ struct FiltersView: View {
                     }
                     .pickerStyle(.menu)
                 }
-                
+
                 Section {
                     Button("Clear All Filters") {
                         viewModel.clearFilters()
@@ -313,11 +302,8 @@ struct FiltersView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
-                
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Apply") {
                         viewModel.applyFilters()

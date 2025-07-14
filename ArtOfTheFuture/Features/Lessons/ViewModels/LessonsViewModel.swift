@@ -11,6 +11,7 @@ final class LessonsViewModel: ObservableObject {
     @Published var filteredLessons: [Lesson] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var currentStreak = 0
     
     // MARK: - Filter Properties
     @Published var selectedCategory: LessonCategory?
@@ -60,6 +61,7 @@ final class LessonsViewModel: ObservableObject {
             let progressService = self.progressService as! ProgressService
             currentTotalXP = progressService.getTotalXP()
             currentLevel = (currentTotalXP / 100) + 1
+            currentStreak = progressService.getCurrentStreak()
             
             // Apply filters
             applyFiltersInternal()

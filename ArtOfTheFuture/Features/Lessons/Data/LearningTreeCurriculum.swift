@@ -55,6 +55,7 @@ struct LearningTreeCurriculum {
     // MARK: - Beginner Units
     private static func createBeginnerUnits() -> [LearningUnit] {
         return [
+            // Use your 5 existing lessons in the first unit:
             LearningUnit(
                 id: "unit_b1",
                 sectionId: "section_beginner",
@@ -62,7 +63,7 @@ struct LearningTreeCurriculum {
                 title: "Getting Started",
                 description: "Your first steps in digital art",
                 iconName: "hand.draw",
-                lessons: ["lesson_b1_1", "lesson_b1_2", "lesson_b1_3", "lesson_b1_4", "lesson_b1_5", "lesson_b1_6"],
+                lessons: Curriculum.allLessons.map { $0.id },  // ← existing 5 lessons
                 isUnlocked: true
             ),
             LearningUnit(
