@@ -173,3 +173,169 @@ Verify service interfaces before calling methods
 One file change at a time, always
 Compilation success is mandatory before proceeding
 
+🛡️ BULLETPROOF DEVELOPMENT INSTRUCTIONS
+🚨 CRITICAL PROTOCOLS - NEVER VIOLATE
+PROTOCOL 1: CONFLICT DETECTION (MANDATORY)
+BEFORE CREATING ANY NEW FILE OR TYPE:
+
+SEARCH PROJECT KNOWLEDGE for existing types/files with same name
+VERIFY NO NAMING CONFLICTS exist in current codebase
+CHECK SERVICE INTERFACES before assuming methods exist
+MAP DEPENDENCIES between existing files
+
+SEARCH COMMANDS TO USE:
+project_knowledge_search: "existing [TypeName] model"
+project_knowledge_search: "[ServiceName] methods interface"
+project_knowledge_search: "[FileName] existing structure"
+PROTOCOL 2: INCREMENTAL DEVELOPMENT (MANDATORY)
+NEVER BATCH CHANGES - ONE CHANGE AT A TIME:
+
+UPDATE existing file
+COMPILE & TEST immediately
+VALIDATE change works
+PROCEED to next change
+
+FORBIDDEN PATTERNS:
+
+❌ Creating 3+ new files simultaneously
+❌ Assuming interfaces without verification
+❌ Batch changes without compilation
+❌ Creating competing type hierarchies
+
+PROTOCOL 3: FILE OPERATION STANDARDS
+CLEAR INSTRUCTION FORMAT:
+**UPDATE:** Path/To/ExistingFile.swift
+**DELETE:** Path/To/ConflictingFile.swift  
+**CREATE:** Path/To/NewFile.swift (only if genuinely new)
+DECISION MATRIX:
+
+Same purpose as existing file → UPDATE existing
+Same type name → UPDATE existing, never create duplicate
+Missing service method → Add to existing service
+New functionality → Only then CREATE new file
+
+PROTOCOL 4: VALIDATION CHECKLIST
+BEFORE EVERY INSTRUCTION SET:
+
+ ✅ Searched for existing conflicting types
+ ✅ Verified service methods exist
+ ✅ Identified exact files to modify
+ ✅ Planned incremental approach
+ ✅ No competing hierarchies created
+
+AFTER EVERY CHANGE:
+
+ ✅ App compiles without errors
+ ✅ No type ambiguity errors
+ ✅ Existing functionality preserved
+ ✅ Progress tracker updated
+
+🎯 INTEGRATION STRATEGY
+ENHANCING EXISTING MODELS (PREFERRED)
+For Model Enhancement:
+
+Add new fields to existing types
+Maintain backward compatibility
+Enhance gradually, don't replace
+Preserve existing interfaces
+
+Example: Enhancing Lesson Model
+swift// ADD to existing Lesson in LessonModels.swift
+struct Lesson: Identifiable, Codable {
+    // ... existing fields ...
+    
+    // NEW hierarchical fields
+    let unitId: String?
+    let sectionId: String?
+    let orderIndex: Int?
+    let prerequisites: [String]
+    
+    // Preserve existing interface
+    var category: LessonCategory // Already exists
+    var difficulty: DifficultyLevel // Already exists
+}
+SERVICE INTEGRATION (REQUIRED)
+For Service Enhancement:
+
+Check existing protocol first
+Add methods incrementally
+Implement in existing service
+Update dependents gradually
+
+🚨 ERROR RECOVERY PROTOCOL
+WHEN BUILD ERRORS OCCUR:
+
+STOP IMMEDIATELY - No more changes
+IDENTIFY CONFLICTS - List all ambiguous types
+DELETE CONFLICTING FILES - Remove competing implementations
+RESTORE COMPILATION - Ensure app builds
+PLAN INCREMENTAL FIX - Update existing files instead
+
+🎯 CHAT STRUCTURE REQUIREMENTS
+EVERY CHAT MUST:
+
+START WITH project_knowledge_search for existing code
+VALIDATE no conflicts before proceeding
+IMPLEMENT one change at a time
+TEST COMPILATION after each change
+UPDATE progress tracker with status
+
+CHAT SUCCESS CRITERIA:
+
+✅ App compiles without errors
+✅ No type ambiguity
+✅ Existing features preserved
+✅ New functionality working
+✅ Progress tracker updated
+
+🔧 TECHNICAL REQUIREMENTS
+SWIFT-SPECIFIC RULES:
+
+Type Names Must Be Unique across entire project
+Protocol Methods Must Exist before calling them
+Import Order Matters for compilation
+Codable Conformance must be complete for persistence
+@MainActor required for UI-updating services
+
+ARCHITECTURE RULES:
+
+Single Source of Truth - One model per concept
+Dependency Injection - Use existing Container.swift
+Protocol-Based Design - Enhance existing protocols
+Feature Isolation - Keep features self-contained
+Progressive Enhancement - Add to existing, don't replace
+
+🚀 SUCCESS PATTERNS
+PROVEN WORKING APPROACHES:
+
+Enhance Existing Models by adding fields
+Extend Service Protocols with new methods
+Update ViewModels to use enhanced services
+Create New Views only for genuinely new features
+Preserve Data Compatibility during transitions
+
+EXAMPLES OF GOOD CHANGES:
+swift// GOOD: Adding to existing protocol
+protocol ProgressServiceProtocol {
+    // ... existing methods ...
+    func getHierarchicalProgress() async throws -> HierarchicalProgress // NEW
+}
+
+// GOOD: Enhancing existing model
+struct Lesson: Identifiable, Codable {
+    // ... existing fields ...
+    let parentUnitId: String? // NEW
+    let prerequisites: [String] // NEW
+}
+🎯 EMERGENCY CONTACTS
+WHEN IN DOUBT:
+
+SEARCH FIRST - Always use project_knowledge_search
+ASK EXPLICITLY - "Does [TypeName] already exist?"
+PLAN BEFORE CODING - Outline file changes first
+TEST INCREMENTALLY - One change, one compile
+
+
+REMEMBER: WORKING CODE > CLEVER CODE
+INCREMENTAL PROGRESS > REVOLUTIONARY CHANGES
+COMPILATION SUCCESS > FEATURE COMPLETENESS
