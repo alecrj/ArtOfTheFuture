@@ -1,4 +1,4 @@
-// MARK: - Main Tab View (Updated with SharedComponents)
+// MARK: - Main Tab View (Updated with Debug Integration)
 // **REPLACE:** ArtOfTheFuture/App/MainTabView.swift
 
 import SwiftUI
@@ -6,6 +6,7 @@ import SwiftUI
 struct MainTabView: View {
     @State private var selectedTab = 0
     @StateObject private var tabViewModel = MainTabViewModel()
+    @StateObject private var debugService = DebugService.shared
     
     var body: some View {
         ZStack {
@@ -15,6 +16,7 @@ struct MainTabView: View {
                         Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
                     }
                     .tag(0)
+                    .debugOnAppear("Home Tab")
                 
                 LessonsView()
                     .tabItem {
@@ -22,12 +24,14 @@ struct MainTabView: View {
                     }
                     .tag(1)
                     .badge(tabViewModel.hasNewLessons ? "New" : nil)
+                    .debugOnAppear("Learn Tab")
                 
                 DrawingView()
                     .tabItem {
                         Label("Draw", systemImage: selectedTab == 2 ? "paintbrush.fill" : "paintbrush")
                     }
                     .tag(2)
+                    .debugOnAppear("Draw Tab")
                 
                 GalleryView()
                     .tabItem {
@@ -35,16 +39,19 @@ struct MainTabView: View {
                     }
                     .tag(3)
                     .badge(tabViewModel.newArtworkCount > 0 ? "\(tabViewModel.newArtworkCount)" : nil)
+                    .debugOnAppear("Gallery Tab")
                 
                 ProfileView()
                     .tabItem {
                         Label("Profile", systemImage: selectedTab == 4 ? "person.circle.fill" : "person.circle")
                     }
                     .tag(4)
+                    .debugOnAppear("Profile Tab")
             }
             .accentColor(.blue)
             .onAppear {
                 setupTabBarAppearance()
+                debugService.info("MainTabView appeared", category: .ui)
             }
             
             // Global XP celebration overlay
@@ -70,21 +77,30 @@ struct MainTabView: View {
                 )
                 .zIndex(999)
             }
+            
+            // Debug floating button (only in debug mode)
+            DebugFloatingButton()
+                .zIndex(998)
         }
         .onChange(of: selectedTab) { oldValue, newValue in
             Task {
                 await HapticManager.shared.selection()
                 tabViewModel.trackTabSwitch(to: newValue)
+                debugService.trackUserAction("Tab Switch", details: ["from": oldValue, "to": newValue])
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .xpGained)) { notification in
             if let xpAmount = notification.userInfo?["amount"] as? Int {
+                debugService.logProgressEvent(.xpGained, details: ["amount": xpAmount])
                 tabViewModel.handleXPGain(amount: xpAmount)
             }
         }
         .task {
+            debugService.info("App initializing", category: .general)
             await tabViewModel.initialize()
+            debugService.info("App initialization complete", category: .general)
         }
+        .withDebugOverlay()
     }
     
     private func setupTabBarAppearance() {
@@ -105,6 +121,8 @@ struct MainTabView: View {
         
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
+        
+        debugService.debug("Tab bar appearance configured", category: .ui)
     }
 }
 
@@ -213,6 +231,8 @@ struct GlobalXPCelebrationView: View {
             .padding()
         }
         .onAppear {
+            DebugService.shared.debug("XP Celebration appeared: +\(xpGained) XP", category: .ui)
+            
             withAnimation {
                 isAnimating = true
             }
@@ -280,6 +300,7 @@ struct AchievementNotificationView: View {
             .animation(.spring(response: 0.6), value: isVisible)
         }
         .onAppear {
+            DebugService.shared.debug("Achievement notification appeared: \(achievement.title)", category: .ui)
             isVisible = true
             
             // Auto dismiss after 3 seconds
@@ -322,7 +343,7 @@ struct ConfettiParticle: View {
     }
 }
 
-// MARK: - Main Tab ViewModel
+// MARK: - Main Tab ViewModel (Updated with Debug Integration)
 @MainActor
 final class MainTabViewModel: ObservableObject {
     @Published var showXPCelebration = false
@@ -334,16 +355,23 @@ final class MainTabViewModel: ObservableObject {
     @Published var newArtworkCount = 0
     
     private let progressService: ProgressServiceProtocol
+    private let debugService = DebugService.shared
     private var previousXP = 0
     private var previousLevel = 1
     
     init() {
         self.progressService = Container.shared.progressService
+        debugService.debug("MainTabViewModel initialized", category: .general)
     }
     
     func initialize() async {
+        let tracker = debugService.startPerformanceTracking(operation: "Main Tab Initialization")
+        
         await loadInitialData()
         setupNotifications()
+        
+        tracker.finish()
+        debugService.info("MainTabViewModel initialization complete", category: .general)
     }
     
     private func loadInitialData() async {
@@ -352,11 +380,15 @@ final class MainTabViewModel: ObservableObject {
         previousXP = totalXP
         previousLevel = (totalXP / 100) + 1
         
+        debugService.debug("Loaded initial data: XP=\(totalXP), Level=\(previousLevel)", category: .progress)
+        
         // Check for new content
         checkForNewContent()
     }
     
     func handleXPGain(amount: Int) {
+        debugService.logProgressEvent(.xpGained, details: ["amount": amount, "previousXP": totalXP])
+        
         xpGained = amount
         totalXP += amount
         
@@ -364,6 +396,7 @@ final class MainTabViewModel: ObservableObject {
         if newLevel > previousLevel {
             self.newLevel = newLevel
             previousLevel = newLevel
+            debugService.logProgressEvent(.levelUp, details: ["newLevel": newLevel])
         }
         
         showXPCelebration = true
@@ -374,6 +407,8 @@ final class MainTabViewModel: ObservableObject {
     }
     
     func dismissXPCelebration() {
+        debugService.debug("XP celebration dismissed", category: .ui)
+        
         withAnimation(.easeOut(duration: 0.3)) {
             showXPCelebration = false
         }
@@ -386,17 +421,19 @@ final class MainTabViewModel: ObservableObject {
     }
     
     func dismissAchievement() {
+        debugService.debug("Achievement notification dismissed", category: .ui)
+        
         withAnimation(.easeOut(duration: 0.3)) {
             newAchievement = nil
         }
     }
     
     func trackTabSwitch(to tab: Int) {
-        // Analytics tracking for tab switches
-        print("📊 Switched to tab: \(tab)")
+        debugService.trackUserAction("Tab Switch", details: ["tab": tab])
     }
     
     private func setupNotifications() {
+        debugService.debug("Setting up notification observers", category: .general)
         // Setup for various app notifications
     }
     
@@ -406,6 +443,8 @@ final class MainTabViewModel: ObservableObject {
         
         // Check for new artworks
         newArtworkCount = 0 // Implement actual logic
+        
+        debugService.debug("Content check complete: hasNewLessons=\(hasNewLessons), newArtworkCount=\(newArtworkCount)", category: .general)
     }
 }
 

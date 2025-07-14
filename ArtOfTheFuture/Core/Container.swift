@@ -28,3 +28,8 @@ final class Container {
         print("Container initialized")
     }
 }
+extension Container {
+    var debugService: DebugService {
+        DebugService.shared
+    }
+}
