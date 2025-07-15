@@ -11,6 +11,8 @@ struct DrawingView: View {
     @State private var showColorPicker = false
     @State private var showBrushSettings = false
     @State private var showExportOptions = false
+    // Track when the user started drawing
+       @State private var drawingStartTime = Date()
     @State private var currentGesture: DragGesture.Value?
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     
@@ -31,6 +33,17 @@ struct DrawingView: View {
         .sheet(isPresented: $showExportOptions) {
             ExportOptionsSheet(viewModel: viewModel)
         }
+        .onChange(of: showExportOptions) { isPresented in
+            if isPresented {
+                // User opened the export sheet: start timing
+                drawingStartTime = Date()
+            } else {
+                // User closed the export sheet: finish timing & notify
+                let duration = Date().timeIntervalSince(drawingStartTime)
+                GamificationEngine.shared.artworkCreated(duration: duration)
+            }
+        }
+
     }
     
     // MARK: - Combined Drawing Interface

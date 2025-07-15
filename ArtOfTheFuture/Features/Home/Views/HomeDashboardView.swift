@@ -49,85 +49,90 @@ struct HomeDashboardView: View {
     }
     
     // MARK: - iPhone Layout
-    private var iPhoneLayout: some View {
-        ScrollView {
-            VStack(spacing: Dimensions.paddingLarge) {
-                // Header
-                headerSection
-                    .padding(.horizontal)
-                
-                // Hero Stats
-                heroStatsSection
-                    .padding(.horizontal)
-                
-                // Daily Progress
-                dailyProgressSection
-                    .padding(.horizontal)
-                
-                // Quick Actions
-                quickActionsSection
-                
-                // Continue Learning
-                continueLearningSection
-                
-                // Recent Achievements
-                if !viewModel.achievements.isEmpty {
-                    achievementsSection
-                }
-                
-                // Weekly Activity
-                weeklyActivitySection
-                    .padding(.horizontal)
-            }
-            .padding(.vertical)
-        }
-        .refreshable {
-            await viewModel.refreshDashboard()
-        }
-    }
-    
-    // MARK: - iPad Layout
-    private var iPadLayout: some View {
-        ScrollView {
-            VStack(spacing: Dimensions.paddingXLarge) {
-                // Header
-                headerSection
-                    .padding(.horizontal, Dimensions.paddingXLarge)
-                
-                // Stats grid
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())],
-                          spacing: Dimensions.paddingLarge) {
-                    heroStatsSection
-                    dailyProgressSection
-                }
-                .padding(.horizontal, Dimensions.paddingXLarge)
-                
-                // Quick Actions
-                quickActionsSection
-                
-                // Main content grid
-                HStack(alignment: .top, spacing: Dimensions.paddingLarge) {
-                    // Left column
-                    VStack(spacing: Dimensions.paddingLarge) {
-                        continueLearningSection
-                        weeklyActivitySection
-                    }
-                    .frame(maxWidth: .infinity)
+        private var iPhoneLayout: some View {
+            ScrollView {
+                VStack(spacing: Dimensions.paddingLarge) {
+                    // Header
+                    headerSection
+                        .padding(.horizontal)
                     
-                    // Right column (achievements)
+                    // Hero Stats
+                    heroStatsSection
+                        .padding(.horizontal)
+                    
+                    // Daily Progress
+                    dailyProgressSection
+                        .padding(.horizontal)
+                    
+                    // Quick Actions
+                    quickActionsSection
+                    
+                    // Continue Learning
+                    continueLearningSection
+                    
+                    // Recent Achievements
                     if !viewModel.achievements.isEmpty {
                         achievementsSection
-                            .frame(maxWidth: 400)
                     }
+                    
+                    // Weekly Activity
+                    weeklyActivitySection
+                        .padding(.horizontal)
                 }
-                .padding(.horizontal, Dimensions.paddingXLarge)
+                .padding(.vertical)
             }
-            .padding(.vertical)
+            .refreshable {
+                await viewModel.refreshDashboard()
+            }
         }
-        .refreshable {
-            await viewModel.refreshDashboard()
+
+
+
+
+    
+    // MARK: - iPad Layout
+        private var iPadLayout: some View {
+            ScrollView {
+                VStack(spacing: Dimensions.paddingXLarge) {
+                    // Header
+                    headerSection
+                        .padding(.horizontal, Dimensions.paddingXLarge)
+                    
+                    // Stats grid
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())],
+                              spacing: Dimensions.paddingLarge) {
+                        heroStatsSection
+                        dailyProgressSection
+                    }
+                    .padding(.horizontal, Dimensions.paddingXLarge)
+                    
+                    // Quick Actions
+                    quickActionsSection
+                    
+                    // Main content grid
+                    HStack(alignment: .top, spacing: Dimensions.paddingLarge) {
+                        // Left column
+                        VStack(spacing: Dimensions.paddingLarge) {
+                            continueLearningSection
+                            weeklyActivitySection
+                        }
+                        .frame(maxWidth: .infinity)
+                        
+                        // Right column (achievements)
+                        if !viewModel.achievements.isEmpty {
+                            achievementsSection
+                                .frame(maxWidth: 400)
+                        }
+                    }
+                    .padding(.horizontal, Dimensions.paddingXLarge)
+                }
+                .padding(.vertical)
+            }
+            .refreshable {
+                await viewModel.refreshDashboard()
+            }
         }
-    }
+
     
     // MARK: - Header Section
     private var headerSection: some View {

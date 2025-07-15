@@ -135,11 +135,16 @@ final class LearningTreeViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Complete Lesson (with Gamification Hook)
     func completeLesson(_ lessonId: String) async {
-          do {
-              // Mark lesson as completed
-               try await progressService.completeLesson(lessonId)
-        
+        do {
+            // Mark lesson as completed
+            try await progressService.completeLesson(lessonId)
+            
+            // ← NEW: notify gamification engine that the lesson finished
+            let accuracy = getLessonProgress(for: lessonId)
+            GamificationEngine.shared.lessonCompleted(accuracy: accuracy)
+            
             // Reload the tree to update progress
             await loadTree()
             
@@ -147,6 +152,7 @@ final class LearningTreeViewModel: ObservableObject {
             print("❌ Failed to complete lesson: \(error)")
         }
     }
+
     
     // MARK: - Helper Methods
     func getLessonProgress(for lessonId: String) -> Double {
