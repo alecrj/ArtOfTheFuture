@@ -38,8 +38,10 @@ final class LearningTreeViewModel: ObservableObject {
             completedLessons = try await progressService.getCompletedLessons()
             
             // Load XP and level
-            let progressService = self.progressService as! ProgressService
-            totalXP = progressService.getTotalXP()
+            guard let progressService = self.progressService as? ProgressService else {
+                print("❌ ProgressService cast failed")
+                return
+            };            totalXP = progressService.getTotalXP()
             currentLevel = (totalXP / 100) + 1
             
             // Update tree with user progress

@@ -3,13 +3,17 @@
 
 import SwiftUI
 
+// MARK: - Main Tab View (Updated with Global XP Overlay)
+import SwiftUI
+
 struct MainTabView: View {
     @State private var selectedTab = 0
     @StateObject private var tabViewModel = MainTabViewModel()
     @StateObject private var debugService = DebugService.shared
-    
+
     var body: some View {
         ZStack {
+            // Your existing TabView, now driving streak update on appear
             TabView(selection: $selectedTab) {
                 HomeDashboardView()
                     .tabItem {
@@ -17,7 +21,7 @@ struct MainTabView: View {
                     }
                     .tag(0)
                     .debugOnAppear("Home Tab")
-                
+
                 LessonsView()
                     .tabItem {
                         Label("Learn", systemImage: selectedTab == 1 ? "book.fill" : "book")
@@ -25,14 +29,14 @@ struct MainTabView: View {
                     .tag(1)
                     .badge(tabViewModel.hasNewLessons ? "New" : nil)
                     .debugOnAppear("Learn Tab")
-                
+
                 DrawingView()
                     .tabItem {
                         Label("Draw", systemImage: selectedTab == 2 ? "paintbrush.fill" : "paintbrush")
                     }
                     .tag(2)
                     .debugOnAppear("Draw Tab")
-                
+
                 GalleryView()
                     .tabItem {
                         Label("Gallery", systemImage: selectedTab == 3 ? "photo.stack.fill" : "photo.stack")
@@ -40,7 +44,7 @@ struct MainTabView: View {
                     .tag(3)
                     .badge(tabViewModel.newArtworkCount > 0 ? "\(tabViewModel.newArtworkCount)" : nil)
                     .debugOnAppear("Gallery Tab")
-                
+
                 ProfileView()
                     .tabItem {
                         Label("Profile", systemImage: selectedTab == 4 ? "person.circle.fill" : "person.circle")
@@ -51,10 +55,16 @@ struct MainTabView: View {
             .accentColor(.blue)
             .onAppear {
                 setupTabBarAppearance()
+                GamificationEngine.shared.updateStreak()                 // ← NEW: update daily streak
                 debugService.info("MainTabView appeared", category: .ui)
             }
-            
-            // Global XP celebration overlay
+
+            // ← NEW: Global XP animation overlay, non-interactive and top‑most
+            XPAnimationOverlay()
+                .allowsHitTesting(false)
+                .zIndex(1000)
+
+            // Existing XP celebration view
             if tabViewModel.showXPCelebration {
                 GlobalXPCelebrationView(
                     xpGained: tabViewModel.xpGained,
@@ -64,10 +74,10 @@ struct MainTabView: View {
                         tabViewModel.dismissXPCelebration()
                     }
                 )
-                .zIndex(1000)
+                .zIndex(999)
             }
-            
-            // Achievement notification overlay
+
+            // Existing achievement notification
             if let newAchievement = tabViewModel.newAchievement {
                 AchievementNotificationView(
                     achievement: newAchievement,
@@ -75,12 +85,12 @@ struct MainTabView: View {
                         tabViewModel.dismissAchievement()
                     }
                 )
-                .zIndex(999)
-            }
-            
-            // Debug floating button (only in debug mode)
-            DebugFloatingButton()
                 .zIndex(998)
+            }
+
+            // Debug floating button
+            DebugFloatingButton()
+                .zIndex(997)
         }
         .onChange(of: selectedTab) { oldValue, newValue in
             Task {
@@ -102,29 +112,28 @@ struct MainTabView: View {
         }
         .withDebugOverlay()
     }
-    
+
     private func setupTabBarAppearance() {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor.systemBackground
-        
-        // Customize tab bar item appearance
+
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor.systemGray
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor.systemGray
         ]
-        
         appearance.stackedLayoutAppearance.selected.iconColor = UIColor.systemBlue
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
             .foregroundColor: UIColor.systemBlue
         ]
-        
+
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
-        
+
         debugService.debug("Tab bar appearance configured", category: .ui)
     }
 }
+
 
 // MARK: - Global XP Celebration View
 struct GlobalXPCelebrationView: View {
