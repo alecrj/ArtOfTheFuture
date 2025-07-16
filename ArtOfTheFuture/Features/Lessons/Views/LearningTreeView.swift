@@ -350,27 +350,19 @@ struct UnitDetailView: View {
     }
     
     private func loadLessons() {
-        // For now, create placeholder lessons
-        lessons = unit.lessons.enumerated().map { index, lessonId in
-            Lesson(
-                id: lessonId,
-                title: "Lesson \(index + 1)",
-                description: "Complete this lesson to progress",
-                type: .drawingPractice,
-                category: .basics,
-                difficulty: .beginner,
-                estimatedMinutes: 10,
-                xpReward: 50,
-                steps: [],
-                exercises: [],
-                objectives: [],
-                tips: [],
-                prerequisites: index > 0 ? [unit.lessons[index - 1]] : [],
-                unlocks: index < unit.lessons.count - 1 ? [unit.lessons[index + 1]] : []
-            )
+        // Load REAL lessons from curriculum instead of creating placeholders
+        let allRealLessons = Curriculum.allLessons
+        
+        // Filter to only lessons that exist for this unit
+        lessons = unit.lessons.compactMap { lessonId in
+            allRealLessons.first { $0.id == lessonId }
         }
+        
+        print("✅ Loaded \(lessons.count) real lessons for unit: \(unit.title)")
+        print("📚 Lesson IDs: \(lessons.map { $0.id })")
     }
-}
+    }
+
 
 // MARK: - Lesson Row in Unit
 struct LessonRowInUnit: View {
