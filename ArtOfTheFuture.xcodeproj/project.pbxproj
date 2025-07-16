@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		701958A52E2765AD00EA7D59 /* test.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701958A42E2765AB00EA7D59 /* test.swift */; };
+		701959F42E28592800EA7D59 /* LESSON_BLUE.md in Resources */ = {isa = PBXBuildFile; fileRef = 701959F32E2858FD00EA7D59 /* LESSON_BLUE.md */; };
 		70E5A2D62E1C5EDD000DAD89 /* PROGRESS_TRACKER.md in Resources */ = {isa = PBXBuildFile; fileRef = 70E5A2D52E1C5EDD000DAD89 /* PROGRESS_TRACKER.md */; };
 		70E5A2E52E1C67CB000DAD89 /* PencilKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70E5A2E42E1C67CB000DAD89 /* PencilKit.framework */; };
 /* End PBXBuildFile section */
@@ -30,7 +30,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		701958A42E2765AB00EA7D59 /* test.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = test.swift; sourceTree = "<group>"; };
+		701959F32E2858FD00EA7D59 /* LESSON_BLUE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = LESSON_BLUE.md; sourceTree = "<group>"; };
 		70E5A23C2E1C5247000DAD89 /* ArtOfTheFuture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ArtOfTheFuture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		70E5A2492E1C524E000DAD89 /* ArtOfTheFutureTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArtOfTheFutureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		70E5A2532E1C524E000DAD89 /* ArtOfTheFutureUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArtOfTheFutureUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -98,7 +98,7 @@
 		70E5A2332E1C5247000DAD89 = {
 			isa = PBXGroup;
 			children = (
-				701958A42E2765AB00EA7D59 /* test.swift */,
+				701959F32E2858FD00EA7D59 /* LESSON_BLUE.md */,
 				70E5A2D52E1C5EDD000DAD89 /* PROGRESS_TRACKER.md */,
 				70E5A23E2E1C5247000DAD89 /* ArtOfTheFuture */,
 				70E5A24C2E1C524E000DAD89 /* ArtOfTheFutureTests */,
@@ -246,6 +246,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				701959F42E28592800EA7D59 /* LESSON_BLUE.md in Resources */,
 				70E5A2D62E1C5EDD000DAD89 /* PROGRESS_TRACKER.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -271,7 +272,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				701958A52E2765AD00EA7D59 /* test.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
