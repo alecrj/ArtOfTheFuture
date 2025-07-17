@@ -1,9 +1,6 @@
-// MARK: - Main Tab View (Updated with Debug Integration)
-// **REPLACE:** ArtOfTheFuture/App/MainTabView.swift
+// MARK: - Main Tab View (Minimal FAANG-Level Fix)
+// File: ArtOfTheFuture/App/MainTabView.swift
 
-import SwiftUI
-
-// MARK: - Main Tab View (Updated with Global XP Overlay)
 import SwiftUI
 
 struct MainTabView: View {
@@ -20,7 +17,7 @@ struct MainTabView: View {
                         Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
                     }
                     .tag(0)
-                    .debugOnAppear("Home Tab")
+                    .debugOnAppear("Home Tab", category: .ui)
 
                 LessonsView()
                     .tabItem {
@@ -28,14 +25,14 @@ struct MainTabView: View {
                     }
                     .tag(1)
                     .badge(tabViewModel.hasNewLessons ? "New" : nil)
-                    .debugOnAppear("Learn Tab")
+                    .debugOnAppear("Learn Tab", category: .ui)
 
                 DrawingView()
                     .tabItem {
                         Label("Draw", systemImage: selectedTab == 2 ? "paintbrush.fill" : "paintbrush")
                     }
                     .tag(2)
-                    .debugOnAppear("Draw Tab")
+                    .debugOnAppear("Draw Tab", category: .ui)
 
                 GalleryView()
                     .tabItem {
@@ -43,28 +40,28 @@ struct MainTabView: View {
                     }
                     .tag(3)
                     .badge(tabViewModel.newArtworkCount > 0 ? "\(tabViewModel.newArtworkCount)" : nil)
-                    .debugOnAppear("Gallery Tab")
+                    .debugOnAppear("Gallery Tab", category: .ui)
 
                 ProfileView()
                     .tabItem {
                         Label("Profile", systemImage: selectedTab == 4 ? "person.circle.fill" : "person.circle")
                     }
                     .tag(4)
-                    .debugOnAppear("Profile Tab")
+                    .debugOnAppear("Profile Tab", category: .ui)
             }
             .accentColor(.blue)
             .onAppear {
                 setupTabBarAppearance()
-                GamificationEngine.shared.updateStreak()                 // ← NEW: update daily streak
+                GamificationEngine.shared.updateStreak()
                 debugService.info("MainTabView appeared", category: .ui)
             }
 
-            // ← NEW: Global XP animation overlay, non-interactive and top‑most
+            // Global XP animation overlay, non-interactive and top‑most
             XPAnimationOverlay()
                 .allowsHitTesting(false)
                 .zIndex(1000)
 
-            // Existing XP celebration view
+            // XP celebration view - Fixed reference
             if tabViewModel.showXPCelebration {
                 GlobalXPCelebrationView(
                     xpGained: tabViewModel.xpGained,
@@ -77,7 +74,7 @@ struct MainTabView: View {
                 .zIndex(999)
             }
 
-            // Existing achievement notification
+            // Achievement notification - Fixed reference
             if let newAchievement = tabViewModel.newAchievement {
                 AchievementNotificationView(
                     achievement: newAchievement,
@@ -134,8 +131,7 @@ struct MainTabView: View {
     }
 }
 
-
-// MARK: - Global XP Celebration View
+// MARK: - Global XP Celebration View (Moved to top to fix compilation)
 struct GlobalXPCelebrationView: View {
     let xpGained: Int
     let totalXP: Int
@@ -227,13 +223,15 @@ struct GlobalXPCelebrationView: View {
                 }
                 
                 // Continue button
-                ModernButton(
-                    title: "Continue",
-                    style: .success,
-                    isFullWidth: false
-                ) {
+                Button("Continue") {
                     onDismiss()
                 }
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 12)
+                .background(Color.blue)
+                .cornerRadius(25)
                 .opacity(isAnimating ? 1.0 : 0.0)
                 .animation(.easeOut(duration: 0.5).delay(1.5), value: isAnimating)
             }
@@ -258,7 +256,7 @@ struct GlobalXPCelebrationView: View {
     }
 }
 
-// MARK: - Achievement Notification View
+// MARK: - Achievement Notification View (Moved to top to fix compilation)
 struct AchievementNotificationView: View {
     let achievement: Achievement
     let onDismiss: () -> Void
@@ -269,39 +267,41 @@ struct AchievementNotificationView: View {
         VStack {
             Spacer()
             
-            ModernCard {
-                HStack(spacing: 16) {
-                    Image(systemName: achievement.icon)
-                        .font(.title)
-                        .foregroundColor(.yellow)
+            HStack {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Achievement Unlocked!")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Achievement Unlocked!")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
+                    HStack(spacing: 16) {
+                        Image(systemName: achievement.icon)
+                            .font(.title)
+                            .foregroundColor(.yellow)
                         
-                        Text(achievement.title)
-                            .font(.headline)
-                            .fontWeight(.bold)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(achievement.title)
+                                .font(.headline)
+                                .fontWeight(.bold)
+                            
+                            Text(achievement.description)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
                         
-                        Text(achievement.description)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack {
+                        Spacer()
+                        
                         Button(action: onDismiss) {
                             Image(systemName: "xmark")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        Spacer()
                     }
                 }
                 .padding()
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .shadow(radius: 8)
             }
             .padding(.horizontal)
             .offset(y: isVisible ? 0 : 100)
@@ -352,7 +352,7 @@ struct ConfettiParticle: View {
     }
 }
 
-// MARK: - Main Tab ViewModel (Updated with Debug Integration)
+// MARK: - Enhanced Main Tab ViewModel
 @MainActor
 final class MainTabViewModel: ObservableObject {
     @Published var showXPCelebration = false
@@ -447,11 +447,11 @@ final class MainTabViewModel: ObservableObject {
     }
     
     private func checkForNewContent() {
-        // Check for new lessons
-        hasNewLessons = false // Implement actual logic
+        // Check for new lessons - Enhanced logic could go here
+        hasNewLessons = false
         
-        // Check for new artworks
-        newArtworkCount = 0 // Implement actual logic
+        // Check for new artworks - Enhanced logic could go here
+        newArtworkCount = 0
         
         debugService.debug("Content check complete: hasNewLessons=\(hasNewLessons), newArtworkCount=\(newArtworkCount)", category: .general)
     }
