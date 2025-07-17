@@ -5,41 +5,59 @@ struct ProfileView: View {
     @State private var userProfile: UserProfile?
     @State private var showEditProfile = false
     @State private var isLoading = true
+    @State private var selectedTab = 0 // 0 = Profile, 1 = Settings
+    @AppStorage("isDarkMode") private var isDarkMode = false
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    if isLoading {
-                        ProgressView("Loading Profile...")
-                            .frame(height: 200)
-                    } else {
-                        // Profile header
-                        profileHeaderSection
-                        
-                        // Level Progress
-                        levelProgressSection
-                        
-                        // Quick Stats Grid
-                        statsGridSection
-                        
-                        // Recent Activity
-                        recentActivitySection
-                        
-                        // Skills Overview
-                        skillsOverviewSection
-                        
-                        // Achievements Preview
-                        achievementsPreviewSection
+            VStack(spacing: 0) {
+                // Tab Selector
+                HStack(spacing: 0) {
+                    Button(action: { selectedTab = 0 }) {
+                        Text("Profile")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(selectedTab == 0 ? .white : .secondary)
+                            .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity)
+                            .background(selectedTab == 0 ? Color.blue : Color.clear)
+                            .cornerRadius(8)
+                    }
+                    
+                    Button(action: { selectedTab = 1 }) {
+                        Text("Settings")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(selectedTab == 1 ? .white : .secondary)
+                            .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity)
+                            .background(selectedTab == 1 ? Color.blue : Color.clear)
+                            .cornerRadius(8)
                     }
                 }
-                .padding()
+                .padding(4)
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
+                .padding(.top)
+                
+                // Content
+                ScrollView {
+                    VStack(spacing: 24) {
+                        if selectedTab == 0 {
+                            profileContent
+                        } else {
+                            settingsContent
+                        }
+                    }
+                    .padding()
+                }
             }
-            .navigationTitle("Profile")
+            .navigationTitle(selectedTab == 0 ? "Profile" : "Settings")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Edit") {
-                        showEditProfile = true
+                if selectedTab == 0 {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Edit") {
+                            showEditProfile = true
+                        }
                     }
                 }
             }
@@ -47,8 +65,308 @@ struct ProfileView: View {
                 EditProfileView(userProfile: $userProfile)
             }
         }
+        .preferredColorScheme(isDarkMode ? .dark : .light)
         .task {
             await loadUserProfile()
+        }
+    }
+    
+    // MARK: - Profile Content
+    private var profileContent: some View {
+        VStack(spacing: 24) {
+            if isLoading {
+                ProgressView("Loading Profile...")
+                    .frame(height: 200)
+            } else {
+                // Profile header
+                profileHeaderSection
+                
+                // Level Progress
+                levelProgressSection
+                
+                // Quick Stats Grid
+                statsGridSection
+                
+                // Recent Activity
+                recentActivitySection
+                
+                // Skills Overview
+                skillsOverviewSection
+                
+                // Achievements Preview
+                achievementsPreviewSection
+            }
+        }
+    }
+    
+    // MARK: - Settings Content
+    private var settingsContent: some View {
+        VStack(spacing: 20) {
+            // Appearance Settings
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Image(systemName: "paintbrush.fill")
+                        .foregroundColor(.blue)
+                        .frame(width: 20)
+                    
+                    Text("Appearance")
+                        .font(.headline)
+                    
+                    Spacer()
+                }
+                
+                // Dark Mode Toggle
+                HStack {
+                    Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
+                        .foregroundColor(isDarkMode ? .purple : .orange)
+                        .frame(width: 24, height: 24)
+                        .background((isDarkMode ? Color.purple : Color.orange).opacity(0.1))
+                        .cornerRadius(6)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Dark Mode")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Text("Switch between light and dark themes")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: $isDarkMode)
+                        .labelsHidden()
+                }
+                .padding(.vertical, 4)
+                
+                // Current Theme Display
+                HStack {
+                    Image(systemName: "eye.fill")
+                        .foregroundColor(.blue)
+                        .frame(width: 24, height: 24)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(6)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Current Theme")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Text(isDarkMode ? "Dark theme active" : "Light theme active")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Text(isDarkMode ? "Dark" : "Light")
+                        .foregroundColor(.secondary)
+                        .font(.subheadline)
+                }
+                .padding(.vertical, 4)
+            }
+            .padding(20)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            
+            // Notifications Settings
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Image(systemName: "bell.fill")
+                        .foregroundColor(.blue)
+                        .frame(width: 20)
+                    
+                    Text("Notifications")
+                        .font(.headline)
+                    
+                    Spacer()
+                }
+                
+                // Daily Reminders
+                HStack {
+                    Image(systemName: "clock.fill")
+                        .foregroundColor(.green)
+                        .frame(width: 24, height: 24)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(6)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Daily Reminders")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Text("Get reminded to practice art daily")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: .constant(true))
+                        .labelsHidden()
+                }
+                .padding(.vertical, 4)
+                
+                // Achievement Alerts
+                HStack {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                        .frame(width: 24, height: 24)
+                        .background(Color.yellow.opacity(0.1))
+                        .cornerRadius(6)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Achievement Alerts")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Text("Notifications for badges and milestones")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: .constant(true))
+                        .labelsHidden()
+                }
+                .padding(.vertical, 4)
+            }
+            .padding(20)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            
+            // Learning Settings
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Image(systemName: "graduationcap.fill")
+                        .foregroundColor(.blue)
+                        .frame(width: 20)
+                    
+                    Text("Learning")
+                        .font(.headline)
+                    
+                    Spacer()
+                }
+                
+                // Daily Goal
+                HStack {
+                    Image(systemName: "target")
+                        .foregroundColor(.blue)
+                        .frame(width: 24, height: 24)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(6)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Daily Goal")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Text("\(userProfile?.dailyGoalMinutes ?? 15) minutes per day")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button("Edit") {
+                        // Edit daily goal
+                    }
+                    .font(.subheadline)
+                }
+                .padding(.vertical, 4)
+                
+                // Auto-Save
+                HStack {
+                    Image(systemName: "square.and.arrow.down.fill")
+                        .foregroundColor(.green)
+                        .frame(width: 24, height: 24)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(6)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Auto-Save Drawings")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Text("Automatically save your artwork")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: .constant(true))
+                        .labelsHidden()
+                }
+                .padding(.vertical, 4)
+            }
+            .padding(20)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            
+            // About Section
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(.blue)
+                        .frame(width: 20)
+                    
+                    Text("About")
+                        .font(.headline)
+                    
+                    Spacer()
+                }
+                
+                // App Version
+                HStack {
+                    Image(systemName: "app.badge.fill")
+                        .foregroundColor(.blue)
+                        .frame(width: 24, height: 24)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(6)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("App Version")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Text("1.0.0")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+                
+                // Contact Support
+                HStack {
+                    Image(systemName: "questionmark.circle.fill")
+                        .foregroundColor(.orange)
+                        .frame(width: 24, height: 24)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(6)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Contact Support")
+                            .font(.subheadline.weight(.medium))
+                        
+                        Text("Get help with the app")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button("Contact") {
+                        // Contact support
+                    }
+                    .font(.subheadline)
+                }
+                .padding(.vertical, 4)
+            }
+            .padding(20)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         }
     }
     
