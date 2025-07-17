@@ -1,10 +1,9 @@
 import SwiftUI
-import Firebase  // Add this import
+import Firebase
 
 @main
 struct ArtOfTheFutureApp: App {
     
-    // Add this initializer
     init() {
         FirebaseApp.configure()
     }
