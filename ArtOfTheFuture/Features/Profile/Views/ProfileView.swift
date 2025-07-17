@@ -7,6 +7,8 @@ struct ProfileView: View {
     @State private var isLoading = true
     @State private var selectedTab = 0 // 0 = Profile, 1 = Settings
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @EnvironmentObject var authService: FirebaseAuthService
+
 
     var body: some View {
         NavigationView {
@@ -367,6 +369,10 @@ struct ProfileView: View {
             .background(Color(.systemBackground))
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            Button("Sign Out") {
+                authService.signOut()
+            }
+            .foregroundColor(.red)
         }
     }
     
