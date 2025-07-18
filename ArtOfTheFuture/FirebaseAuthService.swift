@@ -1,4 +1,4 @@
-// MARK: - Enhanced FirebaseAuthService with Onboarding Integration
+// MARK: - Debug-Enhanced FirebaseAuthService with Detailed Logging
 // File: ArtOfTheFuture/FirebaseAuthService.swift
 
 import SwiftUI
@@ -14,8 +14,8 @@ final class FirebaseAuthService: NSObject, ObservableObject {
     @Published var firebaseUser: FirebaseAuth.User?
     @Published var isAuthenticated = false
     @Published var hasCompletedOnboarding = false
-    @Published var isLoading = false
     @Published var isCheckingOnboardingStatus = false
+    @Published var isLoading = false
     @Published var errorMessage: String?
     
     private let auth = Auth.auth()
@@ -25,26 +25,40 @@ final class FirebaseAuthService: NSObject, ObservableObject {
     override init() {
         super.init()
         
+        print("🔥 FirebaseAuthService initializing...")
+        
         // Listen for auth state changes
         auth.addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
+                print("🔥 Auth state changed. User: \(user?.email ?? "none"), UID: \(user?.uid ?? "none")")
+                
                 self?.firebaseUser = user
                 self?.isAuthenticated = user != nil
-                print("🔥 Auth state changed. User: \(user?.email ?? "none")")
                 
                 if let user = user {
+                    print("🔥 User is authenticated, checking onboarding status...")
                     await self?.ensureUserProfileExists(for: user)
                     await self?.checkOnboardingStatus(for: user.uid)
                 } else {
+                    print("🔥 No authenticated user, resetting onboarding status")
                     self?.hasCompletedOnboarding = false
+                    self?.isCheckingOnboardingStatus = false
                 }
             }
+        }
+        
+        // Debug current auth state
+        if let currentUser = auth.currentUser {
+            print("🔥 Already authenticated user found: \(currentUser.email ?? "unknown")")
+        } else {
+            print("🔥 No current authenticated user")
         }
     }
     
     // MARK: - Onboarding Status Management
     
     func checkOnboardingStatus(for uid: String) async {
+        print("🔥 Checking onboarding status for user: \(uid)")
         isCheckingOnboardingStatus = true
         
         do {
@@ -53,7 +67,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             if let data = document.data() {
                 let onboardingCompleted = data["hasCompletedOnboarding"] as? Bool ?? false
                 hasCompletedOnboarding = onboardingCompleted
-                print("🔥 Onboarding status: \(onboardingCompleted)")
+                print("🔥 Onboarding status found: \(onboardingCompleted)")
             } else {
                 hasCompletedOnboarding = false
                 print("🔥 No user document found, onboarding required")
@@ -64,12 +78,16 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         }
         
         isCheckingOnboardingStatus = false
+        print("🔥 Finished checking onboarding status. hasCompleted: \(hasCompletedOnboarding)")
     }
     
     func markOnboardingCompleted(with data: OnboardingData) async throws {
         guard let uid = firebaseUser?.uid else {
+            print("❌ No authenticated user found when trying to complete onboarding")
             throw AuthError.noUserFound
         }
+        
+        print("🔥 Marking onboarding completed for user: \(uid)")
         
         let onboardingData: [String: Any] = [
             "hasCompletedOnboarding": true,
@@ -82,12 +100,17 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             "lastUpdated": Timestamp()
         ]
         
-        try await db.collection("users").document(uid).updateData(onboardingData)
-        
-        // Update local state
-        hasCompletedOnboarding = true
-        
-        print("🔥 Onboarding completed and saved to Firestore")
+        do {
+            try await db.collection("users").document(uid).updateData(onboardingData)
+            
+            // Update local state
+            hasCompletedOnboarding = true
+            
+            print("🔥 Onboarding completed and saved to Firestore successfully")
+        } catch {
+            print("❌ Failed to save onboarding to Firestore: \(error)")
+            throw error
+        }
     }
     
     // MARK: - Email/Password Authentication
@@ -134,7 +157,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         
         do {
             let result = try await auth.signIn(withEmail: email, password: password)
-            print("🔥 User signed in successfully")
+            print("🔥 User signed in successfully: \(result.user.uid)")
             
             // Ensure user profile exists
             await ensureUserProfileExists(for: result.user)
@@ -173,6 +196,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             
             // Check if this is a new user
             let isNewUser = authResult.additionalUserInfo?.isNewUser ?? false
+            print("🔥 Is new user: \(isNewUser)")
             
             // Create or update user profile
             try await createOrUpdateUserProfile(
@@ -228,6 +252,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
                 
                 // Check if this is a new user
                 let isNewUser = authResult.additionalUserInfo?.isNewUser ?? false
+                print("🔥 Is new user: \(isNewUser)")
                 
                 // Get display name from Apple ID credential
                 var displayName: String?
@@ -267,12 +292,15 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         provider: String,
         isNewUser: Bool
     ) async throws {
+        print("🔥 Creating user profile for: \(uid)")
+        
+        // Match your Firestore security rules requirements
         let userData: [String: Any] = [
             "email": email ?? "",
             "displayName": displayName ?? "User",
-            "photoURL": photoURL ?? "",
             "createdAt": FieldValue.serverTimestamp(),
-            "lastLoginAt": FieldValue.serverTimestamp(),
+            "lastActiveDate": FieldValue.serverTimestamp(), // Changed from lastLoginAt
+            "photoURL": photoURL ?? "",
             "providers": [provider],
             "totalXP": 0,
             "currentLevel": 1,
@@ -282,7 +310,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         ]
         
         try await db.collection("users").document(uid).setData(userData)
-        print("🔥 User profile created: \(uid)")
+        print("🔥 User profile created successfully: \(uid)")
     }
     
     private func createOrUpdateUserProfile(
@@ -299,14 +327,12 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             let document = try await userRef.getDocument()
             
             if document.exists && !isNewUser {
-                // Update existing profile
+                print("🔥 Updating existing user profile: \(uid)")
+                // Update existing profile - your rules allow updates
                 var updateData: [String: Any] = [
-                    "lastLoginAt": FieldValue.serverTimestamp()
+                    "lastActiveDate": FieldValue.serverTimestamp() // Changed from lastLoginAt
                 ]
                 
-                if let email = email {
-                    updateData["email"] = email
-                }
                 if let displayName = displayName {
                     updateData["displayName"] = displayName
                 }
@@ -326,7 +352,8 @@ final class FirebaseAuthService: NSObject, ObservableObject {
                 print("🔥 User profile updated in Firestore")
                 
             } else {
-                // Create new profile
+                print("🔥 Creating new user profile for: \(uid)")
+                // Create new profile with all required fields
                 try await createUserProfile(
                     uid: uid,
                     email: email,
@@ -349,7 +376,8 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             let document = try await userRef.getDocument()
             
             if !document.exists {
-                // Create profile for existing auth user
+                print("🔥 No profile exists, creating one for: \(user.uid)")
+                // Create profile for existing auth user with all required fields
                 let provider = user.providerData.first?.providerID ?? "unknown"
                 try await createUserProfile(
                     uid: user.uid,
@@ -359,6 +387,12 @@ final class FirebaseAuthService: NSObject, ObservableObject {
                     provider: provider,
                     isNewUser: false
                 )
+            } else {
+                print("🔥 Profile already exists for: \(user.uid)")
+                // Update lastActiveDate since user is active
+                try await userRef.updateData([
+                    "lastActiveDate": FieldValue.serverTimestamp()
+                ])
             }
         } catch {
             print("🔥 Error ensuring user profile exists: \(error.localizedDescription)")
@@ -371,7 +405,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         do {
             try auth.signOut()
             hasCompletedOnboarding = false
-            print("🔥 User signed out")
+            print("🔥 User signed out successfully")
         } catch {
             print("🔥 Sign out error: \(error.localizedDescription)")
         }

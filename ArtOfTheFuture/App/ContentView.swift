@@ -3,6 +3,11 @@
 
 import SwiftUI
 
+// MARK: - Enhanced ContentView with Debug Logging
+// File: ArtOfTheFuture/App/ContentView.swift
+
+import SwiftUI
+
 struct ContentView: View {
     @StateObject private var authService = FirebaseAuthService()
     @State private var isInitialized = false
@@ -12,13 +17,22 @@ struct ContentView: View {
             if !isInitialized {
                 // Show loading while Firebase initializes
                 LoadingView()
+                    .onAppear {
+                        print("📱 App loading...")
+                    }
             } else if !authService.isAuthenticated {
                 // User not authenticated - show auth
                 AuthView()
                     .environmentObject(authService)
+                    .onAppear {
+                        print("📱 Showing AuthView - user not authenticated")
+                    }
             } else if authService.isCheckingOnboardingStatus {
                 // Checking onboarding status from Firestore
                 LoadingView(message: "Setting up your experience...")
+                    .onAppear {
+                        print("📱 Checking onboarding status...")
+                    }
             } else if !authService.hasCompletedOnboarding {
                 // User authenticated but hasn't completed onboarding
                 OnboardingView()
@@ -27,6 +41,9 @@ struct ContentView: View {
                         insertion: .move(edge: .trailing),
                         removal: .move(edge: .leading)
                     ))
+                    .onAppear {
+                        print("📱 Showing OnboardingView - user authenticated but onboarding incomplete")
+                    }
             } else {
                 // User authenticated and onboarded - show main app
                 MainTabView()
@@ -35,18 +52,29 @@ struct ContentView: View {
                         insertion: .opacity.combined(with: .scale(scale: 0.95)),
                         removal: .opacity
                     ))
+                    .onAppear {
+                        print("📱 Showing MainTabView - user fully set up")
+                    }
             }
         }
         .onAppear {
             initializeApp()
         }
+        .onChange(of: authService.isAuthenticated) { _, newValue in
+            print("📱 Auth state changed to: \(newValue)")
+        }
+        .onChange(of: authService.hasCompletedOnboarding) { _, newValue in
+            print("📱 Onboarding completion state changed to: \(newValue)")
+        }
     }
     
     private func initializeApp() {
+        print("📱 Initializing app...")
         // Small delay to ensure Firebase is fully configured
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             withAnimation(.spring(response: 0.5)) {
                 isInitialized = true
+                print("📱 App initialization complete")
             }
         }
     }
