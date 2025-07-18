@@ -88,8 +88,19 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         }
         
         print("🔥 Marking onboarding completed for user: \(uid)")
+        print("🔥 Updating display name to: \(data.userName)")
         
+        // First, update Firebase Auth display name
+        if let user = Auth.auth().currentUser {
+            let changeRequest = user.createProfileChangeRequest()
+            changeRequest.displayName = data.userName
+            try await changeRequest.commitChanges()
+            print("🔥 Firebase Auth display name updated to: \(data.userName)")
+        }
+        
+        // Then update Firestore with ONLY the onboarding data (not recreating profile)
         let onboardingData: [String: Any] = [
+            "displayName": data.userName, // Update display name
             "hasCompletedOnboarding": true,
             "onboardingDate": Timestamp(),
             "userName": data.userName,
@@ -97,7 +108,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             "learningGoals": data.learningGoals.map { $0.rawValue },
             "preferredPracticeTime": data.preferredPracticeTime.rawValue,
             "interests": data.interests.map { $0.rawValue },
-            "lastUpdated": Timestamp()
+            "lastActiveDate": Timestamp()
         ]
         
         do {
@@ -107,6 +118,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             hasCompletedOnboarding = true
             
             print("🔥 Onboarding completed and saved to Firestore successfully")
+            print("🔥 User display name should now be: \(data.userName)")
         } catch {
             print("❌ Failed to save onboarding to Firestore: \(error)")
             throw error
@@ -294,23 +306,35 @@ final class FirebaseAuthService: NSObject, ObservableObject {
     ) async throws {
         print("🔥 Creating user profile for: \(uid)")
         
-        // Match your Firestore security rules requirements
+        // Only include the required fields for your security rules
         let userData: [String: Any] = [
             "email": email ?? "",
             "displayName": displayName ?? "User",
             "createdAt": FieldValue.serverTimestamp(),
-            "lastActiveDate": FieldValue.serverTimestamp(), // Changed from lastLoginAt
+            "lastActiveDate": FieldValue.serverTimestamp()
+        ]
+        
+        try await db.collection("users").document(uid).setData(userData)
+        print("🔥 User profile created successfully with required fields: \(uid)")
+        
+        // Now add the optional fields with a separate update
+        let additionalData: [String: Any] = [
             "photoURL": photoURL ?? "",
             "providers": [provider],
             "totalXP": 0,
             "currentLevel": 1,
             "currentStreak": 0,
-            "hasCompletedOnboarding": false, // New users need onboarding
+            "hasCompletedOnboarding": false,
             "isNewUser": isNewUser
         ]
         
-        try await db.collection("users").document(uid).setData(userData)
-        print("🔥 User profile created successfully: \(uid)")
+        do {
+            try await db.collection("users").document(uid).updateData(additionalData)
+            print("🔥 Additional user data added successfully: \(uid)")
+        } catch {
+            print("🔥 Warning: Could not add additional user data (this is okay): \(error.localizedDescription)")
+            // Don't throw here - the basic profile was created successfully
+        }
     }
     
     private func createOrUpdateUserProfile(
@@ -328,19 +352,24 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             
             if document.exists && !isNewUser {
                 print("🔥 Updating existing user profile: \(uid)")
-                // Update existing profile - your rules allow updates
+                // Update existing profile - only safe fields
                 var updateData: [String: Any] = [
-                    "lastActiveDate": FieldValue.serverTimestamp() // Changed from lastLoginAt
+                    "lastActiveDate": FieldValue.serverTimestamp()
                 ]
                 
-                if let displayName = displayName {
+                // Only update display name if provided and different
+                if let displayName = displayName,
+                   let currentDisplayName = document.data()?["displayName"] as? String,
+                   displayName != currentDisplayName {
                     updateData["displayName"] = displayName
                 }
+                
+                // Only update photoURL if provided
                 if let photoURL = photoURL {
                     updateData["photoURL"] = photoURL
                 }
                 
-                // Add provider if not already present
+                // Add provider if not already present (but only if providers field exists)
                 if let providers = document.data()?["providers"] as? [String],
                    !providers.contains(provider) {
                     var mutableProviders = providers
@@ -353,7 +382,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
                 
             } else {
                 print("🔥 Creating new user profile for: \(uid)")
-                // Create new profile with all required fields
+                // Create new profile with required fields first
                 try await createUserProfile(
                     uid: uid,
                     email: email,
@@ -377,7 +406,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             
             if !document.exists {
                 print("🔥 No profile exists, creating one for: \(user.uid)")
-                // Create profile for existing auth user with all required fields
+                // Create profile for existing auth user with required fields only
                 let provider = user.providerData.first?.providerID ?? "unknown"
                 try await createUserProfile(
                     uid: user.uid,
@@ -390,12 +419,19 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             } else {
                 print("🔥 Profile already exists for: \(user.uid)")
                 // Update lastActiveDate since user is active
-                try await userRef.updateData([
-                    "lastActiveDate": FieldValue.serverTimestamp()
-                ])
+                do {
+                    try await userRef.updateData([
+                        "lastActiveDate": FieldValue.serverTimestamp()
+                    ])
+                    print("🔥 Updated lastActiveDate for: \(user.uid)")
+                } catch {
+                    print("🔥 Warning: Could not update lastActiveDate: \(error.localizedDescription)")
+                    // Don't throw - this is not critical
+                }
             }
         } catch {
             print("🔥 Error ensuring user profile exists: \(error.localizedDescription)")
+            // Don't throw - let the app continue even if profile creation fails
         }
     }
     
