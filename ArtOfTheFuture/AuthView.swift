@@ -1,4 +1,6 @@
 import SwiftUI
+import GoogleSignIn
+import AuthenticationServices
 
 struct AuthView: View {
     @EnvironmentObject var authService: FirebaseAuthService
@@ -32,6 +34,64 @@ struct AuthView: View {
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 60)
+                
+                // Social Login Buttons
+                VStack(spacing: 12) {
+                    // Sign in with Apple
+                    SignInWithAppleButton(
+                        .signIn,
+                        onRequest: { request in
+                            authService.handleSignInWithAppleRequest(request)
+                        },
+                        onCompletion: { result in
+                            Task {
+                                await authService.handleSignInWithAppleCompletion(result)
+                            }
+                        }
+                    )
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 55)
+                    .cornerRadius(12)
+                    
+                    // Sign in with Google
+                    Button(action: signInWithGoogle) {
+                        HStack(spacing: 8) {
+                            Image("google-logo") // You'll need to add this asset
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                            
+                            Text("Continue with Google")
+                                .font(.headline)
+                                .fontWeight(.medium)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 55)
+                        .background(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.systemGray3), lineWidth: 1)
+                        )
+                        .cornerRadius(12)
+                    }
+                    
+                    // Divider
+                    HStack(spacing: 16) {
+                        Rectangle()
+                            .fill(Color(.systemGray5))
+                            .frame(height: 1)
+                        
+                        Text("OR")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        
+                        Rectangle()
+                            .fill(Color(.systemGray5))
+                            .frame(height: 1)
+                    }
+                    .padding(.vertical, 8)
+                }
                 
                 // Email/Password Form
                 VStack(spacing: 20) {
@@ -116,18 +176,6 @@ struct AuthView: View {
                     }
                 }
                 
-                // Coming Soon Note
-                VStack(spacing: 8) {
-                    Text("Social Login Coming Soon")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text("🍎 Apple • 🌐 Google")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.top, 20)
-                
                 Spacer(minLength: 100)
             }
             .padding(.horizontal, 32)
@@ -157,6 +205,26 @@ struct AuthView: View {
             }
         }
     }
+    
+    private func signInWithGoogle() {
+        guard let presentingViewController = getRootViewController() else {
+            authService.errorMessage = "Unable to get presenting view controller"
+            return
+        }
+        
+        Task {
+            await authService.signInWithGoogle(presenting: presentingViewController)
+        }
+    }
+    
+    private func getRootViewController() -> UIViewController? {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else {
+            return nil
+        }
+        
+        return window.rootViewController
+    }
 }
 
 // MARK: - Custom Text Field Style
@@ -167,6 +235,41 @@ struct CustomTextFieldStyle: TextFieldStyle {
             .background(Color(.systemGray6))
             .cornerRadius(12)
             .font(.body)
+    }
+}
+
+// MARK: - Google Sign In Button (Alternative if no image asset)
+struct GoogleSignInButton: View {
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                // Google "G" logo using SF Symbols approximation
+                ZStack {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 20, height: 20)
+                    
+                    Text("G")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.blue)
+                }
+                
+                Text("Continue with Google")
+                    .font(.headline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 55)
+            .background(Color(.systemBackground))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(.systemGray3), lineWidth: 1)
+            )
+            .cornerRadius(12)
+        }
     }
 }
 
