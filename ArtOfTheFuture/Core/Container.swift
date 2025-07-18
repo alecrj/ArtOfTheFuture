@@ -1,4 +1,4 @@
-// MARK: - Dependency Injection Container
+// MARK: - Fixed Dependency Injection Container
 // File: ArtOfTheFuture/Core/Container.swift
 
 import Foundation
@@ -12,9 +12,10 @@ final class Container {
         GalleryService()
     }()
     
-    lazy var userService: UserServiceProtocol = {
-        UserService()
-    }()
+    // Use existing UserDataService instead of UserServiceProtocol
+    var userDataService: UserDataService {
+        UserDataService.shared
+    }
     
     lazy var lessonService: LessonServiceProtocol = {
         LessonService.shared
@@ -28,6 +29,7 @@ final class Container {
         print("Container initialized")
     }
 }
+
 extension Container {
     var debugService: DebugService {
         DebugService.shared

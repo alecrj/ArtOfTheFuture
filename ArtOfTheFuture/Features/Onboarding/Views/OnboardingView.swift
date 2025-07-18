@@ -1,156 +1,201 @@
+// MARK: - Enhanced Duolingo-style OnboardingView
+// File: ArtOfTheFuture/Features/Onboarding/Views/OnboardingView.swift
+
 import SwiftUI
 
 struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
-    @State private var currentStep: OnboardingStep = .welcome
+    @EnvironmentObject private var authService: FirebaseAuthService
+    @State private var dragOffset: CGSize = .zero
     @State private var isAnimating = false
-    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         ZStack {
             // Background gradient
-            LinearGradient(
-                colors: [
-                    Color.blue.opacity(0.1),
-                    Color.purple.opacity(0.1)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            backgroundGradient
             
+            // Main content
             VStack(spacing: 0) {
-                // Progress bar
-                if currentStep != .welcome {
-                    ProgressBar(progress: currentStep.progress)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
+                // Progress indicator
+                if viewModel.currentStep != .welcome {
+                    progressHeader
                 }
                 
-                // Content
-                TabView(selection: $currentStep) {
-                    ForEach(OnboardingStep.allCases, id: \.self) { step in
-                        stepContent(for: step)
-                            .tag(step)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.spring(response: 0.5), value: currentStep)
+                // Step content with page transitions
+                stepContentView
                 
-                // Navigation buttons
-                navigationButtons
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                // Navigation controls
+                navigationFooter
+            }
+            
+            // Celebration overlay
+            if viewModel.showCelebration {
+                celebrationOverlay
             }
         }
         .preferredColorScheme(.light)
+        .onAppear {
+            withAnimation(.spring(response: 0.8)) {
+                isAnimating = true
+            }
+        }
+    }
+    
+    // MARK: - Background
+    private var backgroundGradient: some View {
+        LinearGradient(
+            colors: [
+                Color.blue.opacity(0.1),
+                Color.purple.opacity(0.1),
+                Color.pink.opacity(0.05)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: isAnimating)
+    }
+    
+    // MARK: - Progress Header
+    private var progressHeader: some View {
+        VStack(spacing: 12) {
+            HStack {
+                // Back button
+                Button(action: {
+                    viewModel.previousStep()
+                }) {
+                    Image(systemName: "chevron.left")
+                        .font(.title3)
+                        .foregroundColor(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(Color(.systemBackground))
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+                }
+                .opacity(viewModel.currentStep == .welcome ? 0 : 1)
+                
+                Spacer()
+                
+                // Step indicator
+                Text("\(viewModel.currentStep.rawValue + 1) of \(OnboardingStep.allCases.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                // Skip button (on early steps only)
+                if viewModel.currentStep.rawValue < 4 {
+                    Button("Skip") {
+                        // Jump to complete step
+                        withAnimation(.spring(response: 0.6)) {
+                            viewModel.currentStep = .complete
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(width: 44)
+                } else {
+                    Spacer()
+                        .frame(width: 44)
+                }
+            }
+            .padding(.horizontal)
+            
+            // Progress bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(.systemGray5))
+                        .frame(height: 6)
+                    
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(
+                            LinearGradient(
+                                colors: [.blue, .purple, .pink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geometry.size.width * viewModel.currentStep.progress, height: 6)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: viewModel.currentStep.progress)
+                }
+            }
+            .frame(height: 6)
+            .padding(.horizontal)
+        }
+        .padding(.top, 8)
     }
     
     // MARK: - Step Content
+    private var stepContentView: some View {
+        TabView(selection: $viewModel.currentStep) {
+            ForEach(OnboardingStep.allCases, id: \.self) { step in
+                stepContent(for: step)
+                    .tag(step)
+                    .clipped()
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: viewModel.currentStep)
+    }
+    
     @ViewBuilder
     private func stepContent(for step: OnboardingStep) -> some View {
-        VStack(spacing: 32) {
-            Spacer()
-            
-            // Title and subtitle
-            VStack(spacing: 16) {
-                Text(step.title)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
+        ScrollView {
+            VStack(spacing: 32) {
+                Spacer(minLength: 20)
                 
-                if let subtitle = step.subtitle {
-                    Text(subtitle)
-                        .font(.title3)
-                        .foregroundColor(.secondary)
+                // Icon/Animation area
+                stepIcon(for: step)
+                
+                // Title and subtitle
+                VStack(spacing: 16) {
+                    Text(step.title)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
                         .multilineTextAlignment(.center)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                    
+                    if let subtitle = step.subtitle {
+                        Text(subtitle)
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
+                .padding(.horizontal)
+                
+                // Step-specific content
+                stepSpecificContent(for: step)
+                
+                Spacer(minLength: 100) // Space for navigation
             }
-            .padding(.horizontal)
-            
-            // Step specific content
-            Group {
-                switch step {
-                case .welcome:
-                    welcomeContent
-                case .name:
-                    nameContent
-                case .skillLevel:
-                    skillLevelContent
-                case .goals:
-                    goalsContent
-                case .practiceTime:
-                    practiceTimeContent
-                case .interests:
-                    interestsContent
-                case .complete:
-                    completeContent
-                }
-            }
-            .padding(.horizontal)
-            
-            Spacer()
         }
-        .transition(.asymmetric(
-            insertion: .move(edge: .trailing).combined(with: .opacity),
-            removal: .move(edge: .leading).combined(with: .opacity)
-        ))
     }
     
-    // MARK: - Welcome Content
-    private var welcomeContent: some View {
-        VStack(spacing: 40) {
-            // Animated icon
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(
-                        colors: [.blue, .purple],
+    @ViewBuilder
+    private func stepIcon(for step: OnboardingStep) -> some View {
+        ZStack {
+            // Background circle with gradient
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [.blue.opacity(0.1), .purple.opacity(0.1)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
-                    ))
-                    .frame(width: 200, height: 200)
-                    .scaleEffect(isAnimating ? 1.0 : 0.8)
-                    .opacity(isAnimating ? 1.0 : 0.6)
-                
-                Image(systemName: "paintbrush.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.white)
-                    .rotationEffect(.degrees(isAnimating ? 0 : -10))
-            }
-            .onAppear {
-                withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
-                    isAnimating = true
-                }
-            }
+                    )
+                )
+                .frame(width: 120, height: 120)
             
-            // Feature highlights
-            VStack(spacing: 24) {
-                FeatureRow(
-                    icon: "sparkles",
-                    title: "AI-Powered Learning",
-                    description: "Personalized lessons that adapt to you"
-                )
-                
-                FeatureRow(
-                    icon: "chart.line.uptrend.xyaxis",
-                    title: "Track Progress",
-                    description: "See your improvement over time"
-                )
-                
-                FeatureRow(
-                    icon: "person.3.fill",
-                    title: "Join Community",
-                    description: "Learn with artists worldwide"
-                )
-            }
-        }
-    }
-    
-    // MARK: - Name Content
-    private var nameContent: some View {
-        VStack(spacing: 40) {
-            Image(systemName: "person.crop.circle.badge.plus")
-                .font(.system(size: 100))
+            // Icon
+            Image(systemName: step.iconName)
+                .font(.system(size: 40, weight: .light))
                 .foregroundStyle(
                     LinearGradient(
                         colors: [.blue, .purple],
@@ -158,45 +203,109 @@ struct OnboardingView: View {
                         endPoint: .bottomTrailing
                     )
                 )
-            
-            VStack(spacing: 20) {
-                TextField("Enter your name", text: $viewModel.onboardingData.userName)
-                    .font(.title2)
-                    .multilineTextAlignment(.center)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(16)
-                
-                Text("You can always change this later")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+                .scaleEffect(isAnimating ? 1.1 : 1.0)
+                .animation(
+                    .easeInOut(duration: 2.0).repeatForever(autoreverses: true),
+                    value: isAnimating
+                )
         }
     }
     
-    // MARK: - Skill Level Content
+    @ViewBuilder
+    private func stepSpecificContent(for step: OnboardingStep) -> some View {
+        switch step {
+        case .welcome:
+            welcomeContent
+        case .name:
+            nameContent
+        case .skillLevel:
+            skillLevelContent
+        case .goals:
+            goalsContent
+        case .practiceTime:
+            practiceTimeContent
+        case .interests:
+            interestsContent
+        case .complete:
+            completeContent
+        }
+    }
+    
+    // MARK: - Step Contents
+    private var welcomeContent: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 16) {
+                Text("🎨 AI-Powered Drawing Lessons")
+                Text("📚 Structured Learning Path")
+                Text("🏆 Track Your Progress")
+                Text("🎯 Personalized Goals")
+            }
+            .font(.headline)
+            .foregroundColor(.primary)
+            
+            Text("Join thousands of artists improving their skills every day!")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
+        }
+        .padding(.horizontal)
+    }
+    
+    private var nameContent: some View {
+        VStack(spacing: 24) {
+            VStack(spacing: 16) {
+                TextField("Enter your name", text: $viewModel.onboardingData.userName)
+                    .textFieldStyle(OnboardingTextFieldStyle())
+                    .submitLabel(.continue)
+                    .onSubmit {
+                        if viewModel.canProceedFromCurrentStep {
+                            viewModel.nextStep()
+                        }
+                    }
+                
+                // Validation feedback
+                if let errorMessage = viewModel.nameValidation.errorMessage {
+                    Label(errorMessage, systemImage: "exclamationmark.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                } else if viewModel.nameValidation.isValid {
+                    Label("Looks great!", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                }
+            }
+            
+            Text("We'll use this to personalize your learning experience")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal)
+    }
+    
     private var skillLevelContent: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             ForEach(SkillLevel.allCases, id: \.self) { level in
                 SkillLevelCard(
                     level: level,
                     isSelected: viewModel.onboardingData.skillLevel == level,
                     action: {
-                        withAnimation(.spring(response: 0.3)) {
+                        withAnimation(.spring(response: 0.4)) {
                             viewModel.onboardingData.skillLevel = level
-                            Task {
-                                await HapticManager.shared.impact(.light)
-                            }
+                            HapticManager.shared.impact(.light)
                         }
                     }
                 )
             }
         }
+        .padding(.horizontal)
     }
     
-    // MARK: - Goals Content
     private var goalsContent: some View {
-        ScrollView {
+        VStack(spacing: 20) {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 ForEach(LearningGoal.allCases, id: \.self) { goal in
                     GoalCard(
@@ -206,21 +315,26 @@ struct OnboardingView: View {
                             withAnimation(.spring(response: 0.3)) {
                                 if viewModel.onboardingData.learningGoals.contains(goal) {
                                     viewModel.onboardingData.learningGoals.remove(goal)
-                                } else {
+                                } else if viewModel.onboardingData.learningGoals.count < 4 {
                                     viewModel.onboardingData.learningGoals.insert(goal)
-                                }
-                                Task {
-                                    await HapticManager.shared.impact(.light)
+                                    HapticManager.shared.impact(.light)
                                 }
                             }
                         }
                     )
                 }
             }
+            
+            // Validation feedback
+            if let errorMessage = viewModel.goalsValidation.errorMessage {
+                Label(errorMessage, systemImage: "info.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
         }
+        .padding(.horizontal)
     }
     
-    // MARK: - Practice Time Content
     private var practiceTimeContent: some View {
         VStack(spacing: 16) {
             ForEach(PracticeTime.allCases, id: \.self) { time in
@@ -230,19 +344,17 @@ struct OnboardingView: View {
                     action: {
                         withAnimation(.spring(response: 0.3)) {
                             viewModel.onboardingData.preferredPracticeTime = time
-                            Task {
-                                await HapticManager.shared.impact(.light)
-                            }
+                            HapticManager.shared.impact(.light)
                         }
                     }
                 )
             }
         }
+        .padding(.horizontal)
     }
     
-    // MARK: - Interests Content
     private var interestsContent: some View {
-        ScrollView {
+        VStack(spacing: 20) {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 ForEach(ArtInterest.allCases, id: \.self) { interest in
                     InterestCard(
@@ -252,41 +364,42 @@ struct OnboardingView: View {
                             withAnimation(.spring(response: 0.3)) {
                                 if viewModel.onboardingData.interests.contains(interest) {
                                     viewModel.onboardingData.interests.remove(interest)
-                                } else {
+                                } else if viewModel.onboardingData.interests.count < 6 {
                                     viewModel.onboardingData.interests.insert(interest)
-                                }
-                                Task {
-                                    await HapticManager.shared.impact(.light)
+                                    HapticManager.shared.impact(.light)
                                 }
                             }
                         }
                     )
                 }
             }
+            
+            // Validation feedback
+            if let errorMessage = viewModel.interestsValidation.errorMessage {
+                Label(errorMessage, systemImage: "info.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
         }
+        .padding(.horizontal)
     }
     
-    // MARK: - Complete Content
     private var completeContent: some View {
-        VStack(spacing: 40) {
-            // Success animation
-            ZStack {
-                Circle()
-                    .fill(Color.green.opacity(0.2))
-                    .frame(width: 150, height: 150)
-                
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 100))
-                    .foregroundColor(.green)
-                    .transition(.scale.combined(with: .opacity))
-            }
+        VStack(spacing: 24) {
+            // Success animation would go here
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.green)
+                .scaleEffect(isAnimating ? 1.2 : 1.0)
+                .animation(.spring(response: 0.6).repeatForever(autoreverses: true), value: isAnimating)
             
-            VStack(spacing: 24) {
-                Text("Welcome, \(viewModel.onboardingData.userName)!")
-                    .font(.title)
-                    .fontWeight(.bold)
+            VStack(spacing: 16) {
+                Text("Perfect! Here's your personalized plan:")
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
                 
-                VStack(spacing: 16) {
+                // Summary of selections
+                VStack(spacing: 12) {
                     SummaryRow(
                         icon: viewModel.onboardingData.skillLevel.icon,
                         label: "Level",
@@ -304,164 +417,192 @@ struct OnboardingView: View {
                         label: "Daily Practice",
                         value: viewModel.onboardingData.preferredPracticeTime.rawValue
                     )
+                    
+                    SummaryRow(
+                        icon: "heart",
+                        label: "Interests",
+                        value: "\(viewModel.onboardingData.interests.count) selected"
+                    )
                 }
                 .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemGray6))
+                )
             }
         }
+        .padding(.horizontal)
     }
     
-    // MARK: - Navigation Buttons
-    private var navigationButtons: some View {
-        HStack(spacing: 16) {
-            // Back button
-            if currentStep != .welcome {
-                Button(action: previousStep) {
-                    HStack {
-                        Image(systemName: "chevron.left")
-                        Text("Back")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.systemGray5))
-                    .cornerRadius(12)
-                }
+    // MARK: - Navigation Footer
+    private var navigationFooter: some View {
+        VStack(spacing: 16) {
+            // Error message
+            if let errorMessage = viewModel.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.red)
             }
             
-            // Continue/Complete button
-            Button(action: nextStep) {
+            // Continue button
+            Button(action: {
+                viewModel.nextStep()
+            }) {
                 HStack {
-                    Text(currentStep == .complete ? "Start Learning" : "Continue")
-                    if currentStep != .complete {
-                        Image(systemName: "chevron.right")
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .foregroundColor(.white)
+                    } else {
+                        Text(buttonTitle)
+                        if viewModel.currentStep != .complete {
+                            Image(systemName: "chevron.right")
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(canProceed ? Color.accentColor : Color(.systemGray5))
-                .foregroundColor(canProceed ? .white : .secondary)
-                .cornerRadius(12)
-            }
-            .disabled(!canProceed)
-        }
-    }
-    
-    // MARK: - Helper Methods
-    private var canProceed: Bool {
-        switch currentStep {
-        case .welcome:
-            return true
-        case .name:
-            return !viewModel.onboardingData.userName.isEmpty
-        case .skillLevel:
-            return true
-        case .goals:
-            return !viewModel.onboardingData.learningGoals.isEmpty
-        case .practiceTime:
-            return true
-        case .interests:
-            return !viewModel.onboardingData.interests.isEmpty
-        case .complete:
-            return true
-        }
-    }
-    
-    private func nextStep() {
-        guard let currentIndex = OnboardingStep.allCases.firstIndex(of: currentStep) else { return }
-        
-        if currentIndex < OnboardingStep.allCases.count - 1 {
-            withAnimation {
-                currentStep = OnboardingStep.allCases[currentIndex + 1]
-            }
-            Task {
-                await HapticManager.shared.impact(.light)
-            }
-        } else {
-            // Complete onboarding
-            completeOnboarding()
-        }
-    }
-    
-    private func previousStep() {
-        guard let currentIndex = OnboardingStep.allCases.firstIndex(of: currentStep),
-              currentIndex > 0 else { return }
-        
-        withAnimation {
-            currentStep = OnboardingStep.allCases[currentIndex - 1]
-        }
-        Task {
-            await HapticManager.shared.impact(.light)
-        }
-    }
-    
-    private func completeOnboarding() {
-        Task {
-            await viewModel.completeOnboarding()
-            await HapticManager.shared.notification(.success)
-            dismiss()
-        }
-    }
-}
-
-// MARK: - Supporting Views
-struct ProgressBar: View {
-    let progress: Double
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color(.systemGray5))
-                    .frame(height: 8)
-                
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(
-                        LinearGradient(
-                            colors: [.blue, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: geometry.size.width * progress, height: 8)
-                    .animation(.spring(response: 0.5), value: progress)
-            }
-        }
-        .frame(height: 8)
-    }
-}
-
-struct FeatureRow: View {
-    let icon: String
-    let title: String
-    let description: String
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(
+                .background(
+                    viewModel.canProceedFromCurrentStep ?
                     LinearGradient(
                         colors: [.blue, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ) :
+                    LinearGradient(
+                        colors: [Color(.systemGray5), Color(.systemGray5)],
+                        startPoint: .leading,
+                        endPoint: .trailing
                     )
                 )
-                .frame(width: 40)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                .foregroundColor(viewModel.canProceedFromCurrentStep ? .white : .secondary)
+                .cornerRadius(16)
+                .shadow(
+                    color: viewModel.canProceedFromCurrentStep ? .blue.opacity(0.3) : .clear,
+                    radius: 8,
+                    y: 4
+                )
             }
+            .disabled(!viewModel.canProceedFromCurrentStep || viewModel.isLoading)
+            .scaleEffect(viewModel.canProceedFromCurrentStep ? 1.0 : 0.95)
+            .animation(.spring(response: 0.3), value: viewModel.canProceedFromCurrentStep)
+        }
+        .padding()
+    }
+    
+    private var buttonTitle: String {
+        switch viewModel.currentStep {
+        case .complete:
+            return "Start Your Art Journey! 🎨"
+        default:
+            return "Continue"
+        }
+    }
+    
+    // MARK: - Celebration Overlay
+    private var celebrationOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
             
-            Spacer()
+            VStack(spacing: 24) {
+                // Celebration animation
+                ZStack {
+                    ForEach(0..<6) { i in
+                        Image(systemName: "star.fill")
+                            .font(.title)
+                            .foregroundColor(.yellow)
+                            .offset(
+                                x: cos(Double(i) * .pi / 3) * 50,
+                                y: sin(Double(i) * .pi / 3) * 50
+                            )
+                            .scaleEffect(isAnimating ? 1.5 : 0.5)
+                            .animation(
+                                .spring(response: 0.6)
+                                .delay(Double(i) * 0.1)
+                                .repeatForever(autoreverses: true),
+                                value: isAnimating
+                            )
+                    }
+                    
+                    Text("🎉")
+                        .font(.system(size: 60))
+                        .scaleEffect(isAnimating ? 1.2 : 1.0)
+                        .animation(.spring(response: 0.8).repeatForever(autoreverses: true), value: isAnimating)
+                }
+                
+                VStack(spacing: 16) {
+                    Text("Welcome to Art of the Future!")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Your personalized learning journey starts now")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    
+                    // Progress bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(.systemGray5))
+                                .frame(height: 8)
+                            
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.green, .blue],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: geometry.size.width * viewModel.completionProgress, height: 8)
+                        }
+                    }
+                    .frame(height: 8)
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                .cornerRadius(20)
+                .shadow(radius: 10)
+            }
+            .padding()
         }
     }
 }
 
+// MARK: - Custom Text Field Style
+struct OnboardingTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+            )
+    }
+}
+
+// MARK: - OnboardingStep Extension
+extension OnboardingStep {
+    var iconName: String {
+        switch self {
+        case .welcome: return "sparkles"
+        case .name: return "person.circle"
+        case .skillLevel: return "chart.bar"
+        case .goals: return "target"
+        case .practiceTime: return "clock"
+        case .interests: return "heart"
+        case .complete: return "checkmark.seal"
+        }
+    }
+}
+
+// MARK: - Summary Row Component
 struct SummaryRow: View {
     let icon: String
     let label: String
@@ -470,16 +611,25 @@ struct SummaryRow: View {
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundColor(.accentColor)
+                .foregroundColor(.blue)
+                .frame(width: 24)
+            
             Text(label)
+                .font(.subheadline)
                 .foregroundColor(.secondary)
+            
             Spacer()
+            
             Text(value)
+                .font(.subheadline)
                 .fontWeight(.medium)
         }
     }
 }
 
-#Preview {
-    OnboardingView()
+struct OnboardingView_Previews: PreviewProvider {
+    static var previews: some View {
+        OnboardingView()
+            .environmentObject(FirebaseAuthService())
+    }
 }
