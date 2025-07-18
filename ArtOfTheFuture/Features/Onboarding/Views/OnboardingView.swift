@@ -8,6 +8,7 @@ struct OnboardingView: View {
     @EnvironmentObject private var authService: FirebaseAuthService
     @State private var dragOffset: CGSize = .zero
     @State private var isAnimating = false
+    @FocusState private var isNameFieldFocused: Bool
     
     var body: some View {
         ZStack {
@@ -42,6 +43,16 @@ struct OnboardingView: View {
                 isAnimating = true
             }
         }
+        .onTapGesture {
+            // Dismiss keyboard when tapping outside
+            dismissKeyboard()
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func dismissKeyboard() {
+        isNameFieldFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
     
     // MARK: - Background
@@ -65,6 +76,7 @@ struct OnboardingView: View {
             HStack {
                 // Back button
                 Button(action: {
+                    dismissKeyboard() // Dismiss keyboard before navigation
                     viewModel.previousStep()
                 }) {
                     Image(systemName: "chevron.left")
@@ -89,6 +101,7 @@ struct OnboardingView: View {
                 // Skip button (on early steps only)
                 if viewModel.currentStep.rawValue < 4 {
                     Button("Skip") {
+                        dismissKeyboard() // Dismiss keyboard before navigation
                         // Jump to complete step
                         withAnimation(.spring(response: 0.6)) {
                             viewModel.currentStep = .complete
@@ -263,8 +276,10 @@ struct OnboardingView: View {
                 TextField("Enter your name", text: $viewModel.onboardingData.userName)
                     .textFieldStyle(OnboardingTextFieldStyle())
                     .submitLabel(.continue)
+                    .focused($isNameFieldFocused)
                     .onSubmit {
                         if viewModel.canProceedFromCurrentStep {
+                            dismissKeyboard()
                             viewModel.nextStep()
                         }
                     }
@@ -287,6 +302,16 @@ struct OnboardingView: View {
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal)
+        .onAppear {
+            // Auto-focus the text field when this step appears
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                isNameFieldFocused = true
+            }
+        }
+        .onDisappear {
+            // Dismiss keyboard when leaving this step
+            isNameFieldFocused = false
+        }
     }
     
     private var skillLevelContent: some View {
@@ -449,6 +474,7 @@ struct OnboardingView: View {
             
             // Continue button
             Button(action: {
+                dismissKeyboard() // Dismiss keyboard before navigation
                 viewModel.nextStep()
             }) {
                 HStack {
