@@ -16,6 +16,11 @@ final class UserDataService: ObservableObject {
     
     static let shared = UserDataService()
     
+    // MARK: - Public Properties
+    var currentUserUID: String? {
+        auth.currentUser?.uid
+    }
+    
     private init() {
         // Listen for auth changes and load user data
         auth.addStateDidChangeListener { [weak self] _, user in

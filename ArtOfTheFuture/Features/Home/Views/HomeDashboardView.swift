@@ -1,294 +1,240 @@
+// MARK: - Updated Home Dashboard View (Real Firebase Data)
+// File: ArtOfTheFuture/Features/Home/Views/HomeDashboardView.swift
+
 import SwiftUI
 
 struct HomeDashboardView: View {
     @StateObject private var viewModel = HomeDashboardViewModel()
-    @StateObject private var gamification = GamificationEngine.shared
-    @State private var selectedLesson: Lesson?
-    @State private var showProfile = false
-    @State private var scrollOffset: CGFloat = 0
-    @State private var showStreakAnimation = false
-    @State private var showXPAnimation = false
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.colorScheme) private var colorScheme
+    @StateObject private var userDataService = UserDataService.shared
+    @EnvironmentObject var authService: FirebaseAuthService
     
     var body: some View {
         NavigationView {
-            ZStack {
-                // Dynamic background
-                backgroundGradient
-                
-                // Main content
-                ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: 24) {
-                        // Welcome Header
-                        welcomeHeader
-                        
-                        // Hero Stats Cards
-                        heroStatsGrid
-                        
-                        // Daily Progress Ring
+            ScrollView {
+                VStack(spacing: 24) {
+                    if viewModel.isLoading {
+                        loadingView
+                    } else {
+                        headerSection
                         dailyProgressCard
-                        
-                        // Quick Actions
-                        quickActionsGrid
-                        
-                        // Continue Learning
-                        continueLearningSection
-                        
-                        // Recent Achievements
+                        quickActionsRow
+                        recommendedLessonsSection
                         achievementsSection
-                        
-                        // Weekly Activity Chart
                         weeklyActivityCard
-                        
-                        // Spacer for bottom padding
-                        Spacer(minLength: 100)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
                 }
-                .refreshable {
-                    await refreshDashboard()
-                }
-                
-                // Floating streak celebration
-                if showStreakAnimation {
-                    streakCelebration
-                }
+                .padding(.horizontal)
+                .padding(.bottom, 100) // Tab bar spacing
             }
-            .navigationBarHidden(true)
+            .navigationTitle("Good morning")
+            .navigationBarTitleDisplayMode(.large)
+            .refreshable {
+                await viewModel.refreshDashboard()
+            }
         }
-        .task {
-            await loadDashboard()
+        .onAppear {
+            Task {
+                await viewModel.loadDashboard()
+            }
         }
-        .sheet(item: $selectedLesson) { lesson in
-            LessonPlayerView(lesson: lesson)
-                .onDisappear {
-                    Task { await refreshDashboard() }
+        .overlay(alignment: .bottom) {
+            if viewModel.showXPAnimation {
+                XPGainAnimation(amount: viewModel.newXPGained)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            viewModel.showXPAnimation = false
+                        }
+                    }
+            }
+        }
+        .alert("🎉 Level Up!", isPresented: $viewModel.showLevelUpCelebration) {
+            Button("Awesome!") { }
+        } message: {
+            Text("Congratulations! You've reached level \(viewModel.currentLevel)!")
+        }
+        .alert("🔥 Streak Milestone!", isPresented: $viewModel.showStreakCelebration) {
+            Button("Keep it up!") { }
+        } message: {
+            Text("Amazing! You've maintained a \(viewModel.currentStreak)-day streak!")
+        }
+    }
+    
+    // MARK: - Loading View
+    
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Loading your dashboard...")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, 100)
+    }
+    
+    // MARK: - Header Section
+    
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Welcome Message
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Welcome back,")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    Text(viewModel.userName.isEmpty ? "Artist" : viewModel.userName)
+                        .font(.largeTitle.bold())
+                        .foregroundColor(.primary)
                 }
-        }
-    }
-    
-    // MARK: - Background
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color.blue.opacity(0.1),
-                Color.purple.opacity(0.05),
-                Color.clear
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-        .animation(.easeInOut(duration: 1.0), value: colorScheme)
-    }
-    
-    // MARK: - Welcome Header
-    private var welcomeHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(currentGreeting)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
                 
-                Text(viewModel.userName)
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundColor(.primary)
+                Spacer()
                 
-                HStack(spacing: 4) {
+                // Profile Image
+                AsyncImage(url: URL(string: userDataService.currentUser?.profileImageURL ?? "")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle()
+                        .fill(Color.blue.gradient)
+                        .overlay {
+                            Text(String(viewModel.userName.prefix(1)).uppercased())
+                                .font(.title2.bold())
+                                .foregroundColor(.white)
+                        }
+                }
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
+            }
+            
+            // Streak & Level Info
+            HStack(spacing: 16) {
+                // Current Streak
+                HStack(spacing: 8) {
                     Image(systemName: "flame.fill")
                         .foregroundColor(.orange)
-                        .scaleEffect(showStreakAnimation ? 1.2 : 1.0)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.6), value: showStreakAnimation)
                     
-                    Text("\(gamification.currentStreak) day streak")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(.orange)
-                }
-            }
-            
-            Spacer()
-            
-            // Profile Avatar
-            Button(action: { showProfile = true }) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 60, height: 60)
-                        .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                    
-                    Text(viewModel.userName.prefix(1).uppercased())
-                        .font(.title.weight(.bold))
-                        .foregroundColor(.white)
-                    
-                    // Notification badge
-                    if viewModel.hasNotifications {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 16, height: 16)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 2)
-                            )
-                            .offset(x: 22, y: -22)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(viewModel.currentStreak)")
+                            .font(.title2.bold())
+                        Text("day streak")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
-                .scaleEffect(showProfile ? 0.95 : 1.0)
-                .animation(.spring(response: 0.3), value: showProfile)
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(12)
+                
+                // Current Level
+                HStack(spacing: 8) {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Level \(viewModel.currentLevel)")
+                            .font(.title2.bold())
+                        Text("\(viewModel.totalXP) XP")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .background(Color.yellow.opacity(0.1))
+                .cornerRadius(12)
+                
+                Spacer()
             }
-        }
-        .padding(.bottom, 8)
-    }
-    
-    // MARK: - Hero Stats Grid
-    private var heroStatsGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 2), spacing: 16) {
-            // Level & XP Card
-            HomeStatCard(
-                title: "Level \(gamification.currentLevel)",
-                subtitle: "\(gamification.totalXP) XP",
-                icon: "star.fill",
-                color: .blue,
-                progress: levelProgress
-            )
-            
-            // Today's Progress
-            HomeStatCard(
-                title: "Today's Goal",
-                subtitle: "\(viewModel.todayProgress.completedMinutes)/\(viewModel.todayProgress.targetMinutes) min",
-                icon: "target",
-                color: .green,
-                progress: todayProgress
-            )
         }
     }
     
     // MARK: - Daily Progress Card
+    
     private var dailyProgressCard: some View {
-        VStack(spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Daily Progress")
+                Text("Today's Progress")
                     .font(.headline.weight(.semibold))
                 
                 Spacer()
                 
-                Text("\(Int(todayProgress * 100))%")
+                Text("\(viewModel.todayMinutes)/\(viewModel.targetMinutes) min")
                     .font(.subheadline.weight(.medium))
-                    .foregroundColor(.green)
+                    .foregroundColor(.blue)
             }
             
-            ZStack {
-                // Background circle
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 12)
-                    .frame(width: 120, height: 120)
+            // Progress Bar
+            VStack(alignment: .leading, spacing: 8) {
+                ProgressView(value: Double(viewModel.todayMinutes), total: Double(viewModel.targetMinutes))
+                    .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                    .scaleEffect(x: 1, y: 2, anchor: .center)
                 
-                // Progress circle
-                Circle()
-                    .trim(from: 0, to: todayProgress)
-                    .stroke(
-                        LinearGradient(
-                            colors: [.green, .blue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        style: StrokeStyle(lineWidth: 12, lineCap: .round)
-                    )
-                    .frame(width: 120, height: 120)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 1.0), value: todayProgress)
-                
-                // Center content
-                VStack(spacing: 4) {
-                    Text("\(viewModel.todayProgress.completedMinutes)")
-                        .font(.title.weight(.bold))
-                        .foregroundColor(.primary)
-                    
-                    Text("minutes")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                HStack {
+                    Text("🏆 \(viewModel.lessonsCompleted) lessons completed")
+                    Spacer()
+                    Text("⚡ \(viewModel.todayXP) XP earned")
                 }
-            }
-            
-            // Today's stats
-            HStack(spacing: 32) {
-                HomeStatItem(
-                    icon: "book.fill",
-                    value: "\(viewModel.todayProgress.lessonsCompleted)",
-                    label: "Lessons"
-                )
-                
-                HomeStatItem(
-                    icon: "star.fill",
-                    value: "\(viewModel.todayProgress.xpEarned)",
-                    label: "XP Earned"
-                )
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
         }
-        .padding(24)
+        .padding()
         .background(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
         )
     }
     
-    // MARK: - Quick Actions Grid
-    private var quickActionsGrid: some View {
+    // MARK: - Quick Actions
+    
+    private var quickActionsRow: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Quick Actions")
                 .font(.headline.weight(.semibold))
             
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
-                QuickActionCard(
+            HStack(spacing: 12) {
+                QuickActionButton(
+                    title: "Continue Learning",
+                    icon: "book.fill",
+                    color: .blue
+                ) {
+                    // Navigate to lessons
+                }
+                
+                QuickActionButton(
                     title: "Start Drawing",
                     icon: "paintbrush.fill",
-                    color: .purple,
-                    action: { /* Navigate to drawing */ }
-                )
+                    color: .purple
+                ) {
+                    // Navigate to drawing
+                }
                 
-                QuickActionCard(
-                    title: "Browse Lessons",
-                    icon: "book.fill",
-                    color: .blue,
-                    action: { /* Navigate to lessons */ }
-                )
-                
-                QuickActionCard(
+                QuickActionButton(
                     title: "View Gallery",
                     icon: "photo.stack.fill",
-                    color: .orange,
-                    action: { /* Navigate to gallery */ }
-                )
-                
-                QuickActionCard(
-                    title: "Daily Challenge",
-                    icon: "trophy.fill",
-                    color: .red,
-                    action: { /* Show daily challenge */ }
-                )
+                    color: .green
+                ) {
+                    // Navigate to gallery
+                }
             }
         }
     }
     
-    // MARK: - Continue Learning Section
-    private var continueLearningSection: some View {
+    // MARK: - Recommended Lessons
+    
+    private var recommendedLessonsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Continue Learning")
+                Text("Recommended for You")
                     .font(.headline.weight(.semibold))
                 
                 Spacer()
                 
                 Button("See All") {
-                    // Navigate to lessons
+                    // Navigate to all lessons
                 }
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(.blue)
@@ -296,9 +242,9 @@ struct HomeDashboardView: View {
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
-                    ForEach(viewModel.recommendedLessons.prefix(5), id: \.id) { lesson in
+                    ForEach(viewModel.recommendedLessons, id: \.id) { lesson in
                         LessonCard(lesson: lesson) {
-                            selectedLesson = lesson
+                            // Navigate to lesson
                         }
                     }
                 }
@@ -308,6 +254,7 @@ struct HomeDashboardView: View {
     }
     
     // MARK: - Achievements Section
+    
     private var achievementsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -333,6 +280,7 @@ struct HomeDashboardView: View {
     }
     
     // MARK: - Weekly Activity Card
+    
     private var weeklyActivityCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -346,218 +294,47 @@ struct HomeDashboardView: View {
                     .foregroundColor(.blue)
             }
             
-            // Simple bar chart
-            HStack(alignment: .bottom, spacing: 8) {
-                ForEach(viewModel.weeklyStats.days.indices, id: \.self) { index in
-                    let day = viewModel.weeklyStats.days[index]
-                    VStack(spacing: 4) {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(
-                                LinearGradient(
-                                    colors: day.completed ? [.blue, .purple] : [.gray.opacity(0.3)],
-                                    startPoint: .bottom,
-                                    endPoint: .top
-                                )
-                            )
-                            .frame(width: 32, height: max(8, CGFloat(day.minutes) * 2))
-                            .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(Double(index) * 0.1), value: day.minutes)
-                        
-                        Text(dayLabel(for: day.date))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
+            // Simple weekly stats
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("\(viewModel.weeklyStats.totalMinutes)")
+                        .font(.title2.bold())
+                    Text("Minutes")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing) {
+                    Text("\(viewModel.weeklyStats.totalXP)")
+                        .font(.title2.bold())
+                    Text("Total XP")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing) {
+                    Text("\(Int(viewModel.weeklyStats.averageMinutesPerDay))")
+                        .font(.title2.bold())
+                    Text("Avg/Day")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
-            .frame(height: 80)
         }
-        .padding(20)
+        .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.regularMaterial)
                 .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
         )
     }
-    
-    // MARK: - Streak Celebration
-    private var streakCelebration: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.orange)
-                .scaleEffect(showStreakAnimation ? 1.2 : 0.8)
-                .animation(.spring(response: 0.5, dampingFraction: 0.6), value: showStreakAnimation)
-            
-            Text("🔥 Streak Milestone! 🔥")
-                .font(.title.weight(.bold))
-                .multilineTextAlignment(.center)
-            
-            Text("\(gamification.currentStreak) days in a row!")
-                .font(.headline)
-                .foregroundColor(.secondary)
-        }
-        .padding(32)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
-        )
-        .scaleEffect(showStreakAnimation ? 1.0 : 0.1)
-        .opacity(showStreakAnimation ? 1.0 : 0.0)
-        .animation(.spring(response: 0.6, dampingFraction: 0.7), value: showStreakAnimation)
-    }
-    
-    // MARK: - Helper Methods
-    private func loadDashboard() async {
-        await viewModel.loadDashboard()
-        
-        // Show streak animation if it's a milestone
-        if gamification.currentStreak > 0 && gamification.currentStreak % 7 == 0 {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.5)) {
-                showStreakAnimation = true
-            }
-            
-            // Hide after 3 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                    showStreakAnimation = false
-                }
-            }
-        }
-    }
-    
-    private func refreshDashboard() async {
-        await viewModel.refreshDashboard()
-    }
-    
-    private var currentGreeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 0..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        default: return "Good evening"
-        }
-    }
-    
-    private var levelProgress: Double {
-        let currentLevelXP = gamification.totalXP % 100
-        return Double(currentLevelXP) / 100.0
-    }
-    
-    private var todayProgress: Double {
-        let completed = Double(viewModel.todayProgress.completedMinutes)
-        let target = Double(viewModel.todayProgress.targetMinutes)
-        return target > 0 ? min(completed / target, 1.0) : 0.0
-    }
-    
-    private func dayLabel(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E"
-        return formatter.string(from: date)
-    }
 }
 
 // MARK: - Supporting Views
-
-struct HomeStatCard: View {
-    let title: String
-    let subtitle: String
-    let icon: String
-    let color: Color
-    let progress: Double
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(color)
-                
-                Spacer()
-                
-                Text("\(Int(progress * 100))%")
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(color)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline.weight(.semibold))
-                
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            
-            ProgressView(value: progress)
-                .progressViewStyle(LinearProgressViewStyle(tint: color))
-                .scaleEffect(y: 2)
-                .animation(.easeInOut(duration: 1.0), value: progress)
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 3)
-        )
-    }
-}
-
-struct HomeStatItem: View {
-    let icon: String
-    let value: String
-    let label: String
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundColor(.blue)
-            
-            Text(value)
-                .font(.headline.weight(.bold))
-            
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-    }
-}
-
-struct QuickActionCard: View {
-    let title: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .frame(width: 50, height: 50)
-                    .background(
-                        Circle()
-                            .fill(color)
-                            .shadow(color: color.opacity(0.3), radius: 8, x: 0, y: 4)
-                    )
-                
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.regularMaterial)
-                    .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 3)
-            )
-        }
-        .buttonStyle(HomeScaleButtonStyle())
-    }
-}
 
 struct LessonCard: View {
     let lesson: Lesson
@@ -642,6 +419,24 @@ struct AchievementBadge: View {
     }
 }
 
+struct XPGainAnimation: View {
+    let amount: Int
+    
+    var body: some View {
+        Text("+\(amount) XP")
+            .font(.title.bold())
+            .foregroundColor(.yellow)
+            .padding()
+            .background(
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .shadow(radius: 10)
+            )
+            .scaleEffect(1.2)
+            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: amount)
+    }
+}
+
 struct HomeScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -650,9 +445,7 @@ struct HomeScaleButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Preview
-struct HomeDashboardView_Previews: PreviewProvider {
-    static var previews: some View {
-        HomeDashboardView()
-    }
+#Preview {
+    HomeDashboardView()
+        .environmentObject(FirebaseAuthService())
 }

@@ -1,14 +1,14 @@
+// MARK: - Updated Profile View (Real Firebase Data)
+// File: ArtOfTheFuture/Features/Profile/Views/ProfileView.swift
+
 import SwiftUI
 
 struct ProfileView: View {
-    @ObservedObject var gamification = GamificationEngine.shared
-    @State private var userProfile: UserProfile?
+    @EnvironmentObject var authService: FirebaseAuthService
+    @StateObject private var userDataService = UserDataService.shared
     @State private var showEditProfile = false
-    @State private var isLoading = true
     @State private var selectedTab = 0 // 0 = Profile, 1 = Settings
     @AppStorage("isDarkMode") private var isDarkMode = false
-    @EnvironmentObject var authService: FirebaseAuthService
-
 
     var body: some View {
         NavigationView {
@@ -64,583 +64,180 @@ struct ProfileView: View {
                 }
             }
             .sheet(isPresented: $showEditProfile) {
-                EditProfileView(userProfile: $userProfile)
+                EditProfileView()
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
-        .task {
-            await loadUserProfile()
+        .onAppear {
+            // Load user data when view appears
+            Task {
+                if let uid = authService.currentUserUID {
+                    await userDataService.loadUserData(uid: uid)
+                }
+            }
         }
     }
     
     // MARK: - Profile Content
+    
+    @ViewBuilder
     private var profileContent: some View {
+        if userDataService.isLoading {
+            ProgressView("Loading profile...")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let user = userDataService.currentUser {
+            realProfileContent(user: user)
+        } else {
+            Text("Unable to load profile")
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    @ViewBuilder
+    private func realProfileContent(user: User) -> some View {
         VStack(spacing: 24) {
-            if isLoading {
-                ProgressView("Loading Profile...")
-                    .frame(height: 200)
-            } else {
-                // Profile header
-                profileHeaderSection
+            // Profile Header
+            VStack(spacing: 16) {
+                // Avatar
+                AsyncImage(url: URL(string: user.profileImageURL ?? "")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle()
+                        .fill(Color.blue.gradient)
+                        .overlay {
+                            Text(String(user.displayName.prefix(1)).uppercased())
+                                .font(.largeTitle.bold())
+                                .foregroundColor(.white)
+                        }
+                }
+                .frame(width: 100, height: 100)
+                .clipShape(Circle())
                 
-                // Level Progress
-                levelProgressSection
-                
-                // Quick Stats Grid
-                statsGridSection
-                
-                // Recent Activity
-                recentActivitySection
-                
-                // Skills Overview
-                skillsOverviewSection
-                
-                // Achievements Preview
-                achievementsPreviewSection
+                // User Info
+                VStack(spacing: 8) {
+                    Text(user.displayName)
+                        .font(.title2.bold())
+                    
+                    if let email = user.email {
+                        Text(email)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Text("Joined")
+                        Text(user.joinedDate, style: .date)
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
             }
+            .padding(.vertical)
+            
+            // Stats Cards
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 16) {
+                ProfileStatCard(
+                    title: "Level",
+                    value: "\(user.currentLevel)",
+                    icon: "star.fill",
+                    color: .yellow
+                )
+                
+                StatCard(
+                    title: "Total XP",
+                    value: "\(user.totalXP)",
+                    icon: "bolt.fill",
+                    color: .orange
+                )
+                
+                StatCard(
+                    title: "Current Streak",
+                    value: "\(user.currentStreak)",
+                    icon: "flame.fill",
+                    color: .red
+                )
+                
+                StatCard(
+                    title: "Progress",
+                    value: "\(Int(user.levelProgress * 100))%",
+                    icon: "chart.line.uptrend.xyaxis",
+                    color: .green
+                )
+            }
+            
+            // Progress Bar
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Level \(user.currentLevel)")
+                        .font(.headline)
+                    Spacer()
+                    Text("\(user.totalXP % 100)/100 XP")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                ProgressView(value: user.levelProgress)
+                    .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                    .scaleEffect(x: 1, y: 2, anchor: .center)
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
         }
     }
     
     // MARK: - Settings Content
+    
+    @ViewBuilder
     private var settingsContent: some View {
         VStack(spacing: 20) {
-            // Appearance Settings
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Image(systemName: "paintbrush.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 20)
-                    
-                    Text("Appearance")
-                        .font(.headline)
-                    
-                    Spacer()
-                }
-                
-                // Dark Mode Toggle
-                HStack {
-                    Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
-                        .foregroundColor(isDarkMode ? .purple : .orange)
-                        .frame(width: 24, height: 24)
-                        .background((isDarkMode ? Color.purple : Color.orange).opacity(0.1))
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Dark Mode")
-                            .font(.subheadline.weight(.medium))
-                        
-                        Text("Switch between light and dark themes")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: $isDarkMode)
-                        .labelsHidden()
-                }
-                .padding(.vertical, 4)
-                
-                // Current Theme Display
-                HStack {
-                    Image(systemName: "eye.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 24, height: 24)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Current Theme")
-                            .font(.subheadline.weight(.medium))
-                        
-                        Text(isDarkMode ? "Dark theme active" : "Light theme active")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Text(isDarkMode ? "Dark" : "Light")
-                        .foregroundColor(.secondary)
-                        .font(.subheadline)
-                }
-                .padding(.vertical, 4)
-            }
-            .padding(20)
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-            
-            // Notifications Settings
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Image(systemName: "bell.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 20)
-                    
-                    Text("Notifications")
-                        .font(.headline)
-                    
-                    Spacer()
-                }
-                
-                // Daily Reminders
-                HStack {
-                    Image(systemName: "clock.fill")
-                        .foregroundColor(.green)
-                        .frame(width: 24, height: 24)
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Daily Reminders")
-                            .font(.subheadline.weight(.medium))
-                        
-                        Text("Get reminded to practice art daily")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: .constant(true))
-                        .labelsHidden()
-                }
-                .padding(.vertical, 4)
-                
-                // Achievement Alerts
-                HStack {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.yellow)
-                        .frame(width: 24, height: 24)
-                        .background(Color.yellow.opacity(0.1))
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Achievement Alerts")
-                            .font(.subheadline.weight(.medium))
-                        
-                        Text("Notifications for badges and milestones")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: .constant(true))
-                        .labelsHidden()
-                }
-                .padding(.vertical, 4)
-            }
-            .padding(20)
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-            
-            // Learning Settings
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Image(systemName: "graduationcap.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 20)
-                    
-                    Text("Learning")
-                        .font(.headline)
-                    
-                    Spacer()
-                }
-                
-                // Daily Goal
-                HStack {
-                    Image(systemName: "target")
-                        .foregroundColor(.blue)
-                        .frame(width: 24, height: 24)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Daily Goal")
-                            .font(.subheadline.weight(.medium))
-                        
-                        Text("\(userProfile?.dailyGoalMinutes ?? 15) minutes per day")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Button("Edit") {
-                        // Edit daily goal
-                    }
-                    .font(.subheadline)
-                }
-                .padding(.vertical, 4)
-                
-                // Auto-Save
-                HStack {
-                    Image(systemName: "square.and.arrow.down.fill")
-                        .foregroundColor(.green)
-                        .frame(width: 24, height: 24)
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Auto-Save Drawings")
-                            .font(.subheadline.weight(.medium))
-                        
-                        Text("Automatically save your artwork")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: .constant(true))
-                        .labelsHidden()
-                }
-                .padding(.vertical, 4)
-            }
-            .padding(20)
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-            
-            // About Section
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 20)
-                    
-                    Text("About")
-                        .font(.headline)
-                    
-                    Spacer()
-                }
-                
-                // App Version
-                HStack {
-                    Image(systemName: "app.badge.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 24, height: 24)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("App Version")
-                            .font(.subheadline.weight(.medium))
-                        
-                        Text("1.0.0")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                }
-                .padding(.vertical, 4)
-                
-                // Contact Support
-                HStack {
-                    Image(systemName: "questionmark.circle.fill")
-                        .foregroundColor(.orange)
-                        .frame(width: 24, height: 24)
-                        .background(Color.orange.opacity(0.1))
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Contact Support")
-                            .font(.subheadline.weight(.medium))
-                        
-                        Text("Get help with the app")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Button("Contact") {
-                        // Contact support
-                    }
-                    .font(.subheadline)
-                }
-                .padding(.vertical, 4)
-            }
-            .padding(20)
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-            Button("Sign Out") {
-                authService.signOut()
-            }
-            .foregroundColor(.red)
-        }
-    }
-    
-    // MARK: - Profile Header Section
-    private var profileHeaderSection: some View {
-        VStack(spacing: 16) {
-            // Avatar and basic info
-            HStack(spacing: 20) {
-                // Avatar with gradient background
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.blue, .purple, .pink],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 90, height: 90)
-                    
-                    Text(userProfile?.displayName.prefix(1).uppercased() ?? "A")
-                        .font(.system(size: 36, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                .overlay(
-                    // Level badge
-                    Circle()
-                        .fill(Color.orange)
-                        .frame(width: 28, height: 28)
-                        .overlay(
-                            Text("\(gamification.currentLevel)")
-                                .font(.caption.weight(.bold))
-                                .foregroundColor(.white)
-                        )
-                        .offset(x: 30, y: -30)
+            // Account Section
+            ProfileSettingsSection(title: "Account") {
+                ProfileSettingsRow(
+                    icon: "person.fill",
+                    title: "Edit Profile",
+                    action: { showEditProfile = true }
                 )
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(userProfile?.displayName ?? "Artist")
-                        .font(.title2.weight(.bold))
-                    
-                    Text("Level \(gamification.currentLevel) Artist")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    // Member since
-                    if let profile = userProfile {
-                        Text("Member since \(formatMemberDate(profile.lastActiveDate))")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                ProfileSettingsRow(
+                    icon: "envelope.fill",
+                    title: "Email",
+                    subtitle: authService.currentUserEmail ?? "Not available"
+                )
+            }
+            
+            // Preferences Section
+            ProfileSettingsSection(title: "Preferences") {
+                HStack {
+                    Label("Dark Mode", systemImage: "moon.fill")
+                    Spacer()
+                    Toggle("", isOn: $isDarkMode)
                 }
-                
-                Spacer()
-            }
-        }
-        .padding(20)
-        .background(Color(.systemGray6))
-        .cornerRadius(16)
-    }
-    
-    // MARK: - Level Progress Section
-    private var levelProgressSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Level Progress")
-                    .font(.headline)
-                Spacer()
-                Text("\(currentLevelXP)/\(xpForNextLevel) XP")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                .padding()
             }
             
-            // XP Progress Bar
-            ProgressView(value: levelProgress)
-                .progressViewStyle(LinearProgressViewStyle(tint: .blue))
-                .scaleEffect(y: 3)
-            
-            Text("Total XP: \(gamification.totalXP)")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-    
-    // MARK: - Stats Grid Section
-    private var statsGridSection: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
-            ProfileStatCard(
-                title: "Current Streak",
-                value: "\(gamification.currentStreak)",
-                subtitle: "days",
-                icon: "flame.fill",
-                color: .orange
-            )
-            
-            ProfileStatCard(
-                title: "Best Streak",
-                value: "\(userProfile?.longestStreak ?? 0)",
-                subtitle: "days",
-                icon: "star.fill",
-                color: .yellow
-            )
-            
-            ProfileStatCard(
-                title: "Lessons",
-                value: "\(userProfile?.completedLessons.count ?? 0)",
-                subtitle: "completed",
-                icon: "book.fill",
-                color: .green
-            )
-            
-            ProfileStatCard(
-                title: "Badges",
-                value: "\(userProfile?.earnedBadges.count ?? 0)",
-                subtitle: "earned",
-                icon: "award.fill",
-                color: .purple
-            )
-        }
-    }
-    
-    // MARK: - Recent Activity Section
-    private var recentActivitySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Activity")
-                .font(.headline)
-            
-            VStack(spacing: 8) {
-                if let recentLessons = getRecentLessons() {
-                    ForEach(recentLessons, id: \.lessonId) { progress in
-                        ActivityRow(
-                            title: "Lesson \(progress.lessonId)",
-                            subtitle: "Last practiced \(formatDate(progress.lastAttemptDate))",
-                            icon: "book.circle.fill",
-                            color: .blue
-                        )
-                    }
-                } else {
-                    Text("No recent activity")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 8)
+            // Sign Out
+            Button(action: {
+                authService.signOut()
+            }) {
+                HStack {
+                    Image(systemName: "arrow.right.square")
+                    Text("Sign Out")
                 }
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-    
-    // MARK: - Skills Overview Section
-    private var skillsOverviewSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Skills Progress")
-                    .font(.headline)
-                Spacer()
-                Button("View All") {
-                    // Navigate to skills view
-                }
-                .font(.caption)
+                .foregroundColor(.red)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
             }
             
-            if let skills = getTopSkills() {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                    ForEach(skills, id: \.skillId) { skill in
-                        SkillCard(skill: skill)
-                    }
-                }
-            } else {
-                Text("Start learning to track your skills!")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 8)
-            }
+            Spacer()
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-    
-    // MARK: - Achievements Preview Section
-    private var achievementsPreviewSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Recent Achievements")
-                    .font(.headline)
-                Spacer()
-                Button("View All") {
-                    // Navigate to achievements view
-                }
-                .font(.caption)
-            }
-            
-            if let badges = getRecentBadges() {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
-                    ForEach(badges, id: \.self) { badgeId in
-                        BadgePreview(badgeId: badgeId)
-                    }
-                }
-            } else {
-                Text("Complete lessons to earn achievements!")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 8)
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-    
-    // MARK: - Helper Methods
-    private func loadUserProfile() async {
-        do {
-            userProfile = try await UserProgressService.shared.getCurrentUser()
-        } catch {
-            print("Failed to load user profile: \(error)")
-        }
-        isLoading = false
-    }
-    
-    private var currentLevelXP: Int {
-        gamification.totalXP % 100
-    }
-    
-    private var xpForNextLevel: Int {
-        100
-    }
-    
-    private var levelProgress: Double {
-        Double(currentLevelXP) / Double(xpForNextLevel)
-    }
-    
-    private func formatMemberDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
-    }
-    
-    private func formatDate(_ date: Date?) -> String {
-        guard let date = date else { return "Never" }
-        let formatter = RelativeDateTimeFormatter()
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-    
-    private func getRecentLessons() -> [LessonProgress]? {
-        guard let profile = userProfile else { return nil }
-        return Array(profile.lessonProgress.values
-            .sorted { $0.lastAttemptDate ?? Date.distantPast > $1.lastAttemptDate ?? Date.distantPast }
-            .prefix(3))
-    }
-    
-    private func getTopSkills() -> [SkillProgress]? {
-        guard let profile = userProfile else { return nil }
-        return Array(profile.skillProgress.values
-            .sorted { $0.level > $1.level }
-            .prefix(4))
-    }
-    
-    private func getRecentBadges() -> [String]? {
-        guard let profile = userProfile else { return nil }
-        return Array(profile.earnedBadges.suffix(6))
     }
 }
 
@@ -649,7 +246,6 @@ struct ProfileView: View {
 struct ProfileStatCard: View {
     let title: String
     let value: String
-    let subtitle: String
     let icon: String
     let color: Color
     
@@ -660,137 +256,86 @@ struct ProfileStatCard: View {
                 .foregroundColor(color)
             
             Text(value)
-                .font(.title.weight(.bold))
+                .font(.title2.bold())
             
-            VStack(spacing: 2) {
-                Text(title)
-                    .font(.caption.weight(.medium))
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-}
-
-struct ActivityRow: View {
-    let title: String
-    let subtitle: String
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .frame(width: 20)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-struct SkillCard: View {
-    let skill: SkillProgress
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: getSkillIcon(skill.skillId))
-                    .foregroundColor(.blue)
-                Spacer()
-                Text("Lv.\(skill.level)")
-                    .font(.caption.weight(.bold))
-                    .foregroundColor(.blue)
-            }
-            
-            Text(skill.skillId.capitalized)
-                .font(.subheadline.weight(.medium))
-                .lineLimit(1)
-            
-            ProgressView(value: Double(skill.xp % 100) / 100.0)
-                .progressViewStyle(LinearProgressViewStyle(tint: .blue))
-                .scaleEffect(y: 1.5)
-        }
-        .padding(12)
+        .padding()
         .background(Color(.systemGray6))
-        .cornerRadius(8)
-    }
-    
-    private func getSkillIcon(_ skillId: String) -> String {
-        switch skillId.lowercased() {
-        case "drawing": return "pencil"
-        case "color": return "paintpalette"
-        case "composition": return "rectangle.3.group"
-        case "technique": return "hand.draw"
-        default: return "star"
-        }
+        .cornerRadius(12)
     }
 }
 
-struct BadgePreview: View {
-    let badgeId: String
+struct ProfileSettingsSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
     
     var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: getBadgeIcon(badgeId))
-                .font(.title2)
-                .foregroundColor(.orange)
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+                .padding(.horizontal)
             
-            Text(getBadgeName(badgeId))
-                .font(.caption2.weight(.medium))
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(Color(.systemBackground))
-        .cornerRadius(8)
-    }
-    
-    private func getBadgeIcon(_ badgeId: String) -> String {
-        switch badgeId {
-        case "first_lesson": return "graduationcap"
-        case "streak_week": return "flame"
-        case "skill_master": return "star"
-        default: return "award"
-        }
-    }
-    
-    private func getBadgeName(_ badgeId: String) -> String {
-        switch badgeId {
-        case "first_lesson": return "First Lesson"
-        case "streak_week": return "Week Streak"
-        case "skill_master": return "Skill Master"
-        default: return "Achievement"
+            VStack(spacing: 0) {
+                content
+            }
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
         }
     }
 }
 
-// MARK: - Edit Profile View
+struct ProfileSettingsRow: View {
+    let icon: String
+    let title: String
+    var subtitle: String? = nil
+    var action: (() -> Void)? = nil
+    
+    var body: some View {
+        Button(action: action ?? {}) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(.blue)
+                    .frame(width: 20)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .foregroundColor(.primary)
+                    
+                    if let subtitle = subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                if action != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+        }
+        .disabled(action == nil)
+    }
+}
+
 struct EditProfileView: View {
-    @Binding var userProfile: UserProfile?
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var userDataService = UserDataService.shared
     @State private var displayName = ""
+    @State private var isLoading = false
     
     var body: some View {
         NavigationView {
             Form {
-                Section("Profile") {
+                Section("Profile Information") {
                     TextField("Display Name", text: $displayName)
                 }
             }
@@ -798,41 +343,31 @@ struct EditProfileView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveProfile()
+                    Button("Cancel") {
+                        dismiss()
                     }
                 }
-            }
-        }
-        .onAppear {
-            displayName = userProfile?.displayName ?? ""
-        }
-    }
-    
-    private func saveProfile() {
-        Task {
-            guard var profile = userProfile else { return }
-            profile.displayName = displayName
-            
-            do {
-                try await UserProgressService.shared.saveUserProfile(profile)
-                await MainActor.run {
-                    userProfile = profile
-                    dismiss()
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        Task {
+                            isLoading = true
+                            await userDataService.updateDisplayName(displayName)
+                            isLoading = false
+                            dismiss()
+                        }
+                    }
+                    .disabled(displayName.isEmpty || isLoading)
                 }
-            } catch {
-                print("Failed to save profile: \(error)")
+            }
+            .onAppear {
+                displayName = userDataService.userDisplayName
             }
         }
     }
 }
 
-// MARK: - Preview
-struct ProfileView_Previews: PreviewProvider {
-    static var previews: some View {
-        ProfileView()
-    }
+#Preview {
+    ProfileView()
+        .environmentObject(FirebaseAuthService())
 }
