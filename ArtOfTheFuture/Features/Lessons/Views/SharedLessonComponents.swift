@@ -111,8 +111,17 @@ struct QuickAccessLessonCard: View {
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
         }
-        .buttonStyle(ScaleButtonStyle())
+        .buttonStyle(LessonCardButtonStyle())
         .disabled(isLocked)
+    }
+}
+
+// MARK: - Button Style (Fixed)
+struct LessonCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -147,7 +156,7 @@ struct FiltersView: View {
                             Text(option.rawValue).tag(option)
                         }
                     }
-                    .pickerStyle(.menu)
+                    .pickerStyle(.inline)
                 }
 
                 Section {
@@ -160,15 +169,10 @@ struct FiltersView: View {
             .navigationTitle("Filters")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Apply") {
-                        viewModel.applyFilters()
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
                         dismiss()
                     }
-                    .fontWeight(.semibold)
                 }
             }
         }
