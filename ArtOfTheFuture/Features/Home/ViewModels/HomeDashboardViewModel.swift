@@ -3,6 +3,9 @@
 
 import SwiftUI
 import Combine
+extension Notification.Name {
+    static let userProfileUpdated = Notification.Name("userProfileUpdated")
+}
 
 @MainActor
 final class HomeDashboardViewModel: ObservableObject {
@@ -49,6 +52,9 @@ final class HomeDashboardViewModel: ObservableObject {
         setupBindings()
     }
     
+    // MARK: - Enhanced HomeDashboardViewModel with Profile Update Listener
+    // Add this to your existing HomeDashboardViewModel.swift in the setupBindings() method
+
     private func setupBindings() {
         // Listen to user data changes
         userDataService.$currentUser
@@ -65,8 +71,18 @@ final class HomeDashboardViewModel: ObservableObject {
                 self?.isLoading = loading
             }
             .store(in: &cancellables)
+        
+        // NEW: Listen for profile updates (like after onboarding completion)
+        NotificationCenter.default.publisher(for: .userProfileUpdated)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                print("🔥 HomeDashboard received profile update notification")
+                Task {
+                    await self?.refreshDashboard()
+                }
+            }
+            .store(in: &cancellables)
     }
-    
     // MARK: - Data Loading
     func loadDashboard() async {
         isLoading = true
