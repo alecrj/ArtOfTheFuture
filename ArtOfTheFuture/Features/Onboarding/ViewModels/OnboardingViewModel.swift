@@ -19,12 +19,19 @@ final class OnboardingViewModel: ObservableObject {
     @Published var goalsValidation: ValidationState = .pending
     @Published var interestsValidation: ValidationState = .pending
     
-    private let userDataService = UserDataService.shared
     private let hapticManager = HapticManager.shared
     private var cancellables = Set<AnyCancellable>()
     
+    // Reference to auth service for backend integration
+    private var authService: FirebaseAuthService?
+    
     init() {
         setupValidationObservers()
+    }
+    
+    // Set auth service reference
+    func setAuthService(_ authService: FirebaseAuthService) {
+        self.authService = authService
     }
     
     // MARK: - Validation Setup
@@ -142,6 +149,10 @@ final class OnboardingViewModel: ObservableObject {
     // MARK: - Onboarding Completion
     func completeOnboarding() {
         guard !isLoading else { return }
+        guard let authService = authService else {
+            errorMessage = "Authentication service not available"
+            return
+        }
         
         isLoading = true
         
@@ -150,21 +161,17 @@ final class OnboardingViewModel: ObservableObject {
                 // Show completion animation
                 await animateCompletion()
                 
-                // Save onboarding preferences to UserDefaults
+                // Save onboarding data to Firebase
+                try await authService.markOnboardingCompleted(with: onboardingData)
+                
+                // Also save to UserDefaults as backup
                 onboardingData.hasCompletedOnboarding = true
                 onboardingData.onboardingDate = Date()
                 
                 if let encoded = try? JSONEncoder().encode(onboardingData) {
                     UserDefaults.standard.set(encoded, forKey: "onboardingData")
                 }
-                
-                // Mark onboarding as complete in UserDefaults
                 UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
-                
-                // If user is authenticated, update their profile
-                if let uid = userDataService.currentUserUID {
-                    await userDataService.updateDisplayName(onboardingData.userName)
-                }
                 
                 // Generate initial learning path
                 await generatePersonalizedLearningPath()
@@ -175,12 +182,12 @@ final class OnboardingViewModel: ObservableObject {
                 // Success haptics
                 hapticManager.notification(.success)
                 
-                // Post completion notification
-                NotificationCenter.default.post(name: .onboardingCompleted, object: nil)
+                print("🎉 Onboarding completed successfully!")
                 
             } catch {
                 errorMessage = "Failed to complete onboarding: \(error.localizedDescription)"
                 hapticManager.notification(.error)
+                print("❌ Onboarding completion failed: \(error)")
             }
             
             isLoading = false

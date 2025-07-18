@@ -6,8 +6,6 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var authService = FirebaseAuthService()
     @State private var isInitialized = false
-    @State private var hasCompletedOnboarding = false
-    @State private var isCheckingOnboardingStatus = true
     
     var body: some View {
         Group {
@@ -18,18 +16,17 @@ struct ContentView: View {
                 // User not authenticated - show auth
                 AuthView()
                     .environmentObject(authService)
-            } else if isCheckingOnboardingStatus {
-                // Checking onboarding status
+            } else if authService.isCheckingOnboardingStatus {
+                // Checking onboarding status from Firestore
                 LoadingView(message: "Setting up your experience...")
-            } else if !hasCompletedOnboarding {
+            } else if !authService.hasCompletedOnboarding {
                 // User authenticated but hasn't completed onboarding
                 OnboardingView()
                     .environmentObject(authService)
-                    .onReceive(NotificationCenter.default.publisher(for: .onboardingCompleted)) { _ in
-                        withAnimation(.spring(response: 0.6)) {
-                            hasCompletedOnboarding = true
-                        }
-                    }
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
             } else {
                 // User authenticated and onboarded - show main app
                 MainTabView()
@@ -43,15 +40,6 @@ struct ContentView: View {
         .onAppear {
             initializeApp()
         }
-        .onChange(of: authService.isAuthenticated) { _, newValue in
-            if newValue {
-                checkOnboardingStatus()
-            } else {
-                // Reset onboarding status when user logs out
-                hasCompletedOnboarding = false
-                isCheckingOnboardingStatus = true
-            }
-        }
     }
     
     private func initializeApp() {
@@ -59,29 +47,6 @@ struct ContentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             withAnimation(.spring(response: 0.5)) {
                 isInitialized = true
-            }
-            
-            // Check onboarding status if already authenticated
-            if authService.isAuthenticated {
-                checkOnboardingStatus()
-            }
-        }
-    }
-    
-    private func checkOnboardingStatus() {
-        isCheckingOnboardingStatus = true
-        
-        Task {
-            // Add a small delay for better UX
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-            
-            await MainActor.run {
-                let completed = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
-                
-                withAnimation(.spring(response: 0.6)) {
-                    hasCompletedOnboarding = completed
-                    isCheckingOnboardingStatus = false
-                }
             }
         }
     }
@@ -149,11 +114,6 @@ struct LoadingView: View {
             _ = UUID()
         }
     }
-}
-
-// MARK: - Notification Extensions
-extension Notification.Name {
-    static let onboardingCompleted = Notification.Name("onboardingCompleted")
 }
 
 struct ContentView_Previews: PreviewProvider {

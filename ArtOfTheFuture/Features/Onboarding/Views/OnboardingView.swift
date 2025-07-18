@@ -35,6 +35,9 @@ struct OnboardingView: View {
         }
         .preferredColorScheme(.light)
         .onAppear {
+            // Set the auth service reference
+            viewModel.setAuthService(authService)
+            
             withAnimation(.spring(response: 0.8)) {
                 isAnimating = true
             }
