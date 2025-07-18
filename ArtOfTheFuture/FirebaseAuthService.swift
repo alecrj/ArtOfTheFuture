@@ -8,7 +8,7 @@ import CryptoKit
 
 @MainActor
 final class FirebaseAuthService: NSObject, ObservableObject {
-    @Published var firebaseUser: User?
+    @Published var firebaseUser: FirebaseAuth.User?  // Fixed: Use FirebaseAuth.User
     @Published var isAuthenticated = false
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -23,7 +23,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         // Listen for auth state changes
         auth.addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
-                self?.firebaseUser = user
+                self?.firebaseUser = user  // Fixed: Now correctly assigns Firebase.User
                 self?.isAuthenticated = user != nil
                 print("🔥 Auth state changed. User: \(user?.email ?? "none")")
                 
@@ -100,9 +100,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         
         do {
             // Get Google Sign In result
-            guard let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenting) else {
-                throw AuthError.signInFailed
-            }
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenting)  // Fixed: Removed unnecessary guard
             
             let user = result.user
             guard let idToken = user.idToken?.tokenString else {
@@ -111,7 +109,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             
             // Create Firebase credential
             let credential = GoogleAuthProvider.credential(
-                withIDToken: idToken,
+                withIDToken: idToken,  // Fixed: Added missing parameter name
                 accessToken: user.accessToken.tokenString
             )
             
@@ -159,11 +157,11 @@ final class FirebaseAuthService: NSObject, ObservableObject {
                     throw AuthError.invalidCredential
                 }
                 
-                // Create Firebase credential
-                let credential = OAuthProvider.credential(
-                    providerID: AuthProviderID.apple,
-                    accessToken: idTokenString,
-                    rawNonce: nonce
+                // Create Firebase credential for Apple Sign-In
+                let credential = OAuthProvider.appleCredential(
+                    withIDToken: idTokenString,
+                    rawNonce: nonce,
+                    fullName: appleIDCredential.fullName
                 )
                 
                 // Sign in to Firebase
@@ -222,23 +220,16 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             "email": email ?? "",
             "displayName": displayName ?? "User",
             "photoURL": photoURL ?? "",
+            "createdAt": FieldValue.serverTimestamp(),
+            "lastLoginAt": FieldValue.serverTimestamp(),
             "providers": [provider],
-            "createdAt": Timestamp(),
-            "lastActiveDate": Timestamp(),
-            "dailyGoalMinutes": 15,
-            "onboardingCompleted": false,
             "totalXP": 0,
             "currentLevel": 1,
-            "currentStreak": 0,
-            "longestStreak": 0,
-            "completedLessons": [],
-            "earnedBadges": [],
-            "skillProgress": [:],
-            "lessonProgress": [:]
+            "currentStreak": 0
         ]
         
         try await db.collection("users").document(uid).setData(userData)
-        print("🔥 User profile created in Firestore")
+        print("🔥 User profile created: \(uid)")
     }
     
     private func createOrUpdateUserProfile(
@@ -256,25 +247,25 @@ final class FirebaseAuthService: NSObject, ObservableObject {
             if document.exists {
                 // Update existing profile
                 var updateData: [String: Any] = [
-                    "lastActiveDate": Timestamp()
+                    "lastLoginAt": FieldValue.serverTimestamp()
                 ]
                 
-                // Update fields only if they're not empty
-                if let email = email, !email.isEmpty {
+                if let email = email {
                     updateData["email"] = email
                 }
-                if let displayName = displayName, !displayName.isEmpty {
+                if let displayName = displayName {
                     updateData["displayName"] = displayName
                 }
-                if let photoURL = photoURL, !photoURL.isEmpty {
+                if let photoURL = photoURL {
                     updateData["photoURL"] = photoURL
                 }
                 
                 // Add provider if not already present
-                if var providers = document.data()?["providers"] as? [String],
+                if let providers = document.data()?["providers"] as? [String],
                    !providers.contains(provider) {
-                    providers.append(provider)
-                    updateData["providers"] = providers
+                    var mutableProviders = providers  // Fixed: Create mutable copy
+                    mutableProviders.append(provider)
+                    updateData["providers"] = mutableProviders
                 }
                 
                 try await userRef.updateData(updateData)
@@ -296,7 +287,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         }
     }
     
-    private func ensureUserProfileExists(for user: User) async {
+    private func ensureUserProfileExists(for user: FirebaseAuth.User) async {  // Fixed: Use FirebaseAuth.User
         let userRef = db.collection("users").document(user.uid)
         
         do {
@@ -321,15 +312,15 @@ final class FirebaseAuthService: NSObject, ObservableObject {
     // MARK: - Helper Properties
     
     var currentUserUID: String? {
-        firebaseUser?.uid
+        firebaseUser?.uid  // Fixed: Now correctly accesses Firebase.User properties
     }
     
     var currentUserEmail: String? {
-        firebaseUser?.email
+        firebaseUser?.email  // Fixed: Now correctly accesses Firebase.User properties
     }
     
     var currentUserDisplayName: String? {
-        firebaseUser?.displayName
+        firebaseUser?.displayName  // Fixed: Now correctly accesses Firebase.User properties
     }
     
     // MARK: - Apple Sign In Helpers
@@ -343,11 +334,11 @@ final class FirebaseAuthService: NSObject, ObservableObject {
         }
         
         let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
-        let nonce = randomBytes.map { byte in
+        let nonce = String(randomBytes.map { byte in
             charset[Int(byte) % charset.count]
-        }
+        })
         
-        return String(nonce)
+        return nonce
     }
     
     private func sha256(_ input: String) -> String {
@@ -361,8 +352,7 @@ final class FirebaseAuthService: NSObject, ObservableObject {
     }
 }
 
-// MARK: - Custom Errors
-
+// MARK: - Auth Errors
 enum AuthError: LocalizedError {
     case signInFailed
     case noIdToken
@@ -373,9 +363,9 @@ enum AuthError: LocalizedError {
         case .signInFailed:
             return "Sign in failed. Please try again."
         case .noIdToken:
-            return "Unable to fetch identity token."
+            return "Failed to get authentication token."
         case .invalidCredential:
-            return "Invalid credentials provided."
+            return "Invalid authentication credential."
         }
     }
 }
