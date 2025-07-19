@@ -1,3 +1,7 @@
+// MARK: - Complete Working LessonPlayerView.swift
+// File Path: ArtOfTheFuture/Features/Lessons/Views/LessonPlayerView.swift
+// REPLACE ENTIRE FILE WITH THIS
+
 import SwiftUI
 import PencilKit
 
@@ -5,6 +9,18 @@ struct LessonPlayerView: View {
     let lesson: Lesson
     @StateObject private var viewModel: LessonPlayerViewModel
     @Environment(\.dismiss) private var dismiss
+    
+    // MARK: - Validation State
+    @State private var currentValidationResult: ValidationResult?
+    @State private var hasPassedCurrentStep = false
+    @State private var attemptCount = 0
+    @State private var feedbackMessage = ""
+    @State private var showSuccessOverlay = false
+    @State private var showImprovementOverlay = false
+    @State private var drawnPoints: [CGPoint] = []
+    @State private var validationTimer: Timer?
+    @State private var realtimeFeedback = ""
+    @State private var showRealtimeIndicator = false
     
     init(lesson: Lesson) {
         self.lesson = lesson
@@ -43,7 +59,21 @@ struct LessonPlayerView: View {
                 bottomActionArea
             }
             
-            // Feedback overlays
+            // Validation feedback overlays
+            if showSuccessOverlay, let result = currentValidationResult {
+                ValidationFeedbackOverlay(result: result) {
+                    showSuccessOverlay = false
+                    proceedAfterValidation()
+                }
+            }
+            
+            if showImprovementOverlay, let result = currentValidationResult {
+                ValidationFeedbackOverlay(result: result) {
+                    showImprovementOverlay = false
+                }
+            }
+            
+            // Original feedback overlays
             if viewModel.showSuccessOverlay {
                 SuccessFeedbackOverlay(
                     xpGained: viewModel.stepXPEarned,
@@ -64,6 +94,13 @@ struct LessonPlayerView: View {
             }
         }
         .navigationBarHidden(true)
+        .overlay(
+            RealtimeFeedbackIndicator(
+                message: realtimeFeedback,
+                show: showRealtimeIndicator
+            ),
+            alignment: .top
+        )
         .onChange(of: viewModel.shouldDismiss) { _, shouldDismiss in
             if shouldDismiss {
                 dismiss()
@@ -151,9 +188,11 @@ struct LessonPlayerView: View {
                 }
                 
             case .drawing(let content):
-                DrawingContentView(content: content) { hasDrawing in
-                    viewModel.setCanProceed(hasDrawing)
-                }
+                ValidatedDrawingContentView(
+                    content: content,
+                    step: step,
+                    onValidationResult: handleValidationResult
+                )
                 
             case .theory(let content):
                 TheoryContentView(
@@ -164,11 +203,6 @@ struct LessonPlayerView: View {
                         viewModel.selectAnswer(answerId)
                     }
                 )
-                
-            case .challenge(let content):
-                ChallengeContentView(content: content) { hasContent in
-                    viewModel.setCanProceed(hasContent)
-                }
             }
         }
     }
@@ -192,14 +226,30 @@ struct LessonPlayerView: View {
                 }
             }
             
+            // Clear canvas button for drawing steps
+            if case .drawing = viewModel.currentStep?.content {
+                Button(action: clearCanvas) {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Clear Canvas")
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(20)
+                }
+            }
+            
             // Main action button (Duolingo style)
             Button(action: {
                 Task {
                     await HapticManager.shared.impact(.medium)
-                    viewModel.handleMainAction()
+                    handleMainAction()
                 }
             }) {
-                Text(viewModel.mainActionTitle)
+                Text(getMainActionTitle())
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
@@ -207,20 +257,395 @@ struct LessonPlayerView: View {
                     .frame(height: 52)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(viewModel.canProceed ?
+                            .fill(getCanProceed() ?
                                 LinearGradient(colors: [.green, .blue], startPoint: .leading, endPoint: .trailing) :
                                 LinearGradient(colors: [Color(.systemGray4)], startPoint: .leading, endPoint: .trailing)
                             )
                     )
-                    .shadow(color: viewModel.canProceed ? .green.opacity(0.3) : .clear, radius: 8, y: 4)
+                    .shadow(color: getCanProceed() ? .green.opacity(0.3) : .clear, radius: 8, y: 4)
             }
-            .disabled(!viewModel.canProceed)
-            .scaleEffect(viewModel.canProceed ? 1.0 : 0.95)
-            .animation(.spring(response: 0.3), value: viewModel.canProceed)
+            .disabled(!getCanProceed())
+            .scaleEffect(getCanProceed() ? 1.0 : 0.95)
+            .animation(.spring(response: 0.3), value: getCanProceed())
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 24)
         .background(.ultraThinMaterial)
+    }
+    
+    // MARK: - Validation Integration
+    private func handleValidationResult(_ result: ValidationResult, for step: LessonStep) {
+        currentValidationResult = result
+        feedbackMessage = result.feedback
+        
+        withAnimation(.spring(response: 0.4)) {
+            if result.passed {
+                showSuccessOverlay = true
+                hasPassedCurrentStep = true
+                viewModel.setCanProceed(true)
+            } else {
+                showImprovementOverlay = true
+                attemptCount += 1
+                
+                // Hide feedback after 3 seconds to allow retry
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                    self.showImprovementOverlay = false
+                }
+            }
+        }
+    }
+    
+    private func proceedAfterValidation() {
+        if currentValidationResult?.passed == true {
+            if viewModel.currentStepIndex == lesson.steps.count - 1 {
+                viewModel.completeLesson()
+            } else {
+                viewModel.proceedToNext()
+            }
+        }
+        clearValidationState()
+    }
+    
+    private func clearCanvas() {
+        drawnPoints.removeAll()
+        hasPassedCurrentStep = false
+        currentValidationResult = nil
+        attemptCount = 0
+        viewModel.setCanProceed(false)
+    }
+    
+    private func clearValidationState() {
+        drawnPoints.removeAll()
+        hasPassedCurrentStep = false
+        currentValidationResult = nil
+        attemptCount = 0
+    }
+    
+    private func handleMainAction() {
+        // For drawing steps with validation
+        if case .drawing = viewModel.currentStep?.content, hasPassedCurrentStep {
+            proceedAfterValidation()
+        } else {
+            // Use existing viewModel logic for other steps
+            viewModel.handleMainAction()
+        }
+    }
+    
+    private func getCanProceed() -> Bool {
+        if case .drawing = viewModel.currentStep?.content {
+            return hasPassedCurrentStep
+        }
+        return viewModel.canProceed
+    }
+    
+    private func getMainActionTitle() -> String {
+        if case .drawing = viewModel.currentStep?.content {
+            if hasPassedCurrentStep {
+                return viewModel.currentStepIndex == lesson.steps.count - 1 ? "Complete Lesson" : "Continue"
+            } else {
+                return "Draw to Continue"
+            }
+        }
+        return viewModel.mainActionTitle
+    }
+}
+
+// MARK: - Validated Drawing Content View
+struct ValidatedDrawingContentView: View {
+    let content: DrawingContent
+    let step: LessonStep
+    let onValidationResult: (ValidationResult, LessonStep) -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // Instructions card
+            VStack(spacing: 12) {
+                HStack {
+                    Image(systemName: "hand.draw")
+                        .foregroundColor(.blue)
+                    Text("Drawing Exercise")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                    Spacer()
+                }
+                
+                Text("Follow the guidelines and draw with confidence. Your drawing will be automatically validated.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding()
+            .background(Color.blue.opacity(0.1))
+            .cornerRadius(12)
+            
+            // Validated drawing canvas
+            ValidatedDrawingCanvas(
+                drawingContent: content,
+                onStrokeCompleted: { points in
+                    let result = LessonValidationService.shared.validateDrawing(
+                        points: points,
+                        expectedShape: content.expectedShape
+                    )
+                    onValidationResult(result, step)
+                }
+            )
+            .frame(width: content.canvasSize.width, height: content.canvasSize.height)
+            .background(Color(hex: content.backgroundColor) ?? .white)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+}
+
+// MARK: - Validation Feedback UI Components
+struct ValidationFeedbackOverlay: View {
+    let result: ValidationResult
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                // Score Display
+                Text("\(Int(result.score))/100")
+                    .font(.system(size: 72, weight: .bold, design: .rounded))
+                    .foregroundColor(result.passed ? .green : .orange)
+                
+                // Feedback Message
+                Text(result.feedback)
+                    .font(.title2)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.white)
+                    .padding(.horizontal)
+                
+                // Action Button
+                Button(action: onDismiss) {
+                    Text(result.passed ? "Continue" : "Try Again")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(result.passed ? Color.green : Color.blue)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal, 40)
+            }
+            .padding(30)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial)
+            )
+            .padding(.horizontal, 30)
+        }
+    }
+}
+
+struct RealtimeFeedbackIndicator: View {
+    let message: String
+    let show: Bool
+    
+    var body: some View {
+        VStack {
+            HStack {
+                Spacer()
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color.blue.opacity(0.8))
+                    )
+                    .opacity(show ? 1 : 0)
+                    .scaleEffect(show ? 1 : 0.8)
+                    .animation(.spring(response: 0.3), value: show)
+            }
+            .padding(.horizontal)
+            .padding(.top, 10)
+            
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Enhanced Drawing Canvas with Validation
+struct ValidatedDrawingCanvas: UIViewRepresentable {
+    let drawingContent: DrawingContent
+    let onStrokeCompleted: ([CGPoint]) -> Void
+    
+    func makeUIView(context: Context) -> PKCanvasView {
+        let canvasView = PKCanvasView()
+        canvasView.backgroundColor = UIColor(hex: drawingContent.backgroundColor) ?? .white
+        canvasView.tool = PKInkingTool(.pen, color: .black, width: 3)
+        canvasView.delegate = context.coordinator
+        canvasView.drawingPolicy = .anyInput
+        canvasView.isOpaque = true
+        
+        // Set canvas size
+        canvasView.frame = CGRect(origin: .zero, size: drawingContent.canvasSize)
+        
+        return canvasView
+    }
+    
+    func updateUIView(_ canvasView: PKCanvasView, context: Context) {
+        // Add guidelines as overlay views
+        addGuidelines(to: canvasView)
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onStrokeCompleted: onStrokeCompleted)
+    }
+    
+    private func addGuidelines(to canvasView: PKCanvasView) {
+        // Remove existing guideline views
+        canvasView.subviews.forEach { view in
+            if view.tag == 999 { // Our guideline tag
+                view.removeFromSuperview()
+            }
+        }
+        
+        // Add new guidelines
+        for guideline in drawingContent.guidelines {
+            let guidelineView = createGuidelineView(for: guideline)
+            guidelineView.tag = 999
+            canvasView.addSubview(guidelineView)
+        }
+    }
+    
+    private func createGuidelineView(for guideline: Guideline) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        view.alpha = CGFloat(guideline.opacity)
+        
+        switch guideline.type {
+        case .line:
+            if let endPoint = guideline.endPoint {
+                addLineToView(view, from: guideline.startPoint, to: endPoint, color: guideline.color)
+            }
+        case .circle:
+            if let center = guideline.center, let radius = guideline.radius {
+                addCircleToView(view, center: center, radius: radius, color: guideline.color)
+            }
+        case .point:
+            addPointToView(view, at: guideline.startPoint, color: guideline.color)
+        }
+        
+        return view
+    }
+    
+    private func addLineToView(_ view: UIView, from start: CGPoint, to end: CGPoint, color: String) {
+        let path = UIBezierPath()
+        path.move(to: start)
+        path.addLine(to: end)
+        
+        let shapeLayer = CAShapeLayer()
+        shapeLayer.path = path.cgPath
+        shapeLayer.strokeColor = UIColor(hex: color)?.cgColor ?? UIColor.blue.cgColor
+        shapeLayer.lineWidth = 2
+        shapeLayer.lineDashPattern = [5, 5]
+        
+        view.layer.addSublayer(shapeLayer)
+    }
+    
+    private func addCircleToView(_ view: UIView, center: CGPoint, radius: CGFloat, color: String) {
+        let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+        let path = UIBezierPath(ovalIn: rect)
+        
+        let shapeLayer = CAShapeLayer()
+        shapeLayer.path = path.cgPath
+        shapeLayer.strokeColor = UIColor(hex: color)?.cgColor ?? UIColor.purple.cgColor
+        shapeLayer.fillColor = UIColor.clear.cgColor
+        shapeLayer.lineWidth = 2
+        shapeLayer.lineDashPattern = [5, 5]
+        
+        view.layer.addSublayer(shapeLayer)
+    }
+    
+    private func addPointToView(_ view: UIView, at point: CGPoint, color: String) {
+        let circle = UIView(frame: CGRect(x: point.x - 4, y: point.y - 4, width: 8, height: 8))
+        circle.backgroundColor = UIColor(hex: color) ?? .red
+        circle.layer.cornerRadius = 4
+        view.addSubview(circle)
+    }
+    
+    class Coordinator: NSObject, PKCanvasViewDelegate {
+        let onStrokeCompleted: ([CGPoint]) -> Void
+        
+        init(onStrokeCompleted: @escaping ([CGPoint]) -> Void) {
+            self.onStrokeCompleted = onStrokeCompleted
+        }
+        
+        func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
+            // Extract points from the latest stroke
+            guard let lastStroke = canvasView.drawing.strokes.last else { return }
+            
+            let points = lastStroke.path.map { point in
+                CGPoint(x: point.location.x, y: point.location.y)
+            }
+            
+            onStrokeCompleted(points)
+        }
+    }
+}
+
+// MARK: - Color Extension for Hex Support
+extension Color {
+    init?(hex: String) {
+        let r, g, b: Double
+        
+        if hex.hasPrefix("#") {
+            let start = hex.index(hex.startIndex, offsetBy: 1)
+            let hexColor = String(hex[start...])
+            
+            if hexColor.count == 6 {
+                let scanner = Scanner(string: hexColor)
+                var hexNumber: UInt64 = 0
+                
+                if scanner.scanHexInt64(&hexNumber) {
+                    r = Double((hexNumber & 0xff0000) >> 16) / 255
+                    g = Double((hexNumber & 0x00ff00) >> 8) / 255
+                    b = Double(hexNumber & 0x0000ff) / 255
+                    
+                    self.init(red: r, green: g, blue: b)
+                    return
+                }
+            }
+        }
+        
+        return nil
+    }
+}
+
+extension UIColor {
+    convenience init?(hex: String) {
+        let r, g, b: CGFloat
+        
+        if hex.hasPrefix("#") {
+            let start = hex.index(hex.startIndex, offsetBy: 1)
+            let hexColor = String(hex[start...])
+            
+            if hexColor.count == 6 {
+                let scanner = Scanner(string: hexColor)
+                var hexNumber: UInt64 = 0
+                
+                if scanner.scanHexInt64(&hexNumber) {
+                    r = CGFloat((hexNumber & 0xff0000) >> 16) / 255
+                    g = CGFloat((hexNumber & 0x00ff00) >> 8) / 255
+                    b = CGFloat(hexNumber & 0x0000ff) / 255
+                    
+                    self.init(red: r, green: g, blue: b, alpha: 1)
+                    return
+                }
+            }
+        }
+        
+        return nil
     }
 }
 
@@ -335,116 +760,6 @@ struct IntroductionContentView: View {
     }
 }
 
-// MARK: - Drawing Content (FIXED CANVAS)
-struct DrawingContentView: View {
-    let content: DrawingContent
-    let onDrawingChanged: (Bool) -> Void
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            // Instructions card
-            VStack(spacing: 12) {
-                HStack {
-                    Image(systemName: "hand.draw")
-                        .foregroundColor(.blue)
-                    Text("Drawing Exercise")
-                        .font(.headline)
-                        .foregroundColor(.blue)
-                    Spacer()
-                }
-                
-                Text("Use your Apple Pencil or finger to draw on the white canvas below. Your strokes will appear in black.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.leading)
-            }
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(12)
-            
-            // Fixed drawing canvas
-            PerfectDrawingCanvas(onDrawingChanged: onDrawingChanged)
-                .frame(height: 280)
-                .background(Color.white)
-                .cornerRadius(16)
-                .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color(.systemGray4), lineWidth: 1)
-                )
-        }
-    }
-}
-
-// MARK: - Perfect Drawing Canvas (FULLY FIXED)
-struct PerfectDrawingCanvas: View {
-    @State private var canvasView = PKCanvasView()
-    let onDrawingChanged: (Bool) -> Void
-    
-    var body: some View {
-        PerfectCanvasRepresentable(
-            canvasView: $canvasView,
-            onDrawingChanged: onDrawingChanged
-        )
-    }
-}
-
-struct PerfectCanvasRepresentable: UIViewRepresentable {
-    @Binding var canvasView: PKCanvasView
-    let onDrawingChanged: (Bool) -> Void
-    
-    func makeUIView(context: Context) -> PKCanvasView {
-        // FIXED: Perfect canvas setup
-        canvasView.drawingPolicy = .anyInput
-        canvasView.backgroundColor = UIColor.white // Pure white
-        canvasView.isOpaque = true // Prevents color changes
-        canvasView.delegate = context.coordinator
-        
-        // FIXED: Set perfect black tool
-        canvasView.tool = PKInkingTool(.pen, color: UIColor.black, width: 3.0)
-        
-        // FIXED: Disable interface style changes
-        canvasView.overrideUserInterfaceStyle = .light
-        
-        return canvasView
-    }
-    
-    func updateUIView(_ uiView: PKCanvasView, context: Context) {
-        // FIXED: Maintain white background on all updates
-        uiView.backgroundColor = UIColor.white
-        uiView.isOpaque = true
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onDrawingChanged: onDrawingChanged)
-    }
-    
-    class Coordinator: NSObject, PKCanvasViewDelegate {
-        let onDrawingChanged: (Bool) -> Void
-        
-        init(onDrawingChanged: @escaping (Bool) -> Void) {
-            self.onDrawingChanged = onDrawingChanged
-        }
-        
-        func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
-            // FIXED: Maintain white background during drawing
-            canvasView.backgroundColor = UIColor.white
-        }
-        
-        func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
-            // FIXED: Maintain white background after drawing
-            canvasView.backgroundColor = UIColor.white
-        }
-        
-        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-            // FIXED: Maintain white background on changes
-            canvasView.backgroundColor = UIColor.white
-            let hasDrawing = !canvasView.drawing.strokes.isEmpty
-            onDrawingChanged(hasDrawing)
-        }
-    }
-}
-
 // MARK: - Theory Content (FORGIVING WITH FEEDBACK)
 struct TheoryContentView: View {
     let content: TheoryContent
@@ -476,13 +791,13 @@ struct TheoryContentView: View {
             
             // Answer options
             VStack(spacing: 12) {
-                ForEach(content.options) { option in
+                ForEach(Array(content.options.enumerated()), id: \.offset) { index, option in
                     TheoryOptionButton(
-                        option: option,
-                        isSelected: selectedAnswers.contains(option.id),
+                        option: TheoryContent.AnswerOption(id: "\(index)", text: option, image: nil),
+                        isSelected: selectedAnswers.contains("\(index)"),
                         hasSubmitted: hasSubmittedAnswer,
-                        isCorrect: content.correctAnswers.contains(option.id),
-                        onTap: { onAnswerSelected(option.id) }
+                        isCorrect: content.correctAnswer == index,
+                        onTap: { onAnswerSelected("\(index)") }
                     )
                 }
             }
@@ -594,49 +909,6 @@ struct TheoryOptionButton: View {
         .disabled(hasSubmitted)
         .scaleEffect(isSelected && !hasSubmitted ? 1.02 : 1.0)
         .animation(.spring(response: 0.3), value: isSelected)
-    }
-}
-
-// MARK: - Challenge Content
-struct ChallengeContentView: View {
-    let content: ChallengeContent
-    let onContentChanged: (Bool) -> Void
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            // Challenge prompt
-            VStack(spacing: 12) {
-                HStack {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.orange)
-                    Text("Creative Challenge")
-                        .font(.headline)
-                        .foregroundColor(.orange)
-                    Spacer()
-                }
-                
-                Text(content.prompt)
-                    .font(.title3)
-                    .fontWeight(.medium)
-                    .multilineTextAlignment(.leading)
-            }
-            .padding()
-            .background(
-                LinearGradient(
-                    colors: [.orange.opacity(0.1), .pink.opacity(0.1)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .cornerRadius(12)
-            
-            // Drawing area
-            PerfectDrawingCanvas(onDrawingChanged: onContentChanged)
-                .frame(height: 240)
-                .background(Color.white)
-                .cornerRadius(16)
-                .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
-        }
     }
 }
 
@@ -773,7 +1045,7 @@ final class LessonPlayerViewModel: ObservableObject {
         }
     }
     
-    private func completeLesson() {
+    func completeLesson() {
         Task {
             do {
                 try await progressService.completeLesson(lesson.id)
@@ -795,7 +1067,7 @@ final class LessonPlayerViewModel: ObservableObject {
         shouldDismiss = true
     }
     
-    private func proceedToNext() {
+    func proceedToNext() {
         currentStepIndex += 1
         resetStepState()
         updateProgress()
@@ -832,7 +1104,7 @@ final class LessonPlayerViewModel: ObservableObject {
     private func validateStep(_ step: LessonStep) -> Bool {
         switch step.content {
         case .theory(let content):
-            return Set(content.correctAnswers) == selectedAnswers
+            return selectedAnswers.contains("\(content.correctAnswer)")
         default:
             return true
         }
