@@ -313,17 +313,20 @@ struct MainTabView: View {
     @State private var selectedTab = 0
     @StateObject private var tabViewModel = MainTabViewModel()
     @StateObject private var debugService = DebugService.shared
+    @State private var homeNavigationPath = NavigationPath()
 
     var body: some View {
         ZStack {
             // TabView with Gallery and Profile tabs removed - now only 3 tabs
             TabView(selection: $selectedTab) {
-                HomeDashboardView()
-                    .tabItem {
-                        Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
-                    }
-                    .tag(0)
-                    .debugOnAppear("Home Tab", category: .ui)
+                NavigationStack(path: $homeNavigationPath) {
+                    HomeDashboardView()
+                }
+                .tabItem {
+                    Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
+                }
+                .tag(0)
+                .debugOnAppear("Home Tab", category: .ui)
 
                 LessonsView()
                     .tabItem {
@@ -383,6 +386,15 @@ struct MainTabView: View {
         .onChange(of: selectedTab) { oldValue, newValue in
             Task {
                 await HapticManager.shared.selection()
+                
+                // If user taps Home tab, reset navigation to root
+                if newValue == 0 && !homeNavigationPath.isEmpty {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        homeNavigationPath = NavigationPath()
+                    }
+                    debugService.info("Home tab tapped - resetting navigation to root", category: .ui)
+                }
+                
                 tabViewModel.trackTabSwitch(to: newValue)
                 debugService.trackUserAction("Tab Switch", details: ["from": oldValue, "to": newValue])
             }
