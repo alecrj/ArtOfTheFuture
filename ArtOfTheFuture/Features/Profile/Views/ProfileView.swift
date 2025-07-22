@@ -1,4 +1,4 @@
-// MARK: - Updated Profile View (Real Firebase Data)
+// MARK: - Updated Profile View (Dark Mode Toggle Removed)
 // File: ArtOfTheFuture/Features/Profile/Views/ProfileView.swift
 
 import SwiftUI
@@ -8,7 +8,6 @@ struct ProfileView: View {
     @StateObject private var userDataService = UserDataService.shared
     @State private var showEditProfile = false
     @State private var selectedTab = 0 // 0 = Profile, 1 = Settings
-    @AppStorage("isDarkMode") private var isDarkMode = false
 
     var body: some View {
         NavigationView {
@@ -18,7 +17,7 @@ struct ProfileView: View {
                     Button(action: { selectedTab = 0 }) {
                         Text("Profile")
                             .font(.subheadline.weight(.medium))
-                            .foregroundColor(selectedTab == 0 ? .white : .secondary)
+                            .foregroundColor(selectedTab == 0 ? .white : .white.opacity(0.7))
                             .padding(.vertical, 12)
                             .frame(maxWidth: .infinity)
                             .background(selectedTab == 0 ? Color.blue : Color.clear)
@@ -28,7 +27,7 @@ struct ProfileView: View {
                     Button(action: { selectedTab = 1 }) {
                         Text("Settings")
                             .font(.subheadline.weight(.medium))
-                            .foregroundColor(selectedTab == 1 ? .white : .secondary)
+                            .foregroundColor(selectedTab == 1 ? .white : .white.opacity(0.7))
                             .padding(.vertical, 12)
                             .frame(maxWidth: .infinity)
                             .background(selectedTab == 1 ? Color.blue : Color.clear)
@@ -36,7 +35,7 @@ struct ProfileView: View {
                     }
                 }
                 .padding(4)
-                .background(Color(.systemGray6))
+                .background(Color(.systemGray5).opacity(0.3))
                 .cornerRadius(12)
                 .padding(.horizontal)
                 .padding(.top)
@@ -60,6 +59,7 @@ struct ProfileView: View {
                         Button("Edit") {
                             showEditProfile = true
                         }
+                        .foregroundColor(.cyan)
                     }
                 }
             }
@@ -67,7 +67,7 @@ struct ProfileView: View {
                 EditProfileView()
             }
         }
-        .preferredColorScheme(isDarkMode ? .dark : .light)
+        .preferredColorScheme(.dark) // Force dark mode
         .onAppear {
             // Load user data when view appears
             Task {
@@ -84,12 +84,13 @@ struct ProfileView: View {
     private var profileContent: some View {
         if userDataService.isLoading {
             ProgressView("Loading profile...")
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let user = userDataService.currentUser {
             realProfileContent(user: user)
         } else {
             Text("Unable to load profile")
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.7))
         }
     }
     
@@ -105,7 +106,13 @@ struct ProfileView: View {
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Circle()
-                        .fill(Color.blue.gradient)
+                        .fill(
+                            LinearGradient(
+                                colors: [.purple, .pink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                         .overlay {
                             Text(String(user.displayName.prefix(1)).uppercased())
                                 .font(.largeTitle.bold())
@@ -114,16 +121,22 @@ struct ProfileView: View {
                 }
                 .frame(width: 100, height: 100)
                 .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(.ultraThinMaterial, lineWidth: 3)
+                )
+                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
                 
                 // User Info
                 VStack(spacing: 8) {
                     Text(user.displayName)
                         .font(.title2.bold())
+                        .foregroundColor(.white)
                     
                     if let email = user.email {
                         Text(email)
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.7))
                     }
                     
                     HStack {
@@ -131,7 +144,7 @@ struct ProfileView: View {
                         Text(user.joinedDate, style: .date)
                     }
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.6))
                 }
             }
             .padding(.vertical)
@@ -148,21 +161,21 @@ struct ProfileView: View {
                     color: .yellow
                 )
                 
-                StatCard(
+                ProfileStatCard(
                     title: "Total XP",
                     value: "\(user.totalXP)",
                     icon: "bolt.fill",
                     color: .orange
                 )
                 
-                StatCard(
+                ProfileStatCard(
                     title: "Current Streak",
                     value: "\(user.currentStreak)",
                     icon: "flame.fill",
                     color: .red
                 )
                 
-                StatCard(
+                ProfileStatCard(
                     title: "Progress",
                     value: "\(Int(user.levelProgress * 100))%",
                     icon: "chart.line.uptrend.xyaxis",
@@ -175,23 +188,24 @@ struct ProfileView: View {
                 HStack {
                     Text("Level \(user.currentLevel)")
                         .font(.headline)
+                        .foregroundColor(.white)
                     Spacer()
                     Text("\(user.totalXP % 100)/100 XP")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.7))
                 }
                 
                 ProgressView(value: user.levelProgress)
-                    .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                    .progressViewStyle(LinearProgressViewStyle(tint: .purple))
                     .scaleEffect(x: 1, y: 2, anchor: .center)
             }
             .padding()
-            .background(Color(.systemGray6))
+            .background(.ultraThinMaterial)
             .cornerRadius(12)
         }
     }
     
-    // MARK: - Settings Content
+    // MARK: - Settings Content (Dark Mode Toggle Removed)
     
     @ViewBuilder
     private var settingsContent: some View {
@@ -211,14 +225,19 @@ struct ProfileView: View {
                 )
             }
             
-            // Preferences Section
-            ProfileSettingsSection(title: "Preferences") {
-                HStack {
-                    Label("Dark Mode", systemImage: "moon.fill")
-                    Spacer()
-                    Toggle("", isOn: $isDarkMode)
-                }
-                .padding()
+            // App Info Section (New section to replace Preferences)
+            ProfileSettingsSection(title: "App Info") {
+                ProfileSettingsRow(
+                    icon: "info.circle.fill",
+                    title: "Version",
+                    subtitle: "1.0.0"
+                )
+                
+                ProfileSettingsRow(
+                    icon: "paintbrush.fill",
+                    title: "Theme",
+                    subtitle: "Theme 1 (implement more themes later)"
+                )
             }
             
             // Sign Out
@@ -227,12 +246,13 @@ struct ProfileView: View {
             }) {
                 HStack {
                     Image(systemName: "arrow.right.square")
+                        .foregroundColor(.red)
                     Text("Sign Out")
+                        .foregroundColor(.red)
                 }
-                .foregroundColor(.red)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color(.systemGray6))
+                .background(.ultraThinMaterial)
                 .cornerRadius(12)
             }
             
@@ -241,7 +261,7 @@ struct ProfileView: View {
     }
 }
 
-// MARK: - Supporting Views
+// MARK: - Supporting Views (Updated for Dark Mode)
 
 struct ProfileStatCard: View {
     let title: String
@@ -257,15 +277,17 @@ struct ProfileStatCard: View {
             
             Text(value)
                 .font(.title2.bold())
+                .foregroundColor(.white)
             
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.systemGray6))
+        .background(.ultraThinMaterial)
         .cornerRadius(12)
+        .shadow(color: color.opacity(0.2), radius: 4, y: 2)
     }
 }
 
@@ -277,12 +299,13 @@ struct ProfileSettingsSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.headline)
+                .foregroundColor(.white)
                 .padding(.horizontal)
             
             VStack(spacing: 0) {
                 content
             }
-            .background(Color(.systemGray6))
+            .background(.ultraThinMaterial)
             .cornerRadius(12)
         }
     }
@@ -298,17 +321,17 @@ struct ProfileSettingsRow: View {
         Button(action: action ?? {}) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.cyan)
                     .frame(width: 20)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
                     if let subtitle = subtitle {
                         Text(subtitle)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.7))
                     }
                 }
                 
@@ -317,7 +340,7 @@ struct ProfileSettingsRow: View {
                 if action != nil {
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.6))
                 }
             }
             .padding()
@@ -337,6 +360,7 @@ struct EditProfileView: View {
             Form {
                 Section("Profile Information") {
                     TextField("Display Name", text: $displayName)
+                        .foregroundColor(.white)
                 }
             }
             .navigationTitle("Edit Profile")
@@ -346,6 +370,7 @@ struct EditProfileView: View {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundColor(.cyan)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -357,6 +382,7 @@ struct EditProfileView: View {
                             dismiss()
                         }
                     }
+                    .foregroundColor(.cyan)
                     .disabled(displayName.isEmpty || isLoading)
                 }
             }
@@ -364,6 +390,7 @@ struct EditProfileView: View {
                 displayName = userDataService.userDisplayName
             }
         }
+        .preferredColorScheme(.dark)
     }
 }
 
