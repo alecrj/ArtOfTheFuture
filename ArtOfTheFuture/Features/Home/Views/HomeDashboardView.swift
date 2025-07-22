@@ -1,4 +1,4 @@
-// MARK: - Art Learning Central Hub - HomeDashboardView
+// MARK: - Enhanced Art Learning Home Dashboard (FAANG-Level Quality)
 // File: ArtOfTheFuture/Features/Home/Views/HomeDashboardView.swift
 
 import SwiftUI
@@ -10,47 +10,63 @@ struct HomeDashboardView: View {
     @EnvironmentObject var authService: FirebaseAuthService
     @Environment(\.colorScheme) var colorScheme
     @State private var selectedTab = 0
+    @State private var scrollOffset: CGFloat = 0
+    @State private var heroOpacity: Double = 1.0
+    @State private var showingMoreOptions = false
     
     var body: some View {
         NavigationView {
             ZStack {
-                // Artistic background
-                ArtisticBackground()
+                // Enhanced artistic background
+                EnhancedArtisticBackground(scrollOffset: scrollOffset)
                 
                 ScrollView {
-                    VStack(spacing: 24) {
+                    LazyVStack(spacing: 0) {
                         if viewModel.isLoading {
-                            loadingView
+                            enhancedLoadingView
                         } else {
-                            heroSection
-                            todaysCreativePrompt
-                            progressRings
-                            recentArtworksSection
-                            learningPathSection
-                            weeklyInsights
+                            // Hero section with parallax
+                            enhancedHeroSection
+                                .opacity(heroOpacity)
+                            
+                            // Main content with enhanced spacing
+                            VStack(spacing: 32) {
+                                todaysCreativePromptEnhanced
+                                enhancedProgressDashboard
+                                quickActionsSection
+                                recentArtworksEnhanced
+                                learningPathEnhanced
+                                weeklyInsightsEnhanced
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.top, 24)
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 100)
+                    .background(
+                        // Scroll offset reader
+                        GeometryReader { proxy in
+                            Color.clear
+                                .preference(key: ScrollOffsetPreferenceKey.self, value: proxy.frame(in: .named("scroll")).minY)
+                        }
+                    )
+                    .padding(.bottom, 120)
+                }
+                .coordinateSpace(name: "scroll")
+                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                    scrollOffset = value
+                    // Parallax effect for hero section
+                    let threshold: CGFloat = 100
+                    heroOpacity = max(0.3, 1.0 - abs(value) / threshold)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(greetingText)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(viewModel.userName.isEmpty ? "Artist" : viewModel.userName)
-                            .font(.headline.bold())
-                    }
+                    enhancedUserGreeting
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 16) {
-                        notificationButton
-                        profileButton
-                    }
+                    enhancedToolbarActions
                 }
             }
             .refreshable {
@@ -64,46 +80,93 @@ struct HomeDashboardView: View {
         }
     }
     
-    // MARK: - Artistic Background
+    // MARK: - Enhanced Artistic Background
     
-    struct ArtisticBackground: View {
+    struct EnhancedArtisticBackground: View {
+        let scrollOffset: CGFloat
+        @Environment(\.colorScheme) var colorScheme
+        
         var body: some View {
             ZStack {
-                // Base gradient
+                // Dynamic gradient background
                 LinearGradient(
-                    colors: [
-                        Color(red: 0.98, green: 0.95, blue: 0.99),
-                        Color(red: 0.95, green: 0.98, blue: 0.99),
-                        Color(red: 0.99, green: 0.95, blue: 0.95)
+                    colors: colorScheme == .dark ? [
+                        Color(red: 0.05, green: 0.05, blue: 0.12),
+                        Color(red: 0.08, green: 0.05, blue: 0.15),
+                        Color(red: 0.12, green: 0.08, blue: 0.20)
+                    ] : [
+                        Color(red: 0.99, green: 0.97, blue: 1.0),
+                        Color(red: 0.97, green: 0.99, blue: 0.98),
+                        Color(red: 0.98, green: 0.96, blue: 0.99)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
                 
-                // Paint splash effects
+                // Animated paint elements with parallax
                 GeometryReader { geometry in
-                    ForEach(0..<3) { index in
-                        PaintSplash()
+                    ForEach(0..<6, id: \.self) { index in
+                        EnhancedPaintSplash(index: index)
                             .position(
-                                x: CGFloat.random(in: 0...geometry.size.width),
-                                y: CGFloat.random(in: 0...geometry.size.height)
+                                x: CGFloat(index % 2 == 0 ? 0.2 : 0.8) * geometry.size.width + sin(scrollOffset * 0.01) * 20,
+                                y: CGFloat(index) * geometry.size.height / 6 + cos(scrollOffset * 0.005) * 10
                             )
-                            .opacity(0.03)
+                            .opacity(colorScheme == .dark ? 0.06 : 0.04)
                     }
                 }
+                
+                // Subtle texture overlay
+                Rectangle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                colorScheme == .dark ? Color.black.opacity(0.1) : Color.white.opacity(0.1)
+                            ]),
+                            center: .center,
+                            startRadius: 100,
+                            endRadius: 400
+                        )
+                    )
             }
             .ignoresSafeArea()
         }
     }
     
-    // MARK: - Hero Section
+    struct EnhancedPaintSplash: View {
+        let index: Int
+        let colors = [Color.purple, Color.pink, Color.orange, Color.blue, Color.cyan, Color.mint]
+        @State private var scale: CGFloat
+        @State private var rotation: Double
+        
+        init(index: Int) {
+            self.index = index
+            _scale = State(initialValue: CGFloat.random(in: 0.8...2.5))
+            _rotation = State(initialValue: Double.random(in: 0...360))
+        }
+        
+        var body: some View {
+            Circle()
+                .fill(colors[index % colors.count])
+                .frame(width: 200 * scale, height: 200 * scale)
+                .blur(radius: 40)
+                .rotationEffect(.degrees(rotation))
+                .onAppear {
+                    withAnimation(.easeInOut(duration: Double.random(in: 20...40)).repeatForever(autoreverses: true)) {
+                        rotation += 360
+                    }
+                }
+        }
+    }
     
-    private var heroSection: some View {
-        VStack(spacing: 20) {
-            // Motivational quote
-            VStack(spacing: 8) {
+    // MARK: - Enhanced Hero Section
+    
+    private var enhancedHeroSection: some View {
+        VStack(spacing: 24) {
+            // Enhanced motivational text
+            VStack(spacing: 12) {
                 Text("Create Something")
-                    .font(.system(size: 36, weight: .bold, design: .serif))
+                    .font(.system(size: 42, weight: .heavy, design: .serif))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [.purple, .pink, .orange],
@@ -111,251 +174,682 @@ struct HomeDashboardView: View {
                             endPoint: .trailing
                         )
                     )
+                    .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
                 
                 Text("Beautiful Today")
-                    .font(.system(size: 36, weight: .bold, design: .serif))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.orange, .pink, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .font(.system(size: 20, weight: .medium, design: .default))
+                    .foregroundColor(.secondary)
+                    .opacity(0.8)
             }
-            .padding(.top, 20)
             
-            // Quick action buttons
-            HStack(spacing: 16) {
-                QuickStartButton(
-                    title: "Start Drawing",
-                    icon: "paintbrush.fill",
-                    gradient: [.purple, .pink],
-                    action: {
-                        // Navigate to drawing
-                    }
-                )
-                
-                QuickStartButton(
-                    title: "Continue Lesson",
-                    icon: "book.fill",
-                    gradient: [.blue, .cyan],
-                    action: {
-                        // Continue last lesson
-                    }
-                )
+            // Enhanced streak and level indicator
+            HStack(spacing: 20) {
+                enhancedStreakCard
+                enhancedLevelCard
             }
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
     }
     
-    // MARK: - Today's Creative Prompt
-    
-    private var todaysCreativePrompt: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Label("Today's Challenge", systemImage: "sparkles")
-                    .font(.headline.weight(.semibold))
+    private var enhancedStreakCard: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: viewModel.currentStreak > 0 ? "flame.fill" : "flame")
+                    .font(.title3)
+                    .foregroundColor(viewModel.currentStreak > 0 ? .orange : .secondary)
                 
-                Spacer()
-                
-                Text("Day \(viewModel.currentStreak)")
-                    .font(.caption.weight(.medium))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(Color.orange.opacity(0.2)))
-                    .foregroundColor(.orange)
+                Text("\(viewModel.currentStreak)")
+                    .font(.title2.bold())
+                    .foregroundColor(viewModel.currentStreak > 0 ? .orange : .secondary)
             }
             
-            CreativePromptCard(
-                prompt: "Draw your favorite memory using only 3 colors",
-                difficulty: "Intermediate",
-                timeEstimate: "15-20 min",
-                xpReward: 50
-            ) {
-                // Start challenge
-            }
+            Text("Day Streak")
+                .font(.caption.weight(.medium))
+                .foregroundColor(.secondary)
         }
-    }
-    
-    // MARK: - Progress Rings
-    
-    private var progressRings: some View {
-        HStack(spacing: 20) {
-            // Today's Progress
-            VStack(spacing: 12) {
-                ZStack {
-                    ArtisticProgressRing(
-                        progress: Double(viewModel.todayMinutes) / Double(viewModel.targetMinutes),
-                        gradient: [.purple, .pink],
-                        size: 100,
-                        lineWidth: 12
-                    )
-                    
-                    VStack(spacing: 2) {
-                        Text("\(viewModel.todayMinutes)")
-                            .font(.title2.bold())
-                        Text("min")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Text("Today")
-                    .font(.subheadline.weight(.medium))
-            }
-            
-            // Weekly Progress
-            VStack(spacing: 12) {
-                ZStack {
-                    ArtisticProgressRing(
-                        progress: Double(viewModel.lessonsCompleted) / 7.0,
-                        gradient: [.blue, .cyan],
-                        size: 100,
-                        lineWidth: 12
-                    )
-                    
-                    VStack(spacing: 2) {
-                        Text("\(viewModel.lessonsCompleted)")
-                            .font(.title2.bold())
-                        Text("lessons")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Text("This Week")
-                    .font(.subheadline.weight(.medium))
-            }
-            
-            // Level Progress
-            VStack(spacing: 12) {
-                ZStack {
-                    ArtisticProgressRing(
-                        progress: viewModel.levelProgress,
-                        gradient: [.orange, .yellow],
-                        size: 100,
-                        lineWidth: 12
-                    )
-                    
-                    VStack(spacing: 2) {
-                        Text("Lvl \(viewModel.currentLevel)")
-                            .font(.title3.bold())
-                        Text("\(Int(viewModel.levelProgress * 100))%")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Text("Level")
-                    .font(.subheadline.weight(.medium))
-            }
-        }
-        .padding()
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: 24)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            LinearGradient(
+                                colors: viewModel.currentStreak > 0 ? [.orange.opacity(0.5), .yellow.opacity(0.3)] : [Color.gray.opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .scaleEffect(viewModel.currentStreak > 0 ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3), value: viewModel.currentStreak)
+    }
+    
+    private var enhancedLevelCard: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "star.fill")
+                    .font(.title3)
+                    .foregroundColor(.yellow)
+                
+                Text("Level \(viewModel.currentLevel)")
+                    .font(.title2.bold())
+                    .foregroundColor(.primary)
+            }
+            
+            Text("\(Int(viewModel.levelProgress * 100))% to next")
+                .font(.caption.weight(.medium))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            LinearGradient(
+                                colors: [.yellow.opacity(0.5), .orange.opacity(0.3)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
         )
     }
     
-    // MARK: - Recent Artworks Section
+    // MARK: - Enhanced Today's Creative Prompt
     
-    private var recentArtworksSection: some View {
+    private var todaysCreativePromptEnhanced: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Label("Your Recent Creations", systemImage: "photo.artframe")
+                Label("Today's Creative Challenge", systemImage: "lightbulb.fill")
                     .font(.headline.weight(.semibold))
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
-                Button("Gallery") {
-                    // Navigate to gallery
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(.purple)
+                Text("3 min")
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.2))
+                    .foregroundColor(.blue)
+                    .cornerRadius(8)
             }
             
-            if viewModel.recentArtworks.isEmpty {
-                EmptyArtworkCard()
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        ForEach(viewModel.recentArtworks, id: \.self) { artworkId in
-                            RecentArtworkCard(artworkId: artworkId)
-                        }
-                        
-                        AddNewArtworkCard {
-                            // Navigate to drawing
-                        }
-                    }
-                    .padding(.horizontal, 1)
+            Text("Draw a simple object using only geometric shapes")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            
+            HStack(spacing: 12) {
+                Button("Start Challenge") {
+                    // Navigate to today's challenge
                 }
+                .buttonStyle(PremiumButtonStyle(
+                    colors: [.blue, .purple],
+                    isCompact: true
+                ))
+                
+                Button("Skip for Today") {
+                    // Skip today's challenge
+                }
+                .buttonStyle(SecondaryButtonStyle(isCompact: true))
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(.ultraThinMaterial, lineWidth: 1)
+                )
+        )
+        .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
+    }
+    
+    // MARK: - Enhanced Progress Dashboard
+    
+    private var enhancedProgressDashboard: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Text("Your Progress")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            HStack(spacing: 16) {
+                // Today's Minutes
+                enhancedProgressCard(
+                    title: "Today",
+                    value: "\(viewModel.todayMinutes)",
+                    subtitle: "minutes",
+                    progress: Double(viewModel.todayMinutes) / Double(viewModel.targetMinutes),
+                    colors: [.purple, .pink],
+                    icon: "clock.fill"
+                )
+                
+                // Weekly Lessons
+                enhancedProgressCard(
+                    title: "This Week",
+                    value: "\(viewModel.lessonsCompleted)",
+                    subtitle: "lessons",
+                    progress: Double(viewModel.lessonsCompleted) / 7.0,
+                    colors: [.blue, .cyan],
+                    icon: "book.fill"
+                )
+                
+                // XP Earned
+                enhancedProgressCard(
+                    title: "XP Today",
+                    value: "\(viewModel.todayXP)",
+                    subtitle: "points",
+                    progress: Double(viewModel.todayXP) / 200.0, // Assuming 200 is daily target
+                    colors: [.orange, .yellow],
+                    icon: "star.fill"
+                )
             }
         }
     }
     
-    // MARK: - Learning Path Section
+    private func enhancedProgressCard(
+        title: String,
+        value: String,
+        subtitle: String,
+        progress: Double,
+        colors: [Color],
+        icon: String
+    ) -> some View {
+        VStack(spacing: 12) {
+            // Icon and title
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(colors[0])
+                
+                Text(title)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.secondary)
+            }
+            
+            // Progress ring
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.15), lineWidth: 6)
+                    .frame(width: 70, height: 70)
+                
+                Circle()
+                    .trim(from: 0, to: min(progress, 1.0))
+                    .stroke(
+                        LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing),
+                        style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                    )
+                    .frame(width: 70, height: 70)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.spring(response: 0.8, dampingFraction: 0.8), value: progress)
+                
+                VStack(spacing: 0) {
+                    Text(value)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                    
+                    Text(subtitle)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(.ultraThinMaterial, lineWidth: 1)
+                )
+        )
+        .shadow(color: colors[0].opacity(0.1), radius: 8, y: 4)
+    }
     
-    private var learningPathSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+    // MARK: - Enhanced Quick Actions
+    
+    private var quickActionsSection: some View {
+        VStack(spacing: 16) {
             HStack {
-                Label("Your Learning Path", systemImage: "map.fill")
-                    .font(.headline.weight(.semibold))
+                Text("Quick Start")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ], spacing: 12) {
+                QuickActionCardEnhanced(
+                    title: "Free Draw",
+                    subtitle: "Express yourself",
+                    icon: "paintbrush.fill",
+                    colors: [.purple, .pink],
+                    action: { /* Navigate to free draw */ }
+                )
+                
+                QuickActionCardEnhanced(
+                    title: "Next Lesson",
+                    subtitle: "Continue learning",
+                    icon: "play.circle.fill",
+                    colors: [.blue, .cyan],
+                    action: { /* Navigate to next lesson */ }
+                )
+                
+                QuickActionCardEnhanced(
+                    title: "Gallery",
+                    subtitle: "View your art",
+                    icon: "photo.stack.fill",
+                    colors: [.orange, .yellow],
+                    action: { /* Navigate to gallery */ }
+                )
+                
+                QuickActionCardEnhanced(
+                    title: "Community",
+                    subtitle: "Share & discover",
+                    icon: "person.2.fill",
+                    colors: [.green, .mint],
+                    action: { /* Navigate to community */ }
+                )
+            }
+        }
+    }
+    
+    // MARK: - Enhanced Recent Artworks
+    
+    private var recentArtworksEnhanced: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Recent Artworks")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
-                Button("See All") {
-                    // Navigate to lessons
+                Button("View All") {
+                    // Navigate to full gallery
                 }
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(.blue)
             }
             
-            VStack(spacing: 12) {
-                ForEach(viewModel.recommendedLessons.prefix(3), id: \.id) { lesson in
-                    ArtisticLessonCard(lesson: lesson) {
-                        // Start lesson
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 16) {
+                    ForEach(0..<5, id: \.self) { index in
+                        RecentArtworkCardEnhanced(index: index)
                     }
+                }
+                .padding(.horizontal, 20)
+            }
+            .padding(.horizontal, -20)
+        }
+    }
+    
+    struct RecentArtworkCardEnhanced: View {
+        let index: Int
+        
+        var body: some View {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: Double.random(in: 0.8...1.0), green: Double.random(in: 0.8...1.0), blue: Double.random(in: 0.8...1.0)),
+                            Color(red: Double.random(in: 0.7...0.9), green: Double.random(in: 0.7...0.9), blue: Double.random(in: 0.7...0.9))
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 120, height: 120)
+                .overlay(
+                    VStack {
+                        Image(systemName: ["paintbrush", "pencil", "scribble", "circle.dashed", "triangle"].randomElement()!)
+                            .font(.title)
+                            .foregroundColor(.white.opacity(0.8))
+                            .shadow(radius: 2)
+                    }
+                )
+                .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+        }
+    }
+    
+    // MARK: - Enhanced Learning Path
+    
+    private var learningPathEnhanced: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Continue Your Journey")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            VStack(spacing: 12) {
+                ForEach(0..<3, id: \.self) { index in
+                    LearningPathCardEnhanced(
+                        title: ["Color Theory Basics", "Drawing Fundamentals", "Digital Art Techniques"][index],
+                        progress: [0.7, 0.3, 0.9][index],
+                        lessonsCompleted: [7, 3, 12][index],
+                        totalLessons: [10, 10, 14][index],
+                        difficulty: ["Beginner", "Intermediate", "Advanced"][index],
+                        estimatedTime: ["15 min", "20 min", "25 min"][index],
+                        colors: [
+                            [.purple, .pink],
+                            [.blue, .cyan],
+                            [.orange, .yellow]
+                        ][index]
+                    )
                 }
             }
         }
     }
     
-    // MARK: - Weekly Insights
-    
-    private var weeklyInsights: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label("Weekly Insights", systemImage: "chart.line.uptrend.xyaxis")
-                .font(.headline.weight(.semibold))
-            
+    struct LearningPathCardEnhanced: View {
+        let title: String
+        let progress: Double
+        let lessonsCompleted: Int
+        let totalLessons: Int
+        let difficulty: String
+        let estimatedTime: String
+        let colors: [Color]
+        
+        var body: some View {
             HStack(spacing: 16) {
-                InsightCard(
-                    title: "Total Practice",
-                    value: "\(viewModel.weeklyStats.totalMinutes)",
-                    unit: "minutes",
-                    icon: "clock.fill",
-                    color: .purple,
-                    trend: "+12%"
-                )
+                // Progress indicator
+                ZStack {
+                    Circle()
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                        .frame(width: 50, height: 50)
+                    
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(
+                            LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing),
+                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                        )
+                        .frame(width: 50, height: 50)
+                        .rotationEffect(.degrees(-90))
+                    
+                    Text("\(Int(progress * 100))%")
+                        .font(.caption.bold())
+                        .foregroundColor(.primary)
+                }
                 
-                InsightCard(
-                    title: "XP Earned",
-                    value: "\(viewModel.weeklyStats.totalXP)",
-                    unit: "points",
-                    icon: "star.fill",
-                    color: .orange,
-                    trend: "+25%"
-                )
+                // Content
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline.weight(.semibold))
+                        .foregroundColor(.primary)
+                    
+                    Text("\(lessonsCompleted)/\(totalLessons) lessons • \(difficulty)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        Label(estimatedTime, systemImage: "clock")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Text("Continue")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(colors[0])
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                LinearGradient(colors: colors.map { $0.opacity(0.3) }, startPoint: .leading, endPoint: .trailing),
+                                lineWidth: 1
+                            )
+                    )
+            )
+            .shadow(color: colors[0].opacity(0.1), radius: 6, y: 3)
+        }
+    }
+    
+    // MARK: - Enhanced Weekly Insights
+    
+    private var weeklyInsightsEnhanced: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("This Week's Insights")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
             }
             
-            // Mini chart
-            WeeklyArtChart(stats: viewModel.weeklyStats)
-                .frame(height: 100)
-                .padding(.top, 8)
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ], spacing: 12) {
+                InsightCardEnhanced(
+                    title: "Minutes Practiced",
+                    value: "\(viewModel.weeklyStats.totalMinutes)",
+                    subtitle: "This week",
+                    icon: "clock.fill",
+                    colors: [.blue, .purple],
+                    trend: .up,
+                    trendValue: "23%"
+                )
+                
+                InsightCardEnhanced(
+                    title: "XP Earned",
+                    value: "\(viewModel.weeklyStats.totalXP)",
+                    subtitle: "Total points",
+                    icon: "star.fill",
+                    colors: [.orange, .yellow],
+                    trend: .up,
+                    trendValue: "15%"
+                )
+                
+                InsightCardEnhanced(
+                    title: "Daily Average",
+                    value: "\(viewModel.weeklyStats.averageMinutesPerDay)",
+                    subtitle: "Minutes/day",
+                    icon: "chart.line.uptrend.xyaxis",
+                    colors: [.green, .mint],
+                    trend: .stable,
+                    trendValue: "0%"
+                )
+                
+                InsightCardEnhanced(
+                    title: "Best Day",
+                    value: "Tuesday",
+                    subtitle: "Most active",
+                    icon: "calendar",
+                    colors: [.purple, .pink],
+                    trend: nil,
+                    trendValue: nil
+                )
+            }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(.ultraThinMaterial)
+    }
+    
+    struct InsightCardEnhanced: View {
+        let title: String
+        let value: String
+        let subtitle: String
+        let icon: String
+        let colors: [Color]
+        let trend: TrendDirection?
+        let trendValue: String?
+        
+        enum TrendDirection {
+            case up, down, stable
+            
+            var icon: String {
+                switch self {
+                case .up: return "arrow.up.right"
+                case .down: return "arrow.down.right"
+                case .stable: return "minus"
+                }
+            }
+            
+            var color: Color {
+                switch self {
+                case .up: return .green
+                case .down: return .red
+                case .stable: return .gray
+                }
+            }
+        }
+        
+        var body: some View {
+            VStack(spacing: 12) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.title3)
+                        .foregroundColor(colors[0])
+                    
+                    Spacer()
+                    
+                    if let trend = trend, let trendValue = trendValue {
+                        HStack(spacing: 2) {
+                            Image(systemName: trend.icon)
+                                .font(.caption2)
+                            Text(trendValue)
+                                .font(.caption2.weight(.medium))
+                        }
+                        .foregroundColor(trend.color)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(trend.color.opacity(0.1))
+                        .cornerRadius(6)
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(value)
+                        .font(.title.bold())
+                        .foregroundColor(.primary)
+                    
+                    Text(title)
+                        .font(.headline.weight(.medium))
+                        .foregroundColor(.primary)
+                    
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(.ultraThinMaterial, lineWidth: 1)
+                    )
+            )
+            .shadow(color: colors[0].opacity(0.1), radius: 6, y: 3)
+        }
+    }
+    
+    // MARK: - Enhanced Toolbar Components
+    
+    private var enhancedUserGreeting: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(greetingText)
+                .font(.caption.weight(.medium))
+                .foregroundColor(.secondary)
+            
+            Text(viewModel.userName.isEmpty ? "Artist" : viewModel.userName)
+                .font(.headline.bold())
+                .foregroundColor(.primary)
+        }
+    }
+    
+    private var enhancedToolbarActions: some View {
+        HStack(spacing: 12) {
+            Button {
+                showingMoreOptions.toggle()
+            } label: {
+                Image(systemName: "bell.badge")
+                    .font(.title3)
+                    .foregroundColor(.primary)
+                    .overlay(
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 8, height: 8)
+                            .offset(x: 8, y: -8),
+                        alignment: .topTrailing
+                    )
+            }
+            
+            profileButtonEnhanced
+        }
+    }
+    
+    private var profileButtonEnhanced: some View {
+        AsyncImage(url: URL(string: viewModel.userName.isEmpty ? "" : "")) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } placeholder: {
+            LinearGradient(
+                colors: [.purple, .pink],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .overlay(
+                Image(systemName: "person.fill")
+                    .font(.title3)
+                    .foregroundColor(.white)
+            )
+        }
+        .frame(width: 36, height: 36)
+        .clipShape(Circle())
+        .overlay(
+            Circle()
+                .stroke(.ultraThinMaterial, lineWidth: 2)
         )
+        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+    }
+    
+    // MARK: - Enhanced Loading View
+    
+    private var enhancedLoadingView: some View {
+        VStack(spacing: 32) {
+            ForEach(0..<4, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial)
+                    .frame(height: [80, 120, 160, 100][index])
+                    .shimmerEffect()
+                    .animation(.easeInOut(duration: 1.5).delay(Double(index) * 0.1).repeatForever(autoreverses: true), value: UUID())
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 40)
     }
     
     // MARK: - Helper Properties
@@ -363,110 +857,59 @@ struct HomeDashboardView: View {
     private var greetingText: String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
-        case 0..<12: return "Good Morning"
-        case 12..<17: return "Good Afternoon"
-        default: return "Good Evening"
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<22: return "Good evening"
+        default: return "Good night"
         }
-    }
-    
-    private var profileButton: some View {
-        AsyncImage(url: URL(string: userDataService.currentUser?.profileImageURL ?? "")) { image in
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } placeholder: {
-            Image(systemName: "person.circle.fill")
-                .font(.title2)
-                .foregroundColor(.gray)
-        }
-        .frame(width: 32, height: 32)
-        .clipShape(Circle())
-        .overlay(
-            Circle()
-                .stroke(
-                    LinearGradient(
-                        colors: [.purple, .pink],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 2
-                )
-        )
-    }
-    
-    private var notificationButton: some View {
-           Button {
-               // Show notifications
-           } label: {
-               Image(systemName: "bell")
-                   .font(.title3)
-                   .foregroundColor(.primary)
-           }
-       }
-        
-    
-    private var loadingView: some View {
-        VStack(spacing: 24) {
-            ForEach(0..<3) { _ in
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.gray.opacity(0.1))
-                    .frame(height: 150)
-                    .shimmer()
-            }
-        }
-        .padding(.top, 40)
     }
 }
 
-// MARK: - Supporting Components
+// MARK: - Enhanced Supporting Components
 
-struct PaintSplash: View {
-    let colors = [Color.purple, Color.pink, Color.orange, Color.blue, Color.cyan]
-    @State private var randomColor: Color
-    @State private var scale: CGFloat
-    
-    init() {
-        _randomColor = State(initialValue: colors.randomElement()!)
-        _scale = State(initialValue: CGFloat.random(in: 0.5...2.0))
-    }
-    
-    var body: some View {
-        Circle()
-            .fill(randomColor)
-            .frame(width: 150 * scale, height: 150 * scale)
-            .blur(radius: 30)
-    }
-}
-
-struct QuickStartButton: View {
+struct QuickActionCardEnhanced: View {
     let title: String
+    let subtitle: String
     let icon: String
-    let gradient: [Color]
+    let colors: [Color]
     let action: () -> Void
     @State private var isPressed = false
     
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            VStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.title3)
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 50, height: 50)
+                    .background(
+                        LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .clipShape(Circle())
+                    .shadow(color: colors[0].opacity(0.3), radius: 8, y: 4)
                 
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
+                VStack(spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.primary)
+                    
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
-            .foregroundColor(.white)
+            .padding(.vertical, 20)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
             .background(
-                LinearGradient(
-                    colors: gradient,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(.ultraThinMaterial, lineWidth: 1)
+                    )
             )
-            .cornerRadius(16)
-            .shadow(color: gradient[0].opacity(0.3), radius: 8, y: 4)
             .scaleEffect(isPressed ? 0.95 : 1.0)
+            .shadow(color: .black.opacity(0.05), radius: 10, y: 5)
         }
         .buttonStyle(PlainButtonStyle())
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity) { pressing in
@@ -477,430 +920,77 @@ struct QuickStartButton: View {
     }
 }
 
-struct CreativePromptCard: View {
-    let prompt: String
-    let difficulty: String
-    let timeEstimate: String
-    let xpReward: Int
-    let action: () -> Void
+// MARK: - Enhanced Button Styles
+
+struct PremiumButtonStyle: ButtonStyle {
+    let colors: [Color]
+    let isCompact: Bool
     
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(prompt)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.leading)
-                
-                HStack {
-                    HStack(spacing: 4) {
-                        Image(systemName: "gauge")
-                            .font(.caption)
-                        Text(difficulty)
-                            .font(.caption)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.orange.opacity(0.2)))
-                    .foregroundColor(.orange)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption)
-                        Text(timeEstimate)
-                            .font(.caption)
-                    }
-                    .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Text("+\(xpReward) XP")
-                        .font(.caption.weight(.bold))
-                        .foregroundColor(.purple)
-                }
-            }
-            .padding()
-            .frame(maxWidth: .infinity)
+    init(colors: [Color], isCompact: Bool = false) {
+        self.colors = colors
+        self.isCompact = isCompact
+    }
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: isCompact ? 14 : 16, weight: .semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, isCompact ? 16 : 24)
+            .padding(.vertical, isCompact ? 10 : 14)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.purple.opacity(0.1),
-                                Color.pink.opacity(0.1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(
-                        LinearGradient(
-                            colors: [.purple.opacity(0.3), .pink.opacity(0.3)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
+            .cornerRadius(isCompact ? 12 : 16)
+            .shadow(color: colors[0].opacity(0.3), radius: 8, y: 4)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.spring(response: 0.3), value: configuration.isPressed)
     }
 }
 
-struct ArtisticProgressRing: View {
-    let progress: Double
-    let gradient: [Color]
-    let size: CGFloat
-    let lineWidth: CGFloat
+struct SecondaryButtonStyle: ButtonStyle {
+    let isCompact: Bool
     
-    @State private var animatedProgress: Double = 0
+    init(isCompact: Bool = false) {
+        self.isCompact = isCompact
+    }
     
-    var body: some View {
-        ZStack {
-            // Background ring
-            Circle()
-                .stroke(Color.gray.opacity(0.2), lineWidth: lineWidth)
-                .frame(width: size, height: size)
-            
-            // Progress ring
-            Circle()
-                .trim(from: 0, to: animatedProgress)
-                .stroke(
-                    LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                )
-                .frame(width: size, height: size)
-                .rotationEffect(.degrees(-90))
-                .onAppear {
-                    withAnimation(.spring(response: 1.0, dampingFraction: 0.8)) {
-                        animatedProgress = min(progress, 1.0)
-                    }
-                }
-                .onChange(of: progress) { newValue in
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                        animatedProgress = min(newValue, 1.0)
-                    }
-                }
-            
-            // Decorative dots
-            ForEach(0..<8) { index in
-                Circle()
-                    .fill(gradient[0].opacity(0.3))
-                    .frame(width: 4, height: 4)
-                    .offset(y: -size/2 + lineWidth/2)
-                    .rotationEffect(.degrees(Double(index) * 45))
-            }
-        }
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: isCompact ? 14 : 16, weight: .medium))
+            .foregroundColor(.secondary)
+            .padding(.horizontal, isCompact ? 16 : 24)
+            .padding(.vertical, isCompact ? 10 : 14)
+            .background(.ultraThinMaterial)
+            .cornerRadius(isCompact ? 12 : 16)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.spring(response: 0.3), value: configuration.isPressed)
     }
 }
 
-struct RecentArtworkCard: View {
-    let artworkId: String
-    
-    var body: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color.purple.opacity(0.2),
-                        Color.pink.opacity(0.2)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .frame(width: 120, height: 120)
-            .overlay(
-                VStack {
-                    Image(systemName: "photo.artframe")
-                        .font(.largeTitle)
-                        .foregroundColor(.purple.opacity(0.5))
-                    
-                    Text("Artwork")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.purple.opacity(0.3), lineWidth: 1)
-            )
+// MARK: - Utility Views
+
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
-struct AddNewArtworkCard: View {
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.gray.opacity(0.1))
-                .frame(width: 120, height: 120)
-                .overlay(
-                    VStack(spacing: 8) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.largeTitle)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.purple, .pink],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                        
-                        Text("New")
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(.secondary)
-                    }
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(style: StrokeStyle(lineWidth: 2, dash: [5]))
-                        .foregroundColor(.purple.opacity(0.3))
-                )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct EmptyArtworkCard: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "paintpalette")
-                .font(.system(size: 50))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.purple, .pink],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            
-            Text("Start Creating!")
-                .font(.headline)
-            
-            Text("Your artwork gallery is waiting for your first masterpiece")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.vertical, 40)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color.purple.opacity(0.05))
-        )
-    }
-}
-
-struct ArtisticLessonCard: View {
-    let lesson: Lesson
-    let action: () -> Void
-    @State private var isHovered = false
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                // Icon with gradient background
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [lesson.color, lesson.color.opacity(0.6)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 50, height: 50)
-                    
-                    Image(systemName: lesson.icon)
-                        .font(.title3)
-                        .foregroundColor(.white)
-                }
-                
-                // Content
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(lesson.title)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    
-                    HStack(spacing: 12) {
-                        Label("\(lesson.estimatedMinutes)m", systemImage: "clock")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text("•")
-                            .foregroundColor(.secondary)
-                        
-                        Text(lesson.category.rawValue)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-                
-                // XP and arrow
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("+\(lesson.xpReward)")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundColor(lesson.color)
-                    
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.title3)
-                        .foregroundColor(lesson.color.opacity(0.3))
-                        .scaleEffect(isHovered ? 1.1 : 1.0)
-                }
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(UIColor.secondarySystemBackground))
-                    .shadow(color: lesson.color.opacity(0.1), radius: 8, y: 4)
-            )
-            .scaleEffect(isHovered ? 1.02 : 1.0)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .onHover { hovering in
-            withAnimation(.spring(response: 0.3)) {
-                isHovered = hovering
-            }
-        }
-    }
-}
-
-struct InsightCard: View {
-    let title: String
-    let value: String
-    let unit: String
-    let icon: String
-    let color: Color
-    let trend: String
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundColor(color)
-                
-                Spacer()
-                
-                Text(trend)
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(.green)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(value)
-                    .font(.title.bold())
-                    .foregroundColor(.primary)
-                
-                Text(unit)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Text(title)
-                .font(.caption2.weight(.medium))
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(UIColor.tertiarySystemBackground))
-        )
-    }
-}
-
-struct WeeklyArtChart: View {
-    let stats: WeeklyStats
-    
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 4) {
-            ForEach(stats.days, id: \.date) { day in
-                VStack(spacing: 4) {
-                    // Bar
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            day.minutes > 0 ?
-                            LinearGradient(
-                                colors: [.purple, .pink],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ) :
-                            LinearGradient(
-                                colors: [Color.gray.opacity(0.2)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(height: barHeight(for: day.minutes))
-                    
-                    // Day label
-                    Text(dayLabel(for: day.date))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-    }
-    
-    private func barHeight(for minutes: Int) -> CGFloat {
-        let maxMinutes = stats.days.map(\.minutes).max() ?? 30
-        let normalizedHeight = CGFloat(minutes) / CGFloat(max(maxMinutes, 1))
-        return max(normalizedHeight * 80, 4)
-    }
-    
-    private func dayLabel(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E"
-        return String(formatter.string(from: date).prefix(1))
-    }
-}
-
-// Shimmer extension
 extension View {
-    func shimmer() -> some View {
-        self
-            .redacted(reason: .placeholder)
-            .shimmering()
-    }
-    
-    func shimmering() -> some View {
+    func shimmerEffect() -> some View {
         self.overlay(
-            GeometryReader { geometry in
-                let gradient = LinearGradient(
-                    colors: [
-                        Color.clear,
-                        Color.white.opacity(0.3),
-                        Color.clear
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                
-                Rectangle()
-                    .fill(gradient)
-                    .offset(x: -geometry.size.width)
-                    .animation(
-                        .linear(duration: 1.5)
-                        .repeatForever(autoreverses: false),
-                        value: UUID()
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [.clear, .white.opacity(0.3), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
                     )
-            }
-            .clipped()
+                )
+                .rotationEffect(.degrees(30))
+                .offset(x: -200)
+                .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: UUID())
         )
+        .clipped()
     }
-}
-
-#Preview {
-    HomeDashboardView()
-        .environmentObject(FirebaseAuthService())
 }
