@@ -811,29 +811,34 @@ struct HomeDashboardView: View {
     }
     
     private var profileButtonEnhanced: some View {
-        AsyncImage(url: URL(string: viewModel.userName.isEmpty ? "" : "")) { image in
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } placeholder: {
-            LinearGradient(
-                colors: [.purple, .pink],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+        NavigationLink(destination: ProfileView()) {
+            AsyncImage(url: URL(string: viewModel.userName.isEmpty ? "" : "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                LinearGradient(
+                    colors: [.purple, .pink],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                )
+            }
+            .frame(width: 36, height: 36)
+            .clipShape(Circle())
             .overlay(
-                Image(systemName: "person.fill")
-                    .font(.title3)
-                    .foregroundColor(.white)
+                Circle()
+                    .stroke(.ultraThinMaterial, lineWidth: 2)
             )
+            .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+            .scaleEffect(1.0)
+            .animation(.spring(response: 0.3), value: false)
         }
-        .frame(width: 36, height: 36)
-        .clipShape(Circle())
-        .overlay(
-            Circle()
-                .stroke(.ultraThinMaterial, lineWidth: 2)
-        )
-        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+        .buttonStyle(PlainButtonStyle())
     }
     
     // MARK: - Enhanced Loading View
