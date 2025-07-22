@@ -58,29 +58,34 @@ struct Curriculum {
 extension Curriculum {
     
     // LESSON 1: Welcome & Introduction (Clean, No Hints)
+    // MARK: - Enhanced Lesson 1: Perfect 6-Step Art Education Experience
+    // File: ArtOfTheFuture/Features/Lessons/Data/LessonsCurriculum.swift (Replace beginnerLesson001)
+
     static let beginnerLesson001 = Lesson(
         id: "lesson_001",
         title: "Welcome to Drawing!",
-        description: "Learn the basics of digital drawing and get started with your first strokes",
+        description: "Your first steps into the world of art - learn tool basics and make your first confident marks",
         type: .drawingPractice,
         category: .basics,
         difficulty: .beginner,
-        estimatedMinutes: 3,
-        xpReward: 50,
+        estimatedMinutes: 8,
+        xpReward: 100,
         steps: [
+            // STEP 1: Warm Welcome & Mindset (Introduction)
             LessonStep(
                 id: "step_001_1",
                 order: 1,
-                title: "Welcome, Artist!",
-                instruction: "Ready to start your artistic journey? Let's begin with the fundamentals of digital drawing!",
+                title: "Welcome, Future Artist!",
+                instruction: "Every great artist started exactly where you are now. Let's begin your artistic journey together with confidence and curiosity.",
                 content: .introduction(IntroContent(
                     displayImage: nil,
                     animationName: nil,
                     bulletPoints: [
-                        "Hold your Apple Pencil naturally and comfortably",
-                        "Start with simple shapes and practice basic strokes",
-                        "Focus on smooth, confident movements",
-                        "Don't worry about perfection—practice makes progress!"
+                        "🎨 Art is about expression, not perfection",
+                        "✏️ Every stroke teaches you something new",
+                        "🌟 Your unique style will develop naturally",
+                        "🎯 Focus on learning, not comparing",
+                        "💪 Confidence comes from practice, not talent"
                     ]
                 )),
                 validation: ValidationCriteria(
@@ -93,43 +98,204 @@ extension Curriculum {
                     ),
                     requiresAllCorrect: false
                 ),
-                xpValue: 25
+                xpValue: 15
             ),
+            
+            // STEP 2: Tool Understanding (Theory)
             LessonStep(
                 id: "step_001_2",
                 order: 2,
-                title: "Your First Marks",
-                instruction: "Let's practice making your first marks on the canvas. Draw whatever feels natural!",
+                title: "Understanding Your Digital Tools",
+                instruction: "Let's learn about the amazing tools you have at your fingertips and how they work.",
+                content: .theory(TheoryContent(
+                    question: "What makes digital drawing different from traditional drawing?",
+                    visualAid: nil,
+                    answerType: .singleChoice,
+                    options: [
+                        TheoryContent.AnswerOption(
+                            id: "unlimited_undo",
+                            text: "You can undo mistakes and experiment freely",
+                            image: nil
+                        ),
+                        TheoryContent.AnswerOption(
+                            id: "exactly_same",
+                            text: "It's exactly the same as drawing on paper",
+                            image: nil
+                        ),
+                        TheoryContent.AnswerOption(
+                            id: "only_perfect",
+                            text: "Only perfect artists can draw digitally",
+                            image: nil
+                        ),
+                        TheoryContent.AnswerOption(
+                            id: "no_creativity",
+                            text: "Digital drawing isn't as creative",
+                            image: nil
+                        )
+                    ],
+                    correctAnswers: ["unlimited_undo"],
+                    explanation: "Exactly! Digital drawing gives you the freedom to experiment, make mistakes, and learn without fear. You can undo, try different approaches, and build confidence through exploration. This makes it perfect for learning!"
+                )),
+                validation: ValidationCriteria(
+                    minScore: 1.0,
+                    maxAttempts: 3,
+                    rules: [],
+                    feedback: ValidationCriteria.FeedbackConfig(
+                        showRealtime: false,
+                        encouragementThreshold: 1.0
+                    ),
+                    requiresAllCorrect: true
+                ),
+                xpValue: 15
+            ),
+            
+            // STEP 3: First Gentle Marks (Drawing)
+            LessonStep(
+                id: "step_001_3",
+                order: 3,
+                title: "Your Very First Marks",
+                instruction: "Let's make some gentle marks on the canvas. Don't worry about what you're drawing - just feel the tool responding to your movements. Scribble, doodle, or draw simple lines.",
                 content: .drawing(DrawingContent(
-                    canvasSize: CGSize(width: 350, height: 250),
+                    canvasSize: CGSize(width: 300, height: 200),
                     backgroundColor: "#FFFFFF",
-                    guidelines: [],
+                    guidelines: nil,  // No guidelines for free exploration
                     referenceImage: nil,
-                    toolsAllowed: [.pen, .pencil]
+                    toolsAllowed: [.pencil, .pen]
+                )),
+                validation: ValidationCriteria(
+                    minScore: 0.1,  // Very low threshold - just need to draw something
+                    maxAttempts: 1,
+                    rules: [],
+                    feedback: ValidationCriteria.FeedbackConfig(
+                        showRealtime: true,
+                        encouragementThreshold: 0.1
+                    ),
+                    requiresAllCorrect: false
+                ),
+                xpValue: 20
+            ),
+            
+            // STEP 4: Pressure and Control (Drawing)
+            LessonStep(
+                id: "step_001_4",
+                order: 4,
+                title: "Discovering Pressure Control",
+                instruction: "Now let's explore how pressure affects your strokes. Try drawing some lines: press lightly for thin lines, press harder for thick lines. Notice how the tool responds to your touch.",
+                content: .drawing(DrawingContent(
+                    canvasSize: CGSize(width: 300, height: 200),
+                    backgroundColor: "#FFFFFF",
+                    guidelines: nil,
+                    referenceImage: nil,
+                    toolsAllowed: [.pencil, .pen]
+                )),
+                validation: ValidationCriteria(
+                    minScore: 0.3,
+                    maxAttempts: 2,
+                    rules: [],
+                    feedback: ValidationCriteria.FeedbackConfig(
+                        showRealtime: true,
+                        encouragementThreshold: 0.2
+                    ),
+                    requiresAllCorrect: false
+                ),
+                xpValue: 20
+            ),
+            
+            // STEP 5: First Simple Shape (Challenge)
+            LessonStep(
+                id: "step_001_5",
+                order: 5,
+                title: "Your First Circle Challenge",
+                instruction: "Ready for your first small challenge? Try to draw a circle. It doesn't need to be perfect - just do your best! This is about building confidence, not perfection.",
+                content: .challenge(ChallengeContent(
+                    challengeType: .freestyle,
+                    prompt: "Draw a circle anywhere on the canvas. Take your time and don't worry if it's not perfectly round!",
+                    resources: [
+                        "Remember: light, confident strokes",
+                        "You can start over if you want to",
+                        "Every artist's circles look different - that's what makes art personal"
+                    ],
+                    constraints: [
+                        "encouragement": "true",
+                        "focus": "confidence"
+                    ]
                 )),
                 validation: ValidationCriteria(
                     minScore: 0.5,
                     maxAttempts: 3,
                     rules: [],
                     feedback: ValidationCriteria.FeedbackConfig(
-                        showRealtime: true,
+                        showRealtime: false,
                         encouragementThreshold: 0.3
                     ),
                     requiresAllCorrect: false
                 ),
                 xpValue: 25
+            ),
+            
+            // STEP 6: Reflection and Next Steps (Theory)
+            LessonStep(
+                id: "step_001_6",
+                order: 6,
+                title: "Celebrating Your First Steps",
+                instruction: "Look at what you've accomplished! You've taken your first steps into the world of digital art. Every great artist started exactly like this.",
+                content: .theory(TheoryContent(
+                    question: "What's the most important thing you learned in this lesson?",
+                    visualAid: nil,
+                    answerType: .singleChoice,
+                    options: [
+                        TheoryContent.AnswerOption(
+                            id: "need_perfect",
+                            text: "I need to draw perfectly from the start",
+                            image: nil
+                        ),
+                        TheoryContent.AnswerOption(
+                            id: "explore_confidence",
+                            text: "It's okay to explore and build confidence gradually",
+                            image: nil
+                        ),
+                        TheoryContent.AnswerOption(
+                            id: "too_hard",
+                            text: "Digital drawing is too hard for me",
+                            image: nil
+                        ),
+                        TheoryContent.AnswerOption(
+                            id: "only_talent",
+                            text: "Only naturally talented people can draw",
+                            image: nil
+                        )
+                    ],
+                    correctAnswers: ["explore_confidence"],
+                    explanation: "Perfect! Art is a journey of exploration and gradual improvement. Every mark you make teaches you something new. You're building the foundation for amazing art skills - be proud of taking these first brave steps!"
+                )),
+                validation: ValidationCriteria(
+                    minScore: 1.0,
+                    maxAttempts: 2,
+                    rules: [],
+                    feedback: ValidationCriteria.FeedbackConfig(
+                        showRealtime: false,
+                        encouragementThreshold: 1.0
+                    ),
+                    requiresAllCorrect: true
+                ),
+                xpValue: 15
             )
         ],
         exercises: [],
         objectives: [
-            "Get comfortable with digital drawing tools",
-            "Make your first marks on the canvas",
-            "Understand the app interface"
+            "🎯 Understand the mindset of a learning artist",
+            "🛠️ Learn how digital drawing tools work",
+            "✏️ Make your first confident marks on digital canvas",
+            "🎨 Explore pressure control and line variation",
+            "⭐ Complete your first drawing challenge",
+            "🚀 Build confidence for your artistic journey ahead"
         ],
         tips: [
-            "There's no wrong way to hold your pencil—find what's comfortable",
-            "Light, confident strokes work better than heavy, hesitant ones",
-            "Every expert artist started with their first mark"
+            "Hold your Apple Pencil like you would hold a regular pencil - naturally and comfortably",
+            "Light, confident strokes usually look better than heavy, uncertain ones",
+            "The undo button is your friend - use it to experiment freely",
+            "Focus on the motion, not just the result",
+            "Every professional artist was once a beginner taking their first lesson"
         ],
         prerequisites: [],
         unlocks: ["lesson_002"]
