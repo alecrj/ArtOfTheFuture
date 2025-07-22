@@ -8,11 +8,14 @@ struct HomeDashboardView: View {
     @StateObject private var viewModel = HomeDashboardViewModel()
     @StateObject private var userDataService = UserDataService.shared
     @EnvironmentObject var authService: FirebaseAuthService
-    @Environment(\.colorScheme) var colorScheme
     @State private var selectedTab = 0
     @State private var scrollOffset: CGFloat = 0
     @State private var heroOpacity: Double = 1.0
     @State private var showingMoreOptions = false
+    @State private var navigateToGallery = false
+    @State private var navigateToDraw = false
+    @State private var navigateToNextLesson = false
+    @State private var nextLesson: Lesson?
     
     var body: some View {
         NavigationView {
@@ -58,6 +61,24 @@ struct HomeDashboardView: View {
                     let threshold: CGFloat = 100
                     heroOpacity = max(0.3, 1.0 - abs(value) / threshold)
                 }
+                
+                // Hidden NavigationLinks
+                NavigationLink(destination: GalleryView(), isActive: $navigateToGallery) {
+                    EmptyView()
+                }
+                .hidden()
+                
+                NavigationLink(destination: DrawingView(), isActive: $navigateToDraw) {
+                    EmptyView()
+                }
+                .hidden()
+                
+                if let nextLesson = nextLesson {
+                    NavigationLink(destination: LessonPlayerView(lesson: nextLesson), isActive: $navigateToNextLesson) {
+                        EmptyView()
+                    }
+                    .hidden()
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -76,28 +97,26 @@ struct HomeDashboardView: View {
         .onAppear {
             Task {
                 await viewModel.loadDashboard()
+                await loadNextLessonInfo()
             }
         }
+        .preferredColorScheme(.dark)
     }
     
     // MARK: - Enhanced Artistic Background
     
     struct EnhancedArtisticBackground: View {
         let scrollOffset: CGFloat
-        @Environment(\.colorScheme) var colorScheme
         
         var body: some View {
             ZStack {
-                // Dynamic gradient background
+                // Dark gradient background
                 LinearGradient(
-                    colors: colorScheme == .dark ? [
+                    colors: [
                         Color(red: 0.05, green: 0.05, blue: 0.12),
                         Color(red: 0.08, green: 0.05, blue: 0.15),
-                        Color(red: 0.12, green: 0.08, blue: 0.20)
-                    ] : [
-                        Color(red: 0.99, green: 0.97, blue: 1.0),
-                        Color(red: 0.97, green: 0.99, blue: 0.98),
-                        Color(red: 0.98, green: 0.96, blue: 0.99)
+                        Color(red: 0.12, green: 0.08, blue: 0.20),
+                        Color(red: 0.06, green: 0.08, blue: 0.16)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -111,21 +130,22 @@ struct HomeDashboardView: View {
                                 x: CGFloat(index % 2 == 0 ? 0.2 : 0.8) * geometry.size.width + sin(scrollOffset * 0.01) * 20,
                                 y: CGFloat(index) * geometry.size.height / 6 + cos(scrollOffset * 0.005) * 10
                             )
-                            .opacity(colorScheme == .dark ? 0.06 : 0.04)
+                            .opacity(0.08)
                     }
                 }
                 
-                // Subtle texture overlay
+                // Subtle dark texture overlay
                 Rectangle()
                     .fill(
                         RadialGradient(
                             gradient: Gradient(colors: [
                                 Color.clear,
-                                colorScheme == .dark ? Color.black.opacity(0.1) : Color.white.opacity(0.1)
+                                Color.black.opacity(0.15),
+                                Color.purple.opacity(0.05)
                             ]),
                             center: .center,
                             startRadius: 100,
-                            endRadius: 400
+                            endRadius: 500
                         )
                     )
             }
@@ -169,17 +189,17 @@ struct HomeDashboardView: View {
                     .font(.system(size: 42, weight: .heavy, design: .serif))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.purple, .pink, .orange],
+                            colors: [.cyan, .purple, .pink],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+                    .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
                 
                 Text("Beautiful Today")
                     .font(.system(size: 20, weight: .medium, design: .default))
-                    .foregroundColor(.secondary)
-                    .opacity(0.8)
+                    .foregroundColor(.white.opacity(0.8))
+                    .opacity(0.9)
             }
             
             // Enhanced streak and level indicator
@@ -206,7 +226,7 @@ struct HomeDashboardView: View {
             
             Text("Day Streak")
                 .font(.caption.weight(.medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
@@ -238,12 +258,12 @@ struct HomeDashboardView: View {
                 
                 Text("Level \(viewModel.currentLevel)")
                     .font(.title2.bold())
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
             }
             
             Text("\(Int(viewModel.levelProgress * 100))% to next")
                 .font(.caption.weight(.medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
@@ -271,7 +291,7 @@ struct HomeDashboardView: View {
             HStack {
                 Label("Today's Creative Challenge", systemImage: "lightbulb.fill")
                     .font(.headline.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 
                 Spacer()
                 
@@ -279,14 +299,14 @@ struct HomeDashboardView: View {
                     .font(.caption.weight(.medium))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.2))
-                    .foregroundColor(.blue)
+                    .background(Color.blue.opacity(0.3))
+                    .foregroundColor(.cyan)
                     .cornerRadius(8)
             }
             
             Text("Draw a simple object using only geometric shapes")
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.8))
                 .fixedSize(horizontal: false, vertical: true)
             
             HStack(spacing: 12) {
@@ -323,7 +343,7 @@ struct HomeDashboardView: View {
             HStack {
                 Text("Your Progress")
                     .font(.title2.weight(.bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 
                 Spacer()
             }
@@ -379,7 +399,7 @@ struct HomeDashboardView: View {
                 
                 Text(title)
                     .font(.caption.weight(.medium))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.7))
             }
             
             // Progress ring
@@ -401,11 +421,11 @@ struct HomeDashboardView: View {
                 VStack(spacing: 0) {
                     Text(value)
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
                     Text(subtitle)
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.7))
                 }
             }
         }
@@ -429,7 +449,7 @@ struct HomeDashboardView: View {
             HStack {
                 Text("Quick Start")
                     .font(.title2.weight(.bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 
                 Spacer()
             }
@@ -443,15 +463,21 @@ struct HomeDashboardView: View {
                     subtitle: "Express yourself",
                     icon: "paintbrush.fill",
                     colors: [.purple, .pink],
-                    action: { /* Navigate to free draw */ }
+                    action: {
+                        navigateToDraw = true
+                    }
                 )
                 
                 QuickActionCardEnhanced(
                     title: "Next Lesson",
-                    subtitle: "Continue learning",
+                    subtitle: nextLesson?.title ?? "Continue learning",
                     icon: "play.circle.fill",
                     colors: [.blue, .cyan],
-                    action: { /* Navigate to next lesson */ }
+                    action: {
+                        Task {
+                            await findAndNavigateToNextLesson()
+                        }
+                    }
                 )
                 
                 QuickActionCardEnhanced(
@@ -459,7 +485,9 @@ struct HomeDashboardView: View {
                     subtitle: "View your art",
                     icon: "photo.stack.fill",
                     colors: [.orange, .yellow],
-                    action: { /* Navigate to gallery */ }
+                    action: {
+                        navigateToGallery = true
+                    }
                 )
                 
                 QuickActionCardEnhanced(
@@ -480,7 +508,7 @@ struct HomeDashboardView: View {
             HStack {
                 Text("Recent Artworks")
                     .font(.title2.weight(.bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 
                 Spacer()
                 
@@ -488,7 +516,7 @@ struct HomeDashboardView: View {
                     // Navigate to full gallery
                 }
                 .font(.subheadline.weight(.medium))
-                .foregroundColor(.blue)
+                .foregroundColor(.cyan)
             }
             
             ScrollView(.horizontal, showsIndicators: false) {
@@ -538,7 +566,7 @@ struct HomeDashboardView: View {
             HStack {
                 Text("Continue Your Journey")
                     .font(.title2.weight(.bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 
                 Spacer()
             }
@@ -598,16 +626,16 @@ struct HomeDashboardView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline.weight(.semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
                     Text("\(lessonsCompleted)/\(totalLessons) lessons • \(difficulty)")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.7))
                     
                     HStack {
                         Label(estimatedTime, systemImage: "clock")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.6))
                         
                         Spacer()
                         
@@ -642,7 +670,7 @@ struct HomeDashboardView: View {
             HStack {
                 Text("This Week's Insights")
                     .font(.title2.weight(.bold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 
                 Spacer()
             }
@@ -750,15 +778,15 @@ struct HomeDashboardView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(value)
                         .font(.title.bold())
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
                     Text(title)
                         .font(.headline.weight(.medium))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.7))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -781,11 +809,11 @@ struct HomeDashboardView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(greetingText)
                 .font(.caption.weight(.medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.7))
             
             Text(viewModel.userName.isEmpty ? "Artist" : viewModel.userName)
                 .font(.headline.bold())
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
         }
     }
     
@@ -796,7 +824,7 @@ struct HomeDashboardView: View {
             } label: {
                 Image(systemName: "bell.badge")
                     .font(.title3)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .overlay(
                         Circle()
                             .fill(Color.red)
@@ -868,6 +896,52 @@ struct HomeDashboardView: View {
         default: return "Good night"
         }
     }
+    
+    // MARK: - Navigation Methods
+    
+    private func findAndNavigateToNextLesson() async {
+        do {
+            // Get all lessons from the lesson service
+            let allLessons = try await LessonService.shared.getAllLessons()
+            let progressService = ProgressService.shared
+            let completedLessons = try await progressService.getCompletedLessons()
+            
+            // Find the first lesson that's not completed
+            let nextIncompleteLesson = allLessons.first { lesson in
+                !completedLessons.contains(lesson.id)
+            }
+            
+            await MainActor.run {
+                if let lesson = nextIncompleteLesson {
+                    nextLesson = lesson
+                    navigateToNextLesson = true
+                } else {
+                    // All lessons completed - could navigate to a completion screen or show a message
+                    print("🎉 All lessons completed!")
+                }
+            }
+        } catch {
+            print("❌ Failed to find next lesson: \(error)")
+        }
+    }
+    
+    private func loadNextLessonInfo() async {
+        do {
+            let allLessons = try await LessonService.shared.getAllLessons()
+            let progressService = ProgressService.shared
+            let completedLessons = try await progressService.getCompletedLessons()
+            
+            let nextIncompleteLesson = allLessons.first { lesson in
+                !completedLessons.contains(lesson.id)
+            }
+            
+            await MainActor.run {
+                nextLesson = nextIncompleteLesson
+            }
+        } catch {
+            print("❌ Failed to load next lesson info: \(error)")
+        }
+    }
 }
 
 // MARK: - Enhanced Supporting Components
@@ -896,11 +970,11 @@ struct QuickActionCardEnhanced: View {
                 VStack(spacing: 2) {
                     Text(title)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.7))
                 }
             }
             .padding(.vertical, 20)
