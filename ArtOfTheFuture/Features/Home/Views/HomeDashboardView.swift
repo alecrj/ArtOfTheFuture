@@ -185,7 +185,7 @@ struct HomeDashboardView: View {
         VStack(spacing: 24) {
             // Enhanced motivational text
             VStack(spacing: 12) {
-                Text("Create Something")
+                Text("Pikaso")
                     .font(.system(size: 42, weight: .heavy, design: .serif))
                     .foregroundStyle(
                         LinearGradient(
@@ -196,8 +196,8 @@ struct HomeDashboardView: View {
                     )
                     .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
                 
-                Text("Beautiful Today")
-                    .font(.system(size: 20, weight: .medium, design: .default))
+                Text("Where Artists Are Born")
+                    .font(.system(size: 22, weight: .medium, design: .default))
                     .foregroundColor(.white.opacity(0.8))
                     .opacity(0.9)
             }
