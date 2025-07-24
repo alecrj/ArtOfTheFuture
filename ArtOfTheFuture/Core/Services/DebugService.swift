@@ -150,6 +150,19 @@ final class DebugService: ObservableObject {
         }
         log(message, category: .progress)
     }
+    func logLearningEvent(_ event: LearningAnalyticsEvent, details: [String: Any]? = nil) {
+        var message = "Learning Event: \(event.rawValue)"
+        if let details = details {
+            message += " - " + details.map { "\($0.key): \($0.value)" }.joined(separator: ", ")
+        }
+        log(message, category: .learning)
+    }
+
+    enum LearningAnalyticsEvent: String {
+        case sectionViewed = "SectionViewed"
+        case unitOpened = "UnitOpened"
+    }
+
     
     // MARK: - Debug Controls
     func toggleDebugOverlay() {
